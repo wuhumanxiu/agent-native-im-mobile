@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState, useMemo } from 'react'
 import {
-  View, Text, TextInput, Pressable, FlatList, StyleSheet, RefreshControl,
+  View, Text, TextInput, Pressable, FlatList, StyleSheet, RefreshControl, Alert,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
@@ -169,7 +169,30 @@ export function ConversationListScreen({ navigation }: Props) {
         </Text>
         <Pressable
           onPress={() => {
-            // TODO: New chat modal
+            Alert.prompt(
+              t('conversation.newChat'),
+              t('conversation.newChatHint'),
+              [
+                { text: t('common.cancel'), style: 'cancel' },
+                {
+                  text: t('common.create'),
+                  onPress: async (title) => {
+                    if (!title?.trim() || !token) return
+                    const res = await api.createConversation(token, {
+                      title: title.trim(),
+                      conv_type: 'group',
+                    })
+                    if (res.ok && res.data) {
+                      await loadConversations()
+                      navigation.navigate('Chat', { conversationId: res.data.id })
+                    }
+                  },
+                },
+              ],
+              'plain-text',
+              '',
+              'default',
+            )
           }}
           style={({ pressed }) => [
             styles.newChatBtn,

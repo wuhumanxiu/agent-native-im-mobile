@@ -38,7 +38,8 @@
     "online": "Online",
     "offline": "Offline",
     "typeMessage": "Type a message...",
-    "unnamed": "Unnamed Conversation"
+    "unnamed": "Unnamed Conversation",
+    "newChatHint": "Enter a name for the group chat"
   },
   "settings": {
     "title": "Settings",
@@ -109,7 +110,8 @@
     "online": "Online",
     "offline": "Offline",
     "copied": "Copied!",
-    "signOut": "Sign Out"
+    "signOut": "Sign Out",
+    "create": "Create"
   },
   "connection": {
     "disconnected": "Connection lost, reconnecting...",

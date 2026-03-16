@@ -38,7 +38,8 @@
     "online": "在线",
     "offline": "离线",
     "typeMessage": "输入消息...",
-    "unnamed": "未命名会话"
+    "unnamed": "未命名会话",
+    "newChatHint": "输入群聊名称"
   },
   "settings": {
     "title": "设置",
@@ -109,7 +110,8 @@
     "online": "在线",
     "offline": "离线",
     "copied": "已复制！",
-    "signOut": "退出登录"
+    "signOut": "退出登录",
+    "create": "创建"
   },
   "connection": {
     "disconnected": "连接已断开，正在重连...",
