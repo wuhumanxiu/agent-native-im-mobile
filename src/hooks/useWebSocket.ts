@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from 'react'
+import { useEffect, useRef, useCallback, useState } from 'react'
 import { AppState } from 'react-native'
 import { useAuthStore } from '../store/auth'
 import { useConversationsStore } from '../store/conversations'
@@ -8,7 +8,7 @@ import * as api from '../lib/api'
 import type { WSMessage, Message } from '../lib/types'
 
 type TypingEntry = { name: string; expiresAt: number; isProcessing?: boolean; phase?: string }
-type TypingMap = Map<number, Map<number, TypingEntry>>
+export type TypingMap = Map<number, Map<number, TypingEntry>>
 
 export function useWebSocket() {
   const token = useAuthStore((s) => s.token)
@@ -20,10 +20,16 @@ export function useWebSocket() {
   const wsRef = useRef<WebSocket | null>(null)
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const reconnectAttempts = useRef(0)
-  const typingMapRef = useRef<TypingMap>(new Map())
+  const [typingMap, setTypingMap] = useState<TypingMap>(new Map())
+  const [wsConnected, setLocalWsConnected] = useState(false)
 
   const connect = useCallback(() => {
     if (!token || !entity) return
+
+    // Close existing connection if any
+    if (wsRef.current && wsRef.current.readyState !== WebSocket.CLOSED) {
+      wsRef.current.close()
+    }
 
     const baseUrl = api.getBaseUrl()
     const wsUrl = baseUrl.replace(/^http/, 'ws') + '/api/v1/ws'
@@ -53,6 +59,7 @@ export function useWebSocket() {
 
     ws.onclose = () => {
       setWsConnected(false)
+      setLocalWsConnected(false)
       scheduleReconnect()
     }
 
@@ -77,6 +84,7 @@ export function useWebSocket() {
         const data = msg.data as { self?: boolean; entity_id?: number }
         if (data?.self) {
           setWsConnected(true)
+          setLocalWsConnected(true)
         } else if (data?.entity_id) {
           setOnline(data.entity_id, true)
         }
@@ -86,6 +94,7 @@ export function useWebSocket() {
         const data = msg.data as { self?: boolean; entity_id?: number }
         if (data?.self) {
           setWsConnected(false)
+          setLocalWsConnected(false)
         } else if (data?.entity_id) {
           setOnline(data.entity_id, false)
         }
@@ -113,6 +122,17 @@ export function useWebSocket() {
               updated_at: message.created_at,
             })
           }
+
+          // Remove typing indicator for this sender
+          setTypingMap((prev) => {
+            const next = new Map(prev)
+            const convTyping = next.get(message.conversation_id)
+            if (convTyping) {
+              convTyping.delete(message.sender_id)
+              if (convTyping.size === 0) next.delete(message.conversation_id)
+            }
+            return next
+          })
         }
         break
       }
@@ -162,14 +182,18 @@ export function useWebSocket() {
       case 'typing': {
         const data = msg.data as { conversation_id?: number; entity_id?: number; entity_name?: string; is_processing?: boolean; phase?: string }
         if (data?.conversation_id && data?.entity_id && data.entity_id !== entity?.id) {
-          const convTyping = new Map(typingMapRef.current.get(data.conversation_id) || [])
-          convTyping.set(data.entity_id, {
-            name: data.entity_name || `User ${data.entity_id}`,
-            expiresAt: Date.now() + (data.is_processing ? 30000 : 4000),
-            isProcessing: data.is_processing,
-            phase: data.phase,
+          setTypingMap((prev) => {
+            const next = new Map(prev)
+            const convTyping = new Map(next.get(data.conversation_id!) || [])
+            convTyping.set(data.entity_id!, {
+              name: data.entity_name || `User ${data.entity_id}`,
+              expiresAt: Date.now() + (data.is_processing ? 30000 : 4000),
+              isProcessing: data.is_processing,
+              phase: data.phase,
+            })
+            next.set(data.conversation_id!, convTyping)
+            return next
           })
-          typingMapRef.current.set(data.conversation_id, convTyping)
         }
         break
       }
@@ -202,10 +226,45 @@ export function useWebSocket() {
     }
   }, [])
 
+  const sendCancelStream = useCallback((streamId: string, conversationId: number) => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({
+        type: 'task.cancel',
+        data: { stream_id: streamId, conversation_id: conversationId },
+      }))
+    }
+    useMessagesStore.getState().endStream(streamId)
+  }, [])
+
   const sendPing = useCallback(() => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify({ type: 'ping' }))
     }
+  }, [])
+
+  // Clean expired typing indicators
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setTypingMap((prev) => {
+        const now = Date.now()
+        let changed = false
+        const next = new Map(prev)
+        for (const [convId, entryMap] of next) {
+          for (const [entityId, entry] of entryMap) {
+            if (entry.expiresAt < now) {
+              entryMap.delete(entityId)
+              changed = true
+            }
+          }
+          if (entryMap.size === 0) {
+            next.delete(convId)
+            changed = true
+          }
+        }
+        return changed ? next : prev
+      })
+    }, 2000)
+    return () => clearInterval(interval)
   }, [])
 
   // Connect on mount, reconnect on app foreground
@@ -245,5 +304,5 @@ export function useWebSocket() {
     }
   }, [token, entity, connect, sendPing])
 
-  return { sendTyping, wsRef }
+  return { sendTyping, sendCancelStream, wsRef, typingMap, wsConnected }
 }

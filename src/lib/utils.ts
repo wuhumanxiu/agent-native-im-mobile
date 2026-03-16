@@ -62,3 +62,30 @@ export function truncate(str: string, max: number): string {
   if (str.length <= max) return str
   return str.slice(0, max - 1) + '\u2026'
 }
+
+/**
+ * Returns a human-readable date separator label.
+ * "Today", "Yesterday", or a formatted date.
+ */
+export function formatDateSeparator(iso: string, todayLabel = 'Today', yesterdayLabel = 'Yesterday'): string {
+  const d = new Date(iso)
+  const now = new Date()
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const msgDay = new Date(d.getFullYear(), d.getMonth(), d.getDate())
+  const diff = (today.getTime() - msgDay.getTime()) / 86400000
+
+  if (diff === 0) return todayLabel
+  if (diff === 1) return yesterdayLabel
+  if (diff < 7) {
+    return d.toLocaleDateString('en-US', { weekday: 'long' })
+  }
+  return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: d.getFullYear() !== now.getFullYear() ? 'numeric' : undefined })
+}
+
+/**
+ * Check if a message can be revoked (within 2 minutes of creation).
+ */
+export function canRevokeMessage(createdAt: string): boolean {
+  const twoMinMs = 2 * 60 * 1000
+  return Date.now() - new Date(createdAt).getTime() < twoMinMs
+}

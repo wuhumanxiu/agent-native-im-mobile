@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react'
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { type ThemeColors, type ThemeName, themes, darkTheme } from './colors'
+import { type ThemeColors, type ThemeName, themes, darkTheme, isDarkTheme } from './colors'
 
 interface ThemeContextType {
   colors: ThemeColors
@@ -23,8 +23,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     AsyncStorage.getItem(THEME_KEY).then((stored) => {
-      if (stored === 'light' || stored === 'dark') {
-        setThemeName(stored)
+      if (stored && stored in themes) {
+        setThemeName(stored as ThemeName)
       }
     }).catch(() => {})
   }, [])
@@ -38,7 +38,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     colors: themes[themeName],
     themeName,
     setTheme,
-    isDark: themeName === 'dark',
+    isDark: isDarkTheme(themeName),
   }
 
   return (

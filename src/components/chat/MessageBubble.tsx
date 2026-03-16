@@ -1,11 +1,10 @@
 import React, { useCallback } from 'react'
 import { View, Text, StyleSheet, Pressable, Linking } from 'react-native'
-import * as Clipboard from 'expo-clipboard'
 import * as Haptics from 'expo-haptics'
 import { Image } from 'expo-image'
 import { useTheme } from '../../theme/ThemeContext'
 import { EntityAvatar } from '../entity/EntityAvatar'
-import { entityDisplayName, formatTime, formatFileSize, authenticatedFileUrl, isBotOrService } from '../../lib/utils'
+import { entityDisplayName, formatTime, formatFileSize, authenticatedFileUrl, isBotOrService, truncate } from '../../lib/utils'
 import { getBaseUrl } from '../../lib/api'
 import type { Message, Entity } from '../../lib/types'
 
@@ -15,20 +14,21 @@ interface MessageBubbleProps {
   showSender: boolean
   showAvatar: boolean
   token: string | null
+  replyMessage?: Message
+  myEntityId?: number
   onLongPress?: (message: Message) => void
   onImagePress?: (url: string) => void
+  onReactionTap?: (msgId: number, emoji: string) => void
 }
 
 // Simple inline markdown: **bold**, *italic*, `code`, [text](url)
 function renderTextContent(text: string, textColor: string, linkColor: string) {
   const parts: React.ReactNode[] = []
-  // Split by markdown patterns
   const regex = /(\*\*.*?\*\*|\*.*?\*|`[^`]+`|\[([^\]]+)\]\(([^)]+)\))/g
   let lastIndex = 0
   let match: RegExpExecArray | null
 
   while ((match = regex.exec(text)) !== null) {
-    // Text before match
     if (match.index > lastIndex) {
       parts.push(
         <Text key={`t-${lastIndex}`} style={{ color: textColor }}>
@@ -81,7 +81,7 @@ function renderTextContent(text: string, textColor: string, linkColor: string) {
   return parts.length > 0 ? parts : <Text style={{ color: textColor }}>{text}</Text>
 }
 
-export function MessageBubble({ message, isSelf, showSender, showAvatar, token, onLongPress, onImagePress }: MessageBubbleProps) {
+export function MessageBubble({ message, isSelf, showSender, showAvatar, token, replyMessage, myEntityId, onLongPress, onImagePress, onReactionTap }: MessageBubbleProps) {
   const { colors } = useTheme()
 
   const handleLongPress = useCallback(() => {
@@ -124,7 +124,10 @@ export function MessageBubble({ message, isSelf, showSender, showAvatar, token, 
     (a) => a.mime_type?.startsWith('image/') || a.type === 'image'
   )
   const fileAttachments = (message.attachments || []).filter(
-    (a) => !a.mime_type?.startsWith('image/') && a.type !== 'image'
+    (a) => !a.mime_type?.startsWith('image/') && a.type !== 'image' && a.type !== 'audio'
+  )
+  const audioAttachments = (message.attachments || []).filter(
+    (a) => a.mime_type?.startsWith('audio/') || a.type === 'audio'
   )
 
   // Client state indicator
@@ -168,6 +171,18 @@ export function MessageBubble({ message, isSelf, showSender, showAvatar, token, 
             },
           ]}
         >
+          {/* Reply-to preview */}
+          {replyMessage && (
+            <View style={[styles.replyPreview, { borderLeftColor: colors.accent, backgroundColor: isSelf ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }]}>
+              <Text style={[styles.replySender, { color: colors.accent }]} numberOfLines={1}>
+                {entityDisplayName(replyMessage.sender)}
+              </Text>
+              <Text style={[styles.replyText, { color: secondaryTextColor }]} numberOfLines={1}>
+                {truncate((replyMessage.layers?.data?.body as string) || replyMessage.layers?.summary || '', 60)}
+              </Text>
+            </View>
+          )}
+
           {/* Text content */}
           {messageText.length > 0 && (
             <Text style={[styles.messageText, { color: textColor }]}>
@@ -194,6 +209,27 @@ export function MessageBubble({ message, isSelf, showSender, showAvatar, token, 
             )
           })}
 
+          {/* Audio attachments */}
+          {audioAttachments.map((att, i) => (
+            <Pressable
+              key={`audio-${i}`}
+              onPress={() => {
+                const url = authenticatedFileUrl(att.url, token, getBaseUrl())
+                if (url) Linking.openURL(url)
+              }}
+              style={[styles.fileAttachment, { backgroundColor: isSelf ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.05)' }]}
+            >
+              <Text style={[styles.fileName, { color: textColor }]} numberOfLines={1}>
+                {'\u{1F3B5} '}{att.filename || 'Audio'}
+              </Text>
+              {att.duration !== undefined && (
+                <Text style={[styles.fileSize, { color: secondaryTextColor }]}>
+                  {Math.floor(att.duration / 60)}:{String(Math.floor(att.duration % 60)).padStart(2, '0')}
+                </Text>
+              )}
+            </Pressable>
+          ))}
+
           {/* File attachments */}
           {fileAttachments.map((att, i) => (
             <Pressable
@@ -215,15 +251,29 @@ export function MessageBubble({ message, isSelf, showSender, showAvatar, token, 
             </Pressable>
           ))}
 
-          {/* Reactions */}
+          {/* Reactions — tappable */}
           {message.reactions && message.reactions.length > 0 && (
             <View style={styles.reactions}>
-              {message.reactions.map((r) => (
-                <View key={r.emoji} style={[styles.reactionBadge, { backgroundColor: 'rgba(255,255,255,0.1)' }]}>
-                  <Text style={styles.reactionEmoji}>{r.emoji}</Text>
-                  <Text style={[styles.reactionCount, { color: secondaryTextColor }]}>{r.count}</Text>
-                </View>
-              ))}
+              {message.reactions.map((r) => {
+                const isMine = myEntityId ? r.entity_ids.includes(myEntityId) : false
+                return (
+                  <Pressable
+                    key={r.emoji}
+                    onPress={() => onReactionTap?.(message.id, r.emoji)}
+                    style={[
+                      styles.reactionBadge,
+                      {
+                        backgroundColor: isMine ? colors.accent + '25' : 'rgba(255,255,255,0.1)',
+                        borderColor: isMine ? colors.accent + '50' : 'transparent',
+                        borderWidth: isMine ? 1 : 0,
+                      },
+                    ]}
+                  >
+                    <Text style={styles.reactionEmoji}>{r.emoji}</Text>
+                    <Text style={[styles.reactionCount, { color: isMine ? colors.accent : secondaryTextColor }]}>{r.count}</Text>
+                  </Pressable>
+                )
+              })}
             </View>
           )}
 
@@ -272,6 +322,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     minWidth: 60,
+  },
+  replyPreview: {
+    borderLeftWidth: 3,
+    paddingLeft: 8,
+    paddingVertical: 4,
+    marginBottom: 6,
+    borderRadius: 4,
+    paddingRight: 8,
+  },
+  replySender: {
+    fontSize: 11,
+    fontWeight: '600',
+    marginBottom: 1,
+  },
+  replyText: {
+    fontSize: 12,
   },
   messageText: {
     fontSize: 15,

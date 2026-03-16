@@ -1,9 +1,11 @@
 import React, { useCallback, useEffect, useState, useMemo } from 'react'
 import {
   View, Text, TextInput, Pressable, FlatList, StyleSheet, RefreshControl, Alert,
+  ActionSheetIOS, Platform,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
+import * as Haptics from 'expo-haptics'
 import { useTheme } from '../../theme/ThemeContext'
 import { useAuthStore } from '../../store/auth'
 import { useConversationsStore } from '../../store/conversations'
@@ -55,7 +57,7 @@ export function ConversationListScreen({ navigation }: Props) {
   const { t } = useTranslation()
   const token = useAuthStore((s) => s.token)
   const entity = useAuthStore((s) => s.entity)
-  const { conversations, setConversations, setActive } = useConversationsStore()
+  const { conversations, setConversations, setActive, removeConversation, updateConversation, mutedIds, toggleMute } = useConversationsStore()
   const { setOnline } = usePresenceStore()
   const [search, setSearch] = useState('')
   const [refreshing, setRefreshing] = useState(false)
@@ -95,6 +97,106 @@ export function ConversationListScreen({ navigation }: Props) {
     setRefreshing(false)
   }, [loadConversations])
 
+  // ── Conversation actions ──────────────────────────────────────────
+  const handleArchive = useCallback(async (convId: number) => {
+    if (!token) return
+    const res = await api.archiveConversation(token, convId)
+    if (res.ok) {
+      removeConversation(convId)
+    }
+  }, [token, removeConversation])
+
+  const handlePin = useCallback(async (convId: number) => {
+    if (!token || !entity) return
+    const res = await api.pinConversation(token, convId)
+    if (res.ok) {
+      const conv = conversations.find((c) => c.id === convId)
+      if (conv) {
+        updateConversation(convId, {
+          participants: conv.participants?.map((p) =>
+            p.entity_id === entity.id ? { ...p, pinned_at: new Date().toISOString() } : p
+          ),
+        })
+      }
+    }
+  }, [token, entity, conversations, updateConversation])
+
+  const handleUnpin = useCallback(async (convId: number) => {
+    if (!token || !entity) return
+    const res = await api.unpinConversation(token, convId)
+    if (res.ok) {
+      const conv = conversations.find((c) => c.id === convId)
+      if (conv) {
+        updateConversation(convId, {
+          participants: conv.participants?.map((p) =>
+            p.entity_id === entity.id ? { ...p, pinned_at: undefined } : p
+          ),
+        })
+      }
+    }
+  }, [token, entity, conversations, updateConversation])
+
+  const handleLeave = useCallback(async (convId: number) => {
+    if (!token) return
+    Alert.alert(t('conversation.leave'), t('conversation.leaveConfirm'), [
+      { text: t('common.cancel'), style: 'cancel' },
+      {
+        text: t('conversation.leave'),
+        style: 'destructive',
+        onPress: async () => {
+          const res = await api.leaveConversation(token, convId)
+          if (res.ok) {
+            removeConversation(convId)
+          }
+        },
+      },
+    ])
+  }, [token, t, removeConversation])
+
+  const handleConversationLongPress = useCallback((conv: Conversation) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+
+    const isPinned = conv.participants?.find((p) => p.entity_id === entity?.id)?.pinned_at
+    const isMuted = mutedIds.has(conv.id)
+
+    if (Platform.OS === 'ios') {
+      const options = [
+        isPinned ? t('conversation.unpin') : t('conversation.pin'),
+        isMuted ? t('conversation.unmute') : t('conversation.mute'),
+        t('conversation.archive'),
+        t('conversation.leave'),
+        t('common.cancel'),
+      ]
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options,
+          cancelButtonIndex: 4,
+          destructiveButtonIndex: 3,
+        },
+        (idx) => {
+          if (idx === 0) {
+            if (isPinned) handleUnpin(conv.id)
+            else handlePin(conv.id)
+          } else if (idx === 1) {
+            toggleMute(conv.id)
+          } else if (idx === 2) {
+            handleArchive(conv.id)
+          } else if (idx === 3) {
+            handleLeave(conv.id)
+          }
+        },
+      )
+    } else {
+      Alert.alert('', undefined, [
+        { text: isPinned ? t('conversation.unpin') : t('conversation.pin'), onPress: () => isPinned ? handleUnpin(conv.id) : handlePin(conv.id) },
+        { text: isMuted ? t('conversation.unmute') : t('conversation.mute'), onPress: () => toggleMute(conv.id) },
+        { text: t('conversation.archive'), onPress: () => handleArchive(conv.id) },
+        { text: t('conversation.leave'), style: 'destructive', onPress: () => handleLeave(conv.id) },
+        { text: t('common.cancel'), style: 'cancel' },
+      ])
+    }
+  }, [entity?.id, mutedIds, t, handlePin, handleUnpin, handleArchive, handleLeave, toggleMute])
+
   const sortedConversations = useMemo(() => {
     let list = [...conversations]
     // Sort by pinned first, then by updated_at
@@ -126,14 +228,17 @@ export function ConversationListScreen({ navigation }: Props) {
     const preview = getLastMessagePreview(conv)
     const time = conv.last_message ? formatTime(conv.last_message.created_at) : formatTime(conv.updated_at)
     const unread = conv.unread_count || 0
+    const isPinned = !!conv.participants?.find((p) => p.entity_id === entity?.id)?.pinned_at
+    const isMuted = mutedIds.has(conv.id)
 
     return (
       <Pressable
         onPress={() => handleSelectConversation(conv)}
+        onLongPress={() => handleConversationLongPress(conv)}
         style={({ pressed }) => [
           styles.convItem,
           {
-            backgroundColor: pressed ? colors.bgTertiary : 'transparent',
+            backgroundColor: pressed ? colors.bgTertiary : isPinned ? colors.bgSecondary : 'transparent',
           },
         ]}
       >
@@ -144,21 +249,27 @@ export function ConversationListScreen({ navigation }: Props) {
         />
         <View style={styles.convContent}>
           <View style={styles.convTopRow}>
-            <Text style={[styles.convTitle, { color: colors.textPrimary }]} numberOfLines={1}>
-              {title}
-            </Text>
+            <View style={styles.titleRow}>
+              {isPinned && (
+                <Text style={[styles.pinIcon, { color: colors.textMuted }]}>{'\u{1F4CC}'}</Text>
+              )}
+              <Text style={[styles.convTitle, { color: colors.textPrimary }]} numberOfLines={1}>
+                {title}
+              </Text>
+            </View>
             <Text style={[styles.convTime, { color: colors.textMuted }]}>{time}</Text>
           </View>
           <View style={styles.convBottomRow}>
-            <Text style={[styles.convPreview, { color: colors.textSecondary }]} numberOfLines={1}>
+            <Text style={[styles.convPreview, { color: isMuted ? colors.textMuted : colors.textSecondary }]} numberOfLines={1}>
               {preview || ' '}
             </Text>
-            {unread > 0 && <Badge count={unread} />}
+            {isMuted && <Text style={[styles.muteIcon, { color: colors.textMuted }]}>{'\u{1F515}'}</Text>}
+            {unread > 0 && !isMuted && <Badge count={unread} />}
           </View>
         </View>
       </Pressable>
     )
-  }, [entity?.id, colors, handleSelectConversation])
+  }, [entity?.id, colors, mutedIds, handleSelectConversation, handleConversationLongPress])
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.bgPrimary }]} edges={['top']}>
@@ -293,11 +404,20 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: 8,
+    gap: 4,
+  },
+  pinIcon: {
+    fontSize: 10,
+  },
   convTitle: {
     fontSize: 15,
     fontWeight: '600',
     flex: 1,
-    marginRight: 8,
   },
   convTime: {
     fontSize: 12,
@@ -311,6 +431,10 @@ const styles = StyleSheet.create({
     fontSize: 13,
     flex: 1,
     marginRight: 8,
+  },
+  muteIcon: {
+    fontSize: 12,
+    marginRight: 4,
   },
   emptyContainer: {
     flex: 1,

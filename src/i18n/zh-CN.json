@@ -1,7 +1,10 @@
 {
   "app": {
     "title": "Agent-Native IM",
-    "selectConversation": "选择一个会话或创建新会话"
+    "selectConversation": "选择一个会话或创建新会话",
+    "today": "今天",
+    "yesterday": "昨天",
+    "newMessages": "新消息"
   },
   "auth": {
     "login": "登录",
@@ -39,7 +42,17 @@
     "offline": "离线",
     "typeMessage": "输入消息...",
     "unnamed": "未命名会话",
-    "newChatHint": "输入群聊名称"
+    "newChatHint": "输入群聊名称",
+    "archive": "归档",
+    "unarchive": "取消归档",
+    "pin": "置顶",
+    "unpin": "取消置顶",
+    "leave": "退出",
+    "leaveConfirm": "确定要退出此会话吗？",
+    "mute": "静音",
+    "unmute": "取消静音",
+    "pinned": "已置顶",
+    "searchMessages": "搜索消息..."
   },
   "settings": {
     "title": "设置",
@@ -61,22 +74,35 @@
     "passwordTooShort": "密码至少 6 个字符",
     "passwordMismatch": "两次密码不一致",
     "passwordChanged": "密码修改成功",
+    "passwordChangeError": "修改密码失败",
     "profileSaved": "资料已保存",
     "about": "关于",
-    "version": "版本"
+    "version": "版本",
+    "appearance": "外观",
+    "selectTheme": "选择主题"
   },
   "message": {
     "revoked": "消息已撤回",
     "isTyping": "{{name}} 正在输入...",
+    "areTyping": "{{names}} 正在输入...",
     "sending": "发送中...",
     "sent": "已送达",
-    "deliveryFailed": "发送失败"
+    "deliveryFailed": "发送失败",
+    "copyText": "复制文本",
+    "reply": "回复",
+    "react": "表情回复",
+    "revoke": "撤回",
+    "revokeConfirm": "确定要撤回此消息吗？",
+    "replyTo": "回复 {{name}}"
   },
   "chat": {
     "reply": "回复",
     "replyTo": "回复 {{name}}",
     "processing": "处理中...",
-    "thinking": "思考中..."
+    "thinking": "思考中...",
+    "streaming": "处理中...",
+    "streamStop": "停止",
+    "loadEarlier": "加载更早的消息"
   },
   "bot": {
     "agents": "Agent",
@@ -115,6 +141,8 @@
   },
   "connection": {
     "disconnected": "连接已断开，正在重连...",
-    "reconnected": "已重新连接"
+    "reconnected": "已重新连接",
+    "offlineMode": "当前处于离线状态",
+    "connecting": "连接中..."
   }
 }

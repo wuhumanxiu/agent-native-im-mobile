@@ -1,22 +1,30 @@
 import React, { useCallback, useEffect, useRef, useState, useMemo } from 'react'
 import {
-  View, Text, FlatList, StyleSheet, Pressable, ActivityIndicator, Alert,
+  View, Text, FlatList, StyleSheet, Pressable, ActivityIndicator, Alert, ActionSheetIOS, Platform,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import * as Clipboard from 'expo-clipboard'
+import * as Haptics from 'expo-haptics'
 import { useTranslation } from 'react-i18next'
 import { useTheme } from '../../theme/ThemeContext'
 import { useAuthStore } from '../../store/auth'
 import { useConversationsStore } from '../../store/conversations'
 import { useMessagesStore } from '../../store/messages'
 import { usePresenceStore } from '../../store/presence'
+import { useWSContext } from '../../navigation/RootNavigator'
 import { MessageBubble } from '../../components/chat/MessageBubble'
 import { MessageComposer } from '../../components/chat/MessageComposer'
+import { StreamingBubble } from '../../components/chat/StreamingBubble'
+import { TypingIndicator } from '../../components/chat/TypingIndicator'
+import { DateSeparator } from '../../components/chat/DateSeparator'
+import { ReplyPreview } from '../../components/chat/ReplyPreview'
 import { EntityAvatar } from '../../components/entity/EntityAvatar'
-import { entityDisplayName, isBotOrService } from '../../lib/utils'
+import { entityDisplayName, isBotOrService, formatDateSeparator, canRevokeMessage } from '../../lib/utils'
 import * as api from '../../lib/api'
-import type { Message, Conversation, Entity } from '../../lib/types'
+import type { Message, Conversation, Entity, ActiveStream } from '../../lib/types'
 import type { NativeStackScreenProps } from '@react-navigation/native-stack'
+
+const QUICK_EMOJIS = ['\uD83D\uDC4D', '\u2764\uFE0F', '\uD83D\uDE02', '\uD83C\uDF89', '\uD83E\uDD14', '\uD83D\uDC40']
 
 type ChatsStackParamList = {
   ConversationList: undefined
@@ -42,6 +50,11 @@ function getOtherEntity(conv: Conversation, myId: number): Entity | undefined {
   return undefined
 }
 
+type ListItem =
+  | { type: 'message'; message: Message; showSender: boolean; showAvatar: boolean }
+  | { type: 'date-sep'; label: string; key: string }
+  | { type: 'stream'; stream: ActiveStream; sender?: Entity }
+
 export function ChatScreen({ route, navigation }: Props) {
   const { conversationId } = route.params
   const { colors } = useTheme()
@@ -50,15 +63,18 @@ export function ChatScreen({ route, navigation }: Props) {
   const entity = useAuthStore((s) => s.entity)
   const conversations = useConversationsStore((s) => s.conversations)
   const updateConversation = useConversationsStore((s) => s.updateConversation)
+  const setActive = useConversationsStore((s) => s.setActive)
   const messages = useMessagesStore((s) => s.byConv[conversationId] || [])
   const hasMore = useMessagesStore((s) => s.hasMore[conversationId] ?? true)
   const streams = useMessagesStore((s) => s.streams)
   const progress = useMessagesStore((s) => s.progress[conversationId])
   const { setMessages, prependMessages, addOptimisticMessage, replaceOptimisticMessage, clearSentState } = useMessagesStore()
   const online = usePresenceStore((s) => s.online)
+  const { sendTyping, sendCancelStream, typingMap } = useWSContext()
 
   const [loading, setLoading] = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
+  const [replyTo, setReplyTo] = useState<Message | null>(null)
   const flatListRef = useRef<FlatList>(null)
   const tempIdCounter = useRef(0)
 
@@ -67,10 +83,85 @@ export function ChatScreen({ route, navigation }: Props) {
   const otherEntity = conv ? getOtherEntity(conv, entity?.id || 0) : undefined
   const isOtherOnline = otherEntity ? online.has(otherEntity.id) : false
 
+  // Set active conversation for unread tracking
+  useEffect(() => {
+    setActive(conversationId)
+    return () => setActive(null)
+  }, [conversationId, setActive])
+
   // Active streams for this conversation
   const activeStreams = useMemo(() => {
     return Object.values(streams).filter((s) => s.conversation_id === conversationId)
   }, [streams, conversationId])
+
+  // Typing entries for this conversation
+  const convTyping = typingMap.get(conversationId)
+
+  // Resolve sender entity for streams
+  const findEntity = useCallback((senderId: number): Entity | undefined => {
+    return conv?.participants?.find(p => p.entity_id === senderId)?.entity
+  }, [conv?.participants])
+
+  // Build message map for reply previews
+  const messageMap = useMemo(() => {
+    const map = new Map<number, Message>()
+    for (const msg of messages) map.set(msg.id, msg)
+    return map
+  }, [messages])
+
+  // Build list items with date separators
+  const listItems = useMemo((): ListItem[] => {
+    const items: ListItem[] = []
+
+    // Add streams at the "bottom" (which is index 0 in inverted list)
+    for (const stream of activeStreams) {
+      items.push({ type: 'stream', stream, sender: findEntity(stream.sender_id) })
+    }
+
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const msg = messages[i]
+      const prev = i > 0 ? messages[i - 1] : null
+
+      // Determine if sender name/avatar should be shown
+      let showSender = true
+      if (prev && prev.sender_id === msg.sender_id) {
+        const gap = new Date(msg.created_at).getTime() - new Date(prev.created_at).getTime()
+        if (gap < 300000) showSender = false
+      }
+
+      items.push({
+        type: 'message',
+        message: msg,
+        showSender,
+        showAvatar: showSender,
+      })
+
+      // Add date separator between this message and the previous one
+      if (prev) {
+        const msgDate = new Date(msg.created_at).toDateString()
+        const prevDate = new Date(prev.created_at).toDateString()
+        if (msgDate !== prevDate) {
+          items.push({
+            type: 'date-sep',
+            label: formatDateSeparator(msg.created_at, t('app.today'), t('app.yesterday')),
+            key: `sep-${msgDate}`,
+          })
+        }
+      }
+    }
+
+    // Date separator for the oldest message
+    if (messages.length > 0) {
+      const oldest = messages[0]
+      items.push({
+        type: 'date-sep',
+        label: formatDateSeparator(oldest.created_at, t('app.today'), t('app.yesterday')),
+        key: `sep-${new Date(oldest.created_at).toDateString()}`,
+      })
+    }
+
+    return items
+  }, [messages, activeStreams, findEntity, t])
 
   // Load messages
   const loadMessages = useCallback(async () => {
@@ -121,10 +212,13 @@ export function ChatScreen({ route, navigation }: Props) {
       sender: entity,
       content_type: 'text',
       layers: { summary: text.length > 100 ? text.slice(0, 100) + '...' : text, data: { body: text } },
+      reply_to: replyTo?.id,
       created_at: new Date().toISOString(),
     }
 
     addOptimisticMessage(tempId, optimisticMsg)
+    const currentReplyTo = replyTo
+    setReplyTo(null)
 
     const res = await api.sendMessage(token, {
       conversation_id: conversationId,
@@ -133,13 +227,14 @@ export function ChatScreen({ route, navigation }: Props) {
         summary: text.length > 100 ? text.slice(0, 100) + '...' : text,
         data: { body: text },
       },
+      reply_to: currentReplyTo?.id,
     })
 
     if (res.ok && res.data) {
       replaceOptimisticMessage(tempId, res.data)
       setTimeout(() => clearSentState(tempId), 2000)
     }
-  }, [token, entity, conversationId, addOptimisticMessage, replaceOptimisticMessage, clearSentState])
+  }, [token, entity, conversationId, replyTo, addOptimisticMessage, replaceOptimisticMessage, clearSentState])
 
   // Handle attachment
   const handleAttach = useCallback(async (file: { uri: string; name: string; type: string }) => {
@@ -161,40 +256,133 @@ export function ChatScreen({ route, navigation }: Props) {
     }
   }, [token, entity, conversationId])
 
-  // Long press on message
+  // Handle typing
+  const handleTyping = useCallback(() => {
+    sendTyping(conversationId)
+  }, [sendTyping, conversationId])
+
+  // Handle reaction
+  const handleReact = useCallback(async (msgId: number, emoji: string) => {
+    if (!token) return
+    const res = await api.toggleReaction(token, msgId, emoji)
+    if (res.ok && res.data?.reactions) {
+      useMessagesStore.getState().updateMessageReactions(conversationId, msgId, res.data.reactions)
+    }
+  }, [token, conversationId])
+
+  // Handle revoke
+  const handleRevoke = useCallback(async (msgId: number) => {
+    if (!token) return
+    const res = await api.revokeMessage(token, msgId)
+    if (res.ok) {
+      useMessagesStore.getState().revokeMessage(conversationId, msgId)
+    }
+  }, [token, conversationId])
+
+  // Long press on message — action sheet with copy, reply, react, revoke
   const handleMessageLongPress = useCallback((msg: Message) => {
-    const options = ['Copy Text', 'Cancel'] as string[]
-    const cancelIndex = 1
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
 
-    Alert.alert('Message', undefined, [
-      {
-        text: 'Copy Text',
-        onPress: () => {
-          const text = (msg.layers?.data?.body as string) || msg.layers?.summary || ''
-          Clipboard.setStringAsync(text)
-        },
-      },
-      { text: 'Cancel', style: 'cancel' },
-    ])
-  }, [])
-
-  // Determine if we should show sender/avatar
-  const shouldShowSender = useCallback((index: number, msg: Message) => {
-    if (index === 0) return true
-    const prev = messages[index - 1]
-    if (!prev) return true
-    return prev.sender_id !== msg.sender_id
-  }, [messages])
-
-  // Reversed list renders newest at bottom
-  const reversedMessages = useMemo(() => [...messages].reverse(), [messages])
-
-  const renderItem = useCallback(({ item: msg, index }: { item: Message; index: number }) => {
-    // In inverted list, index 0 = newest. We need to check the *next* item for grouping
-    const realIndex = messages.length - 1 - index
+    const text = (msg.layers?.data?.body as string) || msg.layers?.summary || ''
     const isSelf = msg.sender_id === entity?.id
-    const showSender = shouldShowSender(realIndex, msg)
-    const showAvatar = showSender
+    const canRevoke = isSelf && canRevokeMessage(msg.created_at) && !msg.revoked_at
+
+    if (Platform.OS === 'ios') {
+      const options = [
+        t('message.copyText'),
+        t('message.reply'),
+        t('message.react'),
+        ...(canRevoke ? [t('message.revoke')] : []),
+        t('common.cancel'),
+      ]
+      const cancelButtonIndex = options.length - 1
+      const destructiveButtonIndex = canRevoke ? options.length - 2 : undefined
+
+      ActionSheetIOS.showActionSheetWithOptions(
+        { options, cancelButtonIndex, destructiveButtonIndex },
+        (idx) => {
+          if (idx === 0) {
+            Clipboard.setStringAsync(text)
+          } else if (idx === 1) {
+            setReplyTo(msg)
+          } else if (idx === 2) {
+            showEmojiPicker(msg)
+          } else if (canRevoke && idx === 3) {
+            Alert.alert(t('message.revoke'), t('message.revokeConfirm'), [
+              { text: t('common.cancel'), style: 'cancel' },
+              { text: t('message.revoke'), style: 'destructive', onPress: () => handleRevoke(msg.id) },
+            ])
+          }
+        },
+      )
+    } else {
+      Alert.alert('', undefined, [
+        { text: t('message.copyText'), onPress: () => Clipboard.setStringAsync(text) },
+        { text: t('message.reply'), onPress: () => setReplyTo(msg) },
+        { text: t('message.react'), onPress: () => showEmojiPicker(msg) },
+        ...(canRevoke ? [{
+          text: t('message.revoke'),
+          style: 'destructive' as const,
+          onPress: () => {
+            Alert.alert(t('message.revoke'), t('message.revokeConfirm'), [
+              { text: t('common.cancel'), style: 'cancel' },
+              { text: t('message.revoke'), style: 'destructive', onPress: () => handleRevoke(msg.id) },
+            ])
+          },
+        }] : []),
+        { text: t('common.cancel'), style: 'cancel' },
+      ])
+    }
+  }, [entity?.id, t, handleRevoke])
+
+  const showEmojiPicker = useCallback((msg: Message) => {
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options: [...QUICK_EMOJIS, t('common.cancel')],
+          cancelButtonIndex: QUICK_EMOJIS.length,
+        },
+        (idx) => {
+          if (idx < QUICK_EMOJIS.length) {
+            handleReact(msg.id, QUICK_EMOJIS[idx])
+          }
+        },
+      )
+    } else {
+      Alert.alert(t('message.react'), undefined,
+        QUICK_EMOJIS.map((emoji) => ({
+          text: emoji,
+          onPress: () => handleReact(msg.id, emoji),
+        })).concat({ text: t('common.cancel'), onPress: () => {}, style: 'cancel' } as never),
+      )
+    }
+  }, [handleReact, t])
+
+  // Handle tapping on existing reaction
+  const handleReactionTap = useCallback((msgId: number, emoji: string) => {
+    handleReact(msgId, emoji)
+  }, [handleReact])
+
+  const renderItem = useCallback(({ item }: { item: ListItem }) => {
+    if (item.type === 'date-sep') {
+      return <DateSeparator label={item.label} />
+    }
+
+    if (item.type === 'stream') {
+      return (
+        <StreamingBubble
+          stream={item.stream}
+          sender={item.sender}
+          onCancel={sendCancelStream}
+        />
+      )
+    }
+
+    const { message: msg, showSender, showAvatar } = item
+    const isSelf = msg.sender_id === entity?.id
+
+    // Resolve reply-to message
+    const replyMessage = msg.reply_to ? messageMap.get(msg.reply_to) : undefined
 
     return (
       <MessageBubble
@@ -203,10 +391,19 @@ export function ChatScreen({ route, navigation }: Props) {
         showSender={showSender}
         showAvatar={showAvatar}
         token={token}
+        replyMessage={replyMessage}
+        myEntityId={entity?.id || 0}
         onLongPress={handleMessageLongPress}
+        onReactionTap={handleReactionTap}
       />
     )
-  }, [messages, entity?.id, token, shouldShowSender, handleMessageLongPress])
+  }, [entity?.id, token, messageMap, handleMessageLongPress, handleReactionTap, sendCancelStream])
+
+  const getItemKey = useCallback((item: ListItem) => {
+    if (item.type === 'date-sep') return item.key
+    if (item.type === 'stream') return `stream-${item.stream.stream_id}`
+    return String(item.message.id)
+  }, [])
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.bgPrimary }]} edges={['bottom']}>
@@ -249,8 +446,8 @@ export function ChatScreen({ route, navigation }: Props) {
       ) : (
         <FlatList
           ref={flatListRef}
-          data={reversedMessages}
-          keyExtractor={(item) => String(item.id)}
+          data={listItems}
+          keyExtractor={getItemKey}
           renderItem={renderItem}
           inverted
           contentContainerStyle={styles.messageList}
@@ -268,18 +465,8 @@ export function ChatScreen({ route, navigation }: Props) {
         />
       )}
 
-      {/* Active stream indicator */}
-      {activeStreams.length > 0 && (
-        <View style={[styles.streamIndicator, { backgroundColor: colors.bgSecondary }]}>
-          <ActivityIndicator color={colors.accent} size="small" />
-          <Text style={[styles.streamText, { color: colors.textSecondary }]}>
-            {t('chat.thinking')}
-          </Text>
-        </View>
-      )}
-
-      {/* Progress indicator */}
-      {progress && (
+      {/* Progress indicator (when no streams active) */}
+      {progress && activeStreams.length === 0 && (
         <View style={[styles.streamIndicator, { backgroundColor: colors.bgSecondary }]}>
           <ActivityIndicator color={colors.accent} size="small" />
           <Text style={[styles.streamText, { color: colors.textSecondary }]}>
@@ -288,10 +475,17 @@ export function ChatScreen({ route, navigation }: Props) {
         </View>
       )}
 
+      {/* Typing indicator */}
+      <TypingIndicator typingEntities={convTyping} />
+
+      {/* Reply preview */}
+      {replyTo && <ReplyPreview message={replyTo} onClear={() => setReplyTo(null)} />}
+
       {/* Composer */}
       <MessageComposer
         onSend={handleSend}
         onAttach={handleAttach}
+        onTyping={handleTyping}
       />
     </SafeAreaView>
   )

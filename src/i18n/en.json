@@ -1,7 +1,10 @@
 {
   "app": {
     "title": "Agent-Native IM",
-    "selectConversation": "Select a conversation or start a new one"
+    "selectConversation": "Select a conversation or start a new one",
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "newMessages": "New Messages"
   },
   "auth": {
     "login": "Sign In",
@@ -39,7 +42,17 @@
     "offline": "Offline",
     "typeMessage": "Type a message...",
     "unnamed": "Unnamed Conversation",
-    "newChatHint": "Enter a name for the group chat"
+    "newChatHint": "Enter a name for the group chat",
+    "archive": "Archive",
+    "unarchive": "Unarchive",
+    "pin": "Pin",
+    "unpin": "Unpin",
+    "leave": "Leave",
+    "leaveConfirm": "Are you sure you want to leave this conversation?",
+    "mute": "Mute",
+    "unmute": "Unmute",
+    "pinned": "Pinned",
+    "searchMessages": "Search messages..."
   },
   "settings": {
     "title": "Settings",
@@ -61,22 +74,35 @@
     "passwordTooShort": "Password must be at least 6 characters",
     "passwordMismatch": "Passwords do not match",
     "passwordChanged": "Password changed successfully",
+    "passwordChangeError": "Failed to change password",
     "profileSaved": "Profile saved",
     "about": "About",
-    "version": "Version"
+    "version": "Version",
+    "appearance": "Appearance",
+    "selectTheme": "Select Theme"
   },
   "message": {
     "revoked": "Message revoked",
     "isTyping": "{{name}} is typing...",
+    "areTyping": "{{names}} are typing...",
     "sending": "Sending...",
     "sent": "Sent",
-    "deliveryFailed": "Delivery failed"
+    "deliveryFailed": "Delivery failed",
+    "copyText": "Copy Text",
+    "reply": "Reply",
+    "react": "React",
+    "revoke": "Revoke",
+    "revokeConfirm": "Revoke this message?",
+    "replyTo": "Replying to {{name}}"
   },
   "chat": {
     "reply": "Reply",
     "replyTo": "Replying to {{name}}",
     "processing": "processing...",
-    "thinking": "thinking..."
+    "thinking": "thinking...",
+    "streaming": "Processing...",
+    "streamStop": "Stop",
+    "loadEarlier": "Load earlier messages"
   },
   "bot": {
     "agents": "Agents",
@@ -115,6 +141,8 @@
   },
   "connection": {
     "disconnected": "Connection lost, reconnecting...",
-    "reconnected": "Reconnected"
+    "reconnected": "Reconnected",
+    "offlineMode": "You are offline",
+    "connecting": "Connecting..."
   }
 }
