@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState, useMemo } from 'react'
 import {
   View, Text, TextInput, Pressable, FlatList, StyleSheet, RefreshControl, Alert,
-  ActionSheetIOS, Platform,
+  ActionSheetIOS, Platform, Modal,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
@@ -61,6 +61,8 @@ export function ConversationListScreen({ navigation }: Props) {
   const { setOnline } = usePresenceStore()
   const [search, setSearch] = useState('')
   const [refreshing, setRefreshing] = useState(false)
+  const [showNewChat, setShowNewChat] = useState(false)
+  const [newChatTitle, setNewChatTitle] = useState('')
 
   const loadConversations = useCallback(async () => {
     if (!token || !entity) return
@@ -279,32 +281,7 @@ export function ConversationListScreen({ navigation }: Props) {
           {t('conversation.messages')}
         </Text>
         <Pressable
-          onPress={() => {
-            Alert.prompt(
-              t('conversation.newChat'),
-              t('conversation.newChatHint'),
-              [
-                { text: t('common.cancel'), style: 'cancel' },
-                {
-                  text: t('common.create'),
-                  onPress: async (title) => {
-                    if (!title?.trim() || !token) return
-                    const res = await api.createConversation(token, {
-                      title: title.trim(),
-                      conv_type: 'group',
-                    })
-                    if (res.ok && res.data) {
-                      await loadConversations()
-                      navigation.navigate('Chat', { conversationId: res.data.id })
-                    }
-                  },
-                },
-              ],
-              'plain-text',
-              '',
-              'default',
-            )
-          }}
+          onPress={() => setShowNewChat(true)}
           style={({ pressed }) => [
             styles.newChatBtn,
             { backgroundColor: colors.accent, opacity: pressed ? 0.7 : 1 },
@@ -346,6 +323,42 @@ export function ConversationListScreen({ navigation }: Props) {
         }
         contentContainerStyle={sortedConversations.length === 0 ? styles.emptyList : undefined}
       />
+      {/* New Chat Modal */}
+      <Modal visible={showNewChat} transparent animationType="fade">
+        <Pressable style={styles.modalOverlay} onPress={() => setShowNewChat(false)}>
+          <View style={[styles.modalContent, { backgroundColor: colors.bgSecondary }]}>
+            <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>{t('conversation.newChat')}</Text>
+            <TextInput
+              value={newChatTitle}
+              onChangeText={setNewChatTitle}
+              placeholder={t('conversation.newChatHint')}
+              placeholderTextColor={colors.textMuted}
+              style={[styles.modalInput, { color: colors.textPrimary, borderColor: colors.border, backgroundColor: colors.bgTertiary }]}
+              autoFocus
+            />
+            <View style={styles.modalButtons}>
+              <Pressable onPress={() => { setShowNewChat(false); setNewChatTitle('') }} style={[styles.modalBtn, { backgroundColor: colors.bgTertiary }]}>
+                <Text style={{ color: colors.textSecondary }}>{t('common.cancel')}</Text>
+              </Pressable>
+              <Pressable
+                onPress={async () => {
+                  if (!newChatTitle.trim() || !token) return
+                  const res = await api.createConversation(token, { title: newChatTitle.trim(), conv_type: 'group' })
+                  if (res.ok && res.data) {
+                    setShowNewChat(false)
+                    setNewChatTitle('')
+                    await loadConversations()
+                    navigation.navigate('Chat', { conversationId: res.data.id })
+                  }
+                }}
+                style={[styles.modalBtn, { backgroundColor: colors.accent }]}
+              >
+                <Text style={{ color: '#fff', fontWeight: '600' }}>{t('common.create')}</Text>
+              </Pressable>
+            </View>
+          </View>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   )
 }
@@ -446,5 +459,42 @@ const styles = StyleSheet.create({
   },
   emptyList: {
     flexGrow: 1,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 32,
+  },
+  modalContent: {
+    width: '100%',
+    maxWidth: 340,
+    borderRadius: 16,
+    padding: 20,
+  },
+  modalTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  modalInput: {
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    fontSize: 15,
+    marginBottom: 16,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  modalBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 10,
+    alignItems: 'center',
   },
 })
