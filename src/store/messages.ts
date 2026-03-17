@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import type { Message, ActiveStream, MessageLayers, ReactionSummary, StreamStatus } from '../lib/types'
 
+// Transient progress indicator for a conversation (not persisted)
 export interface ProgressEntry {
   conversation_id: number
   sender_id: number
@@ -10,30 +11,40 @@ export interface ProgressEntry {
 }
 
 interface MessagesState {
+  // convId -> messages (newest last)
   byConv: Record<number, Message[]>
   hasMore: Record<number, boolean>
+  // active streams (transient)
   streams: Record<string, ActiveStream>
+  // optimistic messages (tempId -> message)
   optimistic: Record<string, Message>
+  // transient progress indicators (convId -> ProgressEntry)
   progress: Record<number, ProgressEntry>
+  // highest message ID seen (for reconnect catch-up)
+  latestMessageId: number
 
   setMessages: (convId: number, msgs: Message[], hasMore: boolean) => void
   prependMessages: (convId: number, msgs: Message[], hasMore: boolean) => void
   addMessage: (msg: Message) => void
   revokeMessage: (convId: number, msgId: number) => void
 
+  // optimistic messages
   addOptimisticMessage: (tempId: string, msg: Message) => void
   replaceOptimisticMessage: (tempId: string, msg: Message) => void
   clearSentState: (tempId: string) => void
   removeOptimisticMessage: (tempId: string, convId: number) => void
   setOptimisticState: (tempId: string, state: 'sending' | 'sent' | 'queued' | 'failed') => void
 
+  // reactions
   updateMessageReactions: (convId: number, msgId: number, reactions: ReactionSummary[]) => void
 
+  // streaming
   startStream: (streamId: string, convId: number, senderId: number, layers: MessageLayers) => void
   updateStream: (streamId: string, layers: MessageLayers) => void
   endStream: (streamId: string, message?: Message) => void
   cleanStaleStreams: () => void
 
+  // progress indicators
   setProgress: (convId: number, entry: ProgressEntry) => void
   clearProgress: (convId: number) => void
   clearProgressBySender: (convId: number, senderId: number) => void
@@ -46,12 +57,17 @@ export const useMessagesStore = create<MessagesState>((set) => ({
   streams: {},
   optimistic: {},
   progress: {},
+  latestMessageId: 0,
 
   setMessages: (convId, msgs, hasMore) =>
-    set((s) => ({
-      byConv: { ...s.byConv, [convId]: msgs },
-      hasMore: { ...s.hasMore, [convId]: hasMore },
-    })),
+    set((s) => {
+      const maxId = msgs.reduce((max, m) => Math.max(max, m.id ?? 0), s.latestMessageId)
+      return {
+        byConv: { ...s.byConv, [convId]: msgs },
+        hasMore: { ...s.hasMore, [convId]: hasMore },
+        latestMessageId: maxId,
+      }
+    }),
 
   prependMessages: (convId, msgs, hasMore) =>
     set((s) => ({
@@ -62,17 +78,25 @@ export const useMessagesStore = create<MessagesState>((set) => ({
   addMessage: (msg) =>
     set((s) => {
       const existing = s.byConv[msg.conversation_id] || []
+
+      // Check for duplicate by ID
       if (existing.some((m) => m.id === msg.id)) return s
 
+      // Check if there's an optimistic message that matches this real message
       const optimisticMatches = Object.values(s.optimistic).filter(
         opt => opt.conversation_id === msg.conversation_id &&
                opt.sender_id === msg.sender_id &&
-               Math.abs(new Date(opt.created_at).getTime() - new Date(msg.created_at).getTime()) < 5000
+               Math.abs(new Date(opt.created_at).getTime() - new Date(msg.created_at).getTime()) < 5000 &&
+               (opt.layers?.summary || '').trim() === (msg.layers?.summary || '').trim()
       )
+
+      // If we found a matching optimistic message, don't add the WebSocket message
       if (optimisticMatches.length > 0) return s
 
+      const newLatest = Math.max(s.latestMessageId, msg.id ?? 0)
       return {
         byConv: { ...s.byConv, [msg.conversation_id]: [...existing, msg] },
+        latestMessageId: newLatest,
       }
     }),
 
@@ -204,6 +228,7 @@ export const useMessagesStore = create<MessagesState>((set) => ({
       return {
         streams: rest,
         byConv: { ...s.byConv, [message.conversation_id]: [...existing, message] },
+        latestMessageId: message ? Math.max(s.latestMessageId, message.id ?? 0) : s.latestMessageId,
       }
     }),
 
@@ -231,6 +256,8 @@ export const useMessagesStore = create<MessagesState>((set) => ({
       const now = Date.now()
       const keys = Object.keys(s.progress)
       if (keys.length === 0) return s
+      const staleKeys = keys.filter((k) => now - s.progress[Number(k)].received_at >= 30_000)
+      if (staleKeys.length === 0) return s
       const fresh: Record<number, ProgressEntry> = {}
       for (const [k, v] of Object.entries(s.progress)) {
         if (now - v.received_at < 30_000) fresh[Number(k)] = v
@@ -245,6 +272,9 @@ export const useMessagesStore = create<MessagesState>((set) => ({
         (id) => now - s.streams[id].started_at > 120_000
       )
       if (staleIds.length === 0) return s
+      if (__DEV__) {
+        console.debug('[streams] cleaning stale streams:', staleIds)
+      }
       const streams = { ...s.streams }
       for (const id of staleIds) {
         streams[id] = {
@@ -255,6 +285,7 @@ export const useMessagesStore = create<MessagesState>((set) => ({
           },
         }
       }
+      // Remove after a brief display period (clean up on next cycle)
       const removeIds = Object.keys(s.streams).filter(
         (id) => now - s.streams[id].started_at > 135_000
       )

@@ -1,100 +1,237 @@
-import React, { useCallback } from 'react'
-import { View, Text, StyleSheet, Pressable, Linking } from 'react-native'
+import React, { useState, useCallback, useRef } from 'react'
+import { View, Text, Pressable, Image, StyleSheet, Linking, Modal } from 'react-native'
+import { useTranslation } from 'react-i18next'
+import Markdown from 'react-native-markdown-display'
 import * as Haptics from 'expo-haptics'
-import { Image } from 'expo-image'
-import { useTheme } from '../../theme/ThemeContext'
-import { EntityAvatar } from '../entity/EntityAvatar'
-import { entityDisplayName, formatTime, formatFileSize, authenticatedFileUrl, isBotOrService, truncate } from '../../lib/utils'
-import { getBaseUrl } from '../../lib/api'
-import type { Message, Entity } from '../../lib/types'
+import * as Clipboard from 'expo-clipboard'
+import {
+  FileText, Download, Play, Pause, Ban, Clock, RotateCcw, CloudOff,
+  Check, CornerUpLeft, ChevronDown, ChevronUp, Brain,
+} from 'lucide-react-native'
+import { EntityAvatar } from '../ui/EntityAvatar'
+import { ActionSheet, type ActionSheetOption } from '../ui/ActionSheet'
+import type { Message, Entity, Attachment } from '../../lib/types'
 
-interface MessageBubbleProps {
+// ─── Utility helpers ─────────────────────────────────────────────
+
+function entityDisplayName(entity?: Entity | null): string {
+  if (!entity) return 'Unknown'
+  return entity.display_name || entity.name
+}
+
+function formatTime(iso: string): string {
+  const d = new Date(iso)
+  return d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
+}
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1048576) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / 1048576).toFixed(1)} MB`
+}
+
+function isBotOrService(entity?: Entity | null): boolean {
+  return entity?.entity_type === 'bot' || entity?.entity_type === 'service'
+}
+
+// ─── Audio Player ────────────────────────────────────────────────
+
+function AudioPlayer({ duration: totalDuration }: { url?: string; duration?: number }) {
+  const [playing, setPlaying] = useState(false)
+  const dur = totalDuration || 0
+
+  // Simplified waveform bars
+  const barHeights = Array.from({ length: 24 }, (_, i) =>
+    12 + Math.sin(i * 0.7) * 10 + ((i * 7 + 3) % 6)
+  )
+
+  return (
+    <View style={audioStyles.container}>
+      <Pressable
+        style={audioStyles.playButton}
+        onPress={() => setPlaying(!playing)}
+      >
+        {playing
+          ? <Pause size={14} color="#6366f1" />
+          : <Play size={14} color="#6366f1" />
+        }
+      </Pressable>
+      <View style={audioStyles.waveform}>
+        {barHeights.map((h, i) => (
+          <View
+            key={i}
+            style={[
+              audioStyles.bar,
+              { height: h, backgroundColor: '#6366f14D' },
+            ]}
+          />
+        ))}
+      </View>
+      {dur > 0 && (
+        <Text style={audioStyles.duration}>
+          {Math.floor(dur / 60)}:{String(dur % 60).padStart(2, '0')}
+        </Text>
+      )}
+    </View>
+  )
+}
+
+const audioStyles = StyleSheet.create({
+  container: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    minWidth: 180,
+  },
+  playButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#eef2ff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  waveform: {
+    flex: 1,
+    height: 24,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 1,
+  },
+  bar: {
+    flex: 1,
+    borderRadius: 99,
+  },
+  duration: {
+    fontSize: 10,
+    color: '#94a3b8',
+    flexShrink: 0,
+  },
+})
+
+// ─── Image Lightbox ──────────────────────────────────────────────
+
+function ImageLightbox({ uri, onClose }: { uri: string; onClose: () => void }) {
+  return (
+    <Modal visible transparent animationType="fade" onRequestClose={onClose}>
+      <Pressable style={lightboxStyles.overlay} onPress={onClose}>
+        <Image
+          source={{ uri }}
+          style={lightboxStyles.image}
+          resizeMode="contain"
+        />
+      </Pressable>
+    </Modal>
+  )
+}
+
+const lightboxStyles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.9)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  image: {
+    width: '90%',
+    height: '80%',
+  },
+})
+
+// ─── MessageBubble Props ─────────────────────────────────────────
+
+interface Props {
   message: Message
   isSelf: boolean
-  showSender: boolean
-  showAvatar: boolean
-  token: string | null
-  replyMessage?: Message
   myEntityId?: number
-  onLongPress?: (message: Message) => void
-  onImagePress?: (url: string) => void
-  onReactionTap?: (msgId: number, emoji: string) => void
+  replyMessage?: Message
+  onRevoke?: (msgId: number) => void
+  onReply?: (msg: Message) => void
+  onReact?: (msgId: number, emoji: string) => void
+  onRetryOutbox?: (tempId: string) => void
+  showSender?: boolean
+  isRead?: boolean
 }
 
-// Simple inline markdown: **bold**, *italic*, `code`, [text](url)
-function renderTextContent(text: string, textColor: string, linkColor: string) {
-  const parts: React.ReactNode[] = []
-  const regex = /(\*\*.*?\*\*|\*.*?\*|`[^`]+`|\[([^\]]+)\]\(([^)]+)\))/g
-  let lastIndex = 0
-  let match: RegExpExecArray | null
+// ─── Component ───────────────────────────────────────────────────
 
-  while ((match = regex.exec(text)) !== null) {
-    if (match.index > lastIndex) {
-      parts.push(
-        <Text key={`t-${lastIndex}`} style={{ color: textColor }}>
-          {text.slice(lastIndex, match.index)}
-        </Text>
-      )
-    }
+export function MessageBubble({
+  message,
+  isSelf,
+  myEntityId,
+  replyMessage,
+  onRevoke,
+  onReply,
+  onReact,
+  onRetryOutbox,
+  showSender = true,
+  isRead,
+}: Props) {
+  const { t } = useTranslation()
+  const [showThinking, setShowThinking] = useState(false)
+  const [lightboxUri, setLightboxUri] = useState<string | null>(null)
+  const [showActionSheet, setShowActionSheet] = useState(false)
 
-    const m = match[0]
-    if (m.startsWith('**') && m.endsWith('**')) {
-      parts.push(
-        <Text key={`b-${match.index}`} style={{ color: textColor, fontWeight: '700' }}>
-          {m.slice(2, -2)}
-        </Text>
-      )
-    } else if (m.startsWith('*') && m.endsWith('*') && !m.startsWith('**')) {
-      parts.push(
-        <Text key={`i-${match.index}`} style={{ color: textColor, fontStyle: 'italic' }}>
-          {m.slice(1, -1)}
-        </Text>
-      )
-    } else if (m.startsWith('`') && m.endsWith('`')) {
-      parts.push(
-        <Text key={`c-${match.index}`} style={{ color: linkColor, fontFamily: 'monospace', fontSize: 13, backgroundColor: 'rgba(255,255,255,0.08)', paddingHorizontal: 3 }}>
-          {m.slice(1, -1)}
-        </Text>
-      )
-    } else if (match[2] && match[3]) {
-      parts.push(
-        <Text
-          key={`l-${match.index}`}
-          style={{ color: linkColor, textDecorationLine: 'underline' }}
-          onPress={() => Linking.openURL(match![3])}
-        >
-          {match[2]}
-        </Text>
-      )
-    }
-    lastIndex = match.index + m.length
-  }
+  const layers = message.layers || {}
+  const isRevoked = !!message.revoked_at
+  const isBot = isBotOrService(message.sender)
+  const isMentioned = myEntityId != null && message.mentions?.includes(myEntityId)
 
-  if (lastIndex < text.length) {
-    parts.push(
-      <Text key={`t-${lastIndex}`} style={{ color: textColor }}>
-        {text.slice(lastIndex)}
-      </Text>
-    )
-  }
-
-  return parts.length > 0 ? parts : <Text style={{ color: textColor }}>{text}</Text>
-}
-
-export function MessageBubble({ message, isSelf, showSender, showAvatar, token, replyMessage, myEntityId, onLongPress, onImagePress, onReactionTap }: MessageBubbleProps) {
-  const { colors } = useTheme()
+  // Can revoke within 2 minutes
+  const canRevoke = isSelf && !isRevoked && !!onRevoke &&
+    (Date.now() - new Date(message.created_at).getTime()) < 2 * 60 * 1000
+  const canReply = !isRevoked && !!onReply
+  const canReact = !isRevoked && !!onReact
+  const canRetryOutbox = isSelf && !!message.temp_id && message.client_state !== 'sending' && !!onRetryOutbox
 
   const handleLongPress = useCallback(() => {
+    if (isRevoked) return
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
-    onLongPress?.(message)
-  }, [message, onLongPress])
+    setShowActionSheet(true)
+  }, [isRevoked])
+
+  // Build action sheet options
+  const actionOptions: ActionSheetOption[] = []
+  // Copy
+  const summary = layers.data?.body as string || layers.summary || ''
+  if (summary) {
+    actionOptions.push({
+      label: t('message.copyText'),
+      onPress: () => { Clipboard.setStringAsync(summary) },
+    })
+  }
+  if (canReply) {
+    actionOptions.push({
+      label: t('chat.reply'),
+      onPress: () => onReply!(message),
+    })
+  }
+  if (canReact) {
+    // Quick reactions
+    const quickEmojis = ['\uD83D\uDC4D', '\u2764\uFE0F', '\uD83D\uDE02', '\uD83C\uDF89', '\uD83E\uDD14']
+    quickEmojis.forEach((emoji) => {
+      actionOptions.push({
+        label: `React ${emoji}`,
+        onPress: () => onReact!(message.id, emoji),
+      })
+    })
+  }
+  if (canRevoke) {
+    actionOptions.push({
+      label: t('message.revoke'),
+      onPress: () => onRevoke!(message.id),
+      destructive: true,
+    })
+  }
 
   // Revoked message
-  if (message.revoked_at) {
+  if (isRevoked) {
     return (
-      <View style={[styles.revokedContainer, { alignItems: isSelf ? 'flex-end' : 'flex-start' }]}>
-        <Text style={[styles.revokedText, { color: colors.textMuted }]}>
-          Message revoked
+      <View style={styles.revokedContainer}>
+        <Ban size={12} color="#94a3b8" />
+        <Text style={styles.revokedText}>
+          {t('message.revoked', { name: entityDisplayName(message.sender) })}
         </Text>
       </View>
     )
@@ -104,322 +241,614 @@ export function MessageBubble({ message, isSelf, showSender, showAvatar, token, 
   if (message.content_type === 'system') {
     return (
       <View style={styles.systemContainer}>
-        <Text style={[styles.systemText, { color: colors.textMuted }]}>
-          {message.layers?.summary || ''}
-        </Text>
+        <Text style={styles.systemText}>{layers.summary}</Text>
       </View>
     )
   }
 
-  const messageText = message.layers?.data?.body as string || message.layers?.summary || ''
-  const senderName = entityDisplayName(message.sender)
-  const isBot = isBotOrService(message.sender)
-  const bubbleColor = isSelf ? colors.bubbleSelf : colors.bubbleOther
-  const textColor = isSelf ? '#ffffff' : colors.textPrimary
-  const secondaryTextColor = isSelf ? 'rgba(255,255,255,0.6)' : colors.textMuted
-  const linkColor = isSelf ? '#c7d2fe' : colors.accentLight
+  // ─── Content renderer ────────────────────────────────────
 
-  // Image attachments
-  const imageAttachments = (message.attachments || []).filter(
-    (a) => a.mime_type?.startsWith('image/') || a.type === 'image'
-  )
-  const fileAttachments = (message.attachments || []).filter(
-    (a) => !a.mime_type?.startsWith('image/') && a.type !== 'image' && a.type !== 'audio'
-  )
-  const audioAttachments = (message.attachments || []).filter(
-    (a) => a.mime_type?.startsWith('audio/') || a.type === 'audio'
-  )
+  const renderContent = () => {
+    const body = (layers.data?.body as string) || layers.summary || ''
+    const effectiveType = (message.content_type === 'text' && isBot) ? 'markdown' : message.content_type
 
-  // Client state indicator
-  const clientStateText = message.client_state === 'sending' ? 'Sending...' :
-    message.client_state === 'failed' ? 'Failed' :
-    message.client_state === 'queued' ? 'Queued' : null
+    switch (effectiveType) {
+      case 'markdown':
+        return (
+          <Markdown style={markdownStyles}>
+            {body}
+          </Markdown>
+        )
+
+      case 'image':
+        return (
+          <View style={contentStyles.imageContainer}>
+            {body ? <Text style={contentStyles.bodyText}>{body}</Text> : null}
+            <View style={contentStyles.imageGrid}>
+              {message.attachments?.map((att, i) => {
+                if (!att.url) return null
+                return (
+                  <Pressable key={i} onPress={() => setLightboxUri(att.url!)}>
+                    <Image
+                      source={{ uri: att.url }}
+                      style={contentStyles.imageThumb}
+                    />
+                  </Pressable>
+                )
+              })}
+            </View>
+          </View>
+        )
+
+      case 'audio':
+        return (
+          <AudioPlayer
+            url={message.attachments?.[0]?.url}
+            duration={message.attachments?.[0]?.duration}
+          />
+        )
+
+      case 'file':
+        return (
+          <View style={contentStyles.fileContainer}>
+            {body ? <Text style={contentStyles.bodyText}>{body}</Text> : null}
+            {message.attachments?.map((att, i) => (
+              <Pressable
+                key={i}
+                style={contentStyles.fileCard}
+                onPress={() => { if (att.url) Linking.openURL(att.url) }}
+              >
+                <View style={contentStyles.fileIcon}>
+                  <FileText size={16} color="#6366f1" />
+                </View>
+                <View style={contentStyles.fileInfo}>
+                  <Text style={contentStyles.fileName} numberOfLines={1}>{att.filename || 'file'}</Text>
+                  {att.size != null && (
+                    <Text style={contentStyles.fileSize}>{formatFileSize(att.size)}</Text>
+                  )}
+                </View>
+                <Download size={14} color="#94a3b8" />
+              </Pressable>
+            ))}
+          </View>
+        )
+
+      default: // text
+        return (
+          <View>
+            <Text style={contentStyles.bodyText}>{body}</Text>
+            {message.attachments && message.attachments.length > 0 && (
+              <View style={{ marginTop: 6, gap: 6 }}>
+                {message.attachments.filter((att) => att.type === 'image').map((att, i) => (
+                  att.url ? (
+                    <Pressable key={`img-${i}`} onPress={() => setLightboxUri(att.url!)}>
+                      <Image source={{ uri: att.url }} style={contentStyles.imageThumb} />
+                    </Pressable>
+                  ) : null
+                ))}
+                {message.attachments.filter((att) => att.type !== 'image').map((att, i) => (
+                  <Pressable
+                    key={`file-${i}`}
+                    style={contentStyles.fileCard}
+                    onPress={() => { if (att.url) Linking.openURL(att.url) }}
+                  >
+                    <View style={contentStyles.fileIcon}>
+                      <FileText size={16} color="#6366f1" />
+                    </View>
+                    <View style={contentStyles.fileInfo}>
+                      <Text style={contentStyles.fileName} numberOfLines={1}>{att.filename || 'file'}</Text>
+                      {att.size != null && (
+                        <Text style={contentStyles.fileSize}>{formatFileSize(att.size)}</Text>
+                      )}
+                    </View>
+                    <Download size={14} color="#94a3b8" />
+                  </Pressable>
+                ))}
+              </View>
+            )}
+          </View>
+        )
+    }
+  }
+
+  // ─── Main layout ─────────────────────────────────────────
 
   return (
-    <View style={[
-      styles.row,
-      { flexDirection: isSelf ? 'row-reverse' : 'row' },
-    ]}>
-      {/* Avatar */}
-      {!isSelf && (
-        <View style={styles.avatarCol}>
-          {showAvatar ? (
+    <>
+      <View style={[styles.row, isSelf && styles.rowSelf]}>
+        {/* Avatar */}
+        {!isSelf && (
+          showSender ? (
             <EntityAvatar entity={message.sender} size="sm" />
           ) : (
-            <View style={{ width: 32 }} />
-          )}
-        </View>
-      )}
-
-      <View style={[styles.bubbleCol, { alignItems: isSelf ? 'flex-end' : 'flex-start' }]}>
-        {/* Sender name */}
-        {showSender && !isSelf && (
-          <Text style={[styles.senderName, { color: isBot ? colors.bot : colors.accentLight }]}>
-            {senderName}
-          </Text>
+            <View style={styles.avatarSpacer} />
+          )
         )}
 
-        <Pressable
-          onLongPress={handleLongPress}
-          style={[
-            styles.bubble,
-            {
-              backgroundColor: bubbleColor,
-              borderTopLeftRadius: !isSelf && !showAvatar ? 4 : 16,
-              borderTopRightRadius: isSelf && !showSender ? 4 : 16,
-              maxWidth: '85%',
-            },
-          ]}
-        >
-          {/* Reply-to preview */}
-          {replyMessage && (
-            <View style={[styles.replyPreview, { borderLeftColor: colors.accent, backgroundColor: isSelf ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }]}>
-              <Text style={[styles.replySender, { color: colors.accent }]} numberOfLines={1}>
-                {entityDisplayName(replyMessage.sender)}
-              </Text>
-              <Text style={[styles.replyText, { color: secondaryTextColor }]} numberOfLines={1}>
-                {truncate((replyMessage.layers?.data?.body as string) || replyMessage.layers?.summary || '', 60)}
-              </Text>
+        <View style={[styles.column, isSelf && styles.columnSelf]}>
+          {/* Sender + time */}
+          {showSender && (
+            <View style={[styles.metaRow, isSelf && styles.metaRowSelf]}>
+              {!isSelf && (
+                <Text style={[styles.senderName, isBot && styles.senderBot]}>
+                  {entityDisplayName(message.sender)}
+                </Text>
+              )}
+              <Text style={styles.timestamp}>{formatTime(message.created_at)}</Text>
             </View>
           )}
 
-          {/* Text content */}
-          {messageText.length > 0 && (
-            <Text style={[styles.messageText, { color: textColor }]}>
-              {renderTextContent(messageText, textColor, linkColor)}
-            </Text>
+          {/* Reply reference */}
+          {message.reply_to && (
+            <View style={[styles.replyRef, isSelf && styles.replyRefSelf]}>
+              <CornerUpLeft size={12} color="#94a3b8" />
+              {replyMessage ? (
+                <View style={styles.replyCard}>
+                  <Text style={styles.replyAuthor} numberOfLines={1}>
+                    {entityDisplayName(replyMessage.sender)}
+                  </Text>
+                  <Text style={styles.replyPreview} numberOfLines={1}>
+                    {(replyMessage.layers?.summary || '').slice(0, 50)}
+                  </Text>
+                </View>
+              ) : (
+                <Text style={styles.replyFallback}>
+                  {t('message.replyTo', { id: message.reply_to })}
+                </Text>
+              )}
+            </View>
           )}
 
-          {/* Image attachments */}
-          {imageAttachments.map((att, i) => {
-            const imgUrl = authenticatedFileUrl(att.url, token, getBaseUrl())
-            return (
-              <Pressable
-                key={i}
-                onPress={() => imgUrl && onImagePress?.(imgUrl)}
-                style={styles.imageContainer}
-              >
-                <Image
-                  source={{ uri: imgUrl }}
-                  style={styles.attachedImage}
-                  contentFit="cover"
-                  transition={200}
-                />
-              </Pressable>
-            )
-          })}
+          {/* Bubble */}
+          <Pressable
+            onLongPress={handleLongPress}
+            delayLongPress={500}
+            style={({ pressed }) => [
+              styles.bubble,
+              isSelf ? styles.bubbleSelf : styles.bubbleOther,
+              isMentioned && !isSelf && styles.bubbleMentioned,
+              message.client_state === 'sending' && styles.bubbleSending,
+              pressed && styles.bubblePressed,
+            ]}
+          >
+            {renderContent()}
+          </Pressable>
 
-          {/* Audio attachments */}
-          {audioAttachments.map((att, i) => (
-            <Pressable
-              key={`audio-${i}`}
-              onPress={() => {
-                const url = authenticatedFileUrl(att.url, token, getBaseUrl())
-                if (url) Linking.openURL(url)
-              }}
-              style={[styles.fileAttachment, { backgroundColor: isSelf ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.05)' }]}
-            >
-              <Text style={[styles.fileName, { color: textColor }]} numberOfLines={1}>
-                {'\u{1F3B5} '}{att.filename || 'Audio'}
-              </Text>
-              {att.duration !== undefined && (
-                <Text style={[styles.fileSize, { color: secondaryTextColor }]}>
-                  {Math.floor(att.duration / 60)}:{String(Math.floor(att.duration % 60)).padStart(2, '0')}
-                </Text>
-              )}
-            </Pressable>
-          ))}
-
-          {/* File attachments */}
-          {fileAttachments.map((att, i) => (
-            <Pressable
-              key={i}
-              onPress={() => {
-                const url = authenticatedFileUrl(att.url, token, getBaseUrl())
-                if (url) Linking.openURL(url)
-              }}
-              style={[styles.fileAttachment, { backgroundColor: isSelf ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.05)' }]}
-            >
-              <Text style={[styles.fileName, { color: textColor }]} numberOfLines={1}>
-                {att.filename || 'File'}
-              </Text>
-              {att.size !== undefined && (
-                <Text style={[styles.fileSize, { color: secondaryTextColor }]}>
-                  {formatFileSize(att.size)}
-                </Text>
-              )}
-            </Pressable>
-          ))}
-
-          {/* Reactions — tappable */}
-          {message.reactions && message.reactions.length > 0 && (
-            <View style={styles.reactions}>
-              {message.reactions.map((r) => {
-                const isMine = myEntityId ? r.entity_ids.includes(myEntityId) : false
+          {/* Reactions */}
+          {(message.reactions?.length || 0) > 0 && (
+            <View style={[styles.reactionsRow, isSelf && styles.reactionsRowSelf]}>
+              {message.reactions!.map((r, i) => {
+                const isMine = myEntityId != null && r.entity_ids.includes(myEntityId)
                 return (
                   <Pressable
-                    key={r.emoji}
-                    onPress={() => onReactionTap?.(message.id, r.emoji)}
-                    style={[
-                      styles.reactionBadge,
-                      {
-                        backgroundColor: isMine ? colors.accent + '25' : 'rgba(255,255,255,0.1)',
-                        borderColor: isMine ? colors.accent + '50' : 'transparent',
-                        borderWidth: isMine ? 1 : 0,
-                      },
-                    ]}
+                    key={i}
+                    style={[styles.reactionChip, isMine && styles.reactionChipActive]}
+                    onPress={() => onReact?.(message.id, r.emoji)}
                   >
                     <Text style={styles.reactionEmoji}>{r.emoji}</Text>
-                    <Text style={[styles.reactionCount, { color: isMine ? colors.accent : secondaryTextColor }]}>{r.count}</Text>
+                    <Text style={[styles.reactionCount, isMine && styles.reactionCountActive]}>
+                      {r.count}
+                    </Text>
                   </Pressable>
                 )
               })}
             </View>
           )}
 
-          {/* Time + client state */}
-          <View style={styles.metaRow}>
-            <Text style={[styles.time, { color: secondaryTextColor }]}>
-              {formatTime(message.created_at)}
-            </Text>
-            {clientStateText && (
-              <Text style={[
-                styles.clientState,
-                { color: message.client_state === 'failed' ? colors.error : secondaryTextColor },
-              ]}>
-                {' '}{clientStateText}
-              </Text>
-            )}
-          </View>
-        </Pressable>
+          {/* Delivery status */}
+          {isSelf && message.temp_id && message.client_state && (
+            <View style={[styles.statusRow, styles.statusRowSelf]}>
+              {message.client_state === 'sending' && (
+                <>
+                  <Clock size={12} color="#94a3b8" />
+                  <Text style={styles.statusText}>{t('message.sending')}</Text>
+                </>
+              )}
+              {message.client_state === 'queued' && (
+                <>
+                  <CloudOff size={12} color="#94a3b8" />
+                  <Text style={styles.statusText}>{t('message.queuedOffline')}</Text>
+                  {canRetryOutbox && (
+                    <Pressable onPress={() => onRetryOutbox!(message.temp_id!)}>
+                      <Text style={styles.retryLink}>{t('message.retryNow')}</Text>
+                    </Pressable>
+                  )}
+                </>
+              )}
+              {message.client_state === 'failed' && (
+                <>
+                  <RotateCcw size={12} color="#ef4444" />
+                  <Text style={[styles.statusText, { color: '#ef4444' }]}>{t('message.deliveryFailed')}</Text>
+                  {canRetryOutbox && (
+                    <Pressable onPress={() => onRetryOutbox!(message.temp_id!)}>
+                      <Text style={[styles.retryLink, { color: '#ef4444' }]}>{t('message.tapToRetry')}</Text>
+                    </Pressable>
+                  )}
+                </>
+              )}
+            </View>
+          )}
+
+          {/* Read receipt */}
+          {isSelf && isRead && !message.temp_id && (
+            <View style={[styles.statusRow, styles.statusRowSelf]}>
+              <Check size={12} color="#6366f1" />
+              <Text style={styles.statusText}>{t('message.read')}</Text>
+            </View>
+          )}
+
+          {/* Thinking toggle */}
+          {layers.thinking && (
+            <View style={styles.thinkingContainer}>
+              <Pressable
+                style={styles.thinkingToggle}
+                onPress={() => setShowThinking(!showThinking)}
+              >
+                <Brain size={12} color="#94a3b8" />
+                <Text style={styles.thinkingLabel}>{t('message.thinking')}</Text>
+                {showThinking
+                  ? <ChevronUp size={12} color="#94a3b8" />
+                  : <ChevronDown size={12} color="#94a3b8" />
+                }
+              </Pressable>
+              {showThinking && (
+                <View style={styles.thinkingContent}>
+                  <Text style={styles.thinkingText}>{layers.thinking}</Text>
+                </View>
+              )}
+            </View>
+          )}
+        </View>
       </View>
-    </View>
+
+      {/* Lightbox */}
+      {lightboxUri && (
+        <ImageLightbox uri={lightboxUri} onClose={() => setLightboxUri(null)} />
+      )}
+
+      {/* Action sheet */}
+      <ActionSheet
+        visible={showActionSheet}
+        onClose={() => setShowActionSheet(false)}
+        options={actionOptions}
+      />
+    </>
   )
 }
 
+// ─── Styles ──────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
   row: {
+    flexDirection: 'row',
+    gap: 8,
     paddingHorizontal: 12,
-    marginBottom: 2,
+    maxWidth: '85%',
   },
-  avatarCol: {
-    width: 36,
-    marginRight: 6,
-    alignItems: 'center',
-    justifyContent: 'flex-end',
+  rowSelf: {
+    flexDirection: 'row-reverse',
+    alignSelf: 'flex-end',
   },
-  bubbleCol: {
+  avatarSpacer: {
+    width: 32,
+    flexShrink: 0,
+  },
+  column: {
     flex: 1,
+    gap: 2,
   },
-  senderName: {
-    fontSize: 12,
-    fontWeight: '600',
-    marginBottom: 2,
-    marginLeft: 4,
-  },
-  bubble: {
-    borderRadius: 16,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    minWidth: 60,
-  },
-  replyPreview: {
-    borderLeftWidth: 3,
-    paddingLeft: 8,
-    paddingVertical: 4,
-    marginBottom: 6,
-    borderRadius: 4,
-    paddingRight: 8,
-  },
-  replySender: {
-    fontSize: 11,
-    fontWeight: '600',
-    marginBottom: 1,
-  },
-  replyText: {
-    fontSize: 12,
-  },
-  messageText: {
-    fontSize: 15,
-    lineHeight: 21,
+  columnSelf: {
+    alignItems: 'flex-end',
   },
   metaRow: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
     alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 4,
+  },
+  metaRowSelf: {
+    flexDirection: 'row-reverse',
+  },
+  senderName: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: '#64748b',
+  },
+  senderBot: {
+    color: '#a78bfa',
+  },
+  timestamp: {
+    fontSize: 10,
+    color: '#94a3b8',
+    opacity: 0.6,
+  },
+  replyRef: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 4,
+  },
+  replyRefSelf: {
+    flexDirection: 'row-reverse',
+  },
+  replyCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+    backgroundColor: '#f1f5f9',
+    borderLeftWidth: 2,
+    borderLeftColor: '#6366f140',
+    maxWidth: 200,
+  },
+  replyAuthor: {
+    fontSize: 10,
+    fontWeight: '500',
+    color: '#6366f1',
+    flexShrink: 1,
+  },
+  replyPreview: {
+    fontSize: 10,
+    color: '#94a3b8',
+    flexShrink: 1,
+  },
+  replyFallback: {
+    fontSize: 10,
+    color: '#94a3b8',
+  },
+  bubble: {
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    maxWidth: '100%',
+  },
+  bubbleSelf: {
+    backgroundColor: '#eef2ff',
+    borderTopRightRadius: 6,
+  },
+  bubbleOther: {
+    backgroundColor: '#f8fafc',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: '#e2e8f0',
+    borderTopLeftRadius: 6,
+  },
+  bubbleMentioned: {
+    borderLeftWidth: 2,
+    borderLeftColor: '#6366f1',
+    backgroundColor: '#6366f108',
+  },
+  bubbleSending: {
+    opacity: 0.6,
+  },
+  bubblePressed: {
+    opacity: 0.8,
+  },
+  reactionsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 4,
+    paddingHorizontal: 2,
+  },
+  reactionsRowSelf: {
+    justifyContent: 'flex-end',
+  },
+  reactionChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 12,
+    backgroundColor: '#f1f5f9',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: '#e2e8f0',
+  },
+  reactionChipActive: {
+    borderColor: '#6366f180',
+    backgroundColor: '#eef2ff',
+  },
+  reactionEmoji: {
+    fontSize: 12,
+  },
+  reactionCount: {
+    fontSize: 10,
+    color: '#94a3b8',
+  },
+  reactionCountActive: {
+    color: '#6366f1',
+  },
+  statusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 4,
+  },
+  statusRowSelf: {
+    justifyContent: 'flex-end',
+  },
+  statusText: {
+    fontSize: 10,
+    color: '#94a3b8',
+  },
+  retryLink: {
+    fontSize: 10,
+    color: '#6366f1',
+    textDecorationLine: 'underline',
+    marginLeft: 4,
+  },
+  thinkingContainer: {
+    paddingHorizontal: 4,
+  },
+  thinkingToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  thinkingLabel: {
+    fontSize: 10,
+    color: '#94a3b8',
+  },
+  thinkingContent: {
     marginTop: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: '#f8fafc',
+    borderRadius: 8,
+    maxHeight: 128,
   },
-  time: {
+  thinkingText: {
     fontSize: 11,
-  },
-  clientState: {
-    fontSize: 11,
+    color: '#94a3b8',
+    fontStyle: 'italic',
+    lineHeight: 16,
   },
   revokedContainer: {
-    paddingHorizontal: 12,
-    marginBottom: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    paddingVertical: 4,
   },
   revokedText: {
-    fontSize: 13,
+    fontSize: 11,
+    color: '#94a3b8',
     fontStyle: 'italic',
-    paddingVertical: 4,
-    paddingHorizontal: 12,
   },
   systemContainer: {
     alignItems: 'center',
-    marginVertical: 8,
-    paddingHorizontal: 20,
+    paddingVertical: 4,
   },
   systemText: {
-    fontSize: 12,
-    textAlign: 'center',
-  },
-  imageContainer: {
-    marginTop: 6,
-    borderRadius: 8,
-    overflow: 'hidden',
-  },
-  attachedImage: {
-    width: 200,
-    height: 150,
-    borderRadius: 8,
-  },
-  fileAttachment: {
-    marginTop: 6,
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  fileName: {
-    fontSize: 13,
-    fontWeight: '500',
-    flex: 1,
-  },
-  fileSize: {
     fontSize: 11,
-    marginLeft: 8,
-  },
-  reactions: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginTop: 6,
-    gap: 4,
-  },
-  reactionBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 10,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-  },
-  reactionEmoji: {
-    fontSize: 14,
-  },
-  reactionCount: {
-    fontSize: 11,
-    marginLeft: 3,
+    color: '#94a3b8',
   },
 })
+
+const contentStyles = StyleSheet.create({
+  bodyText: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: '#1e293b',
+  },
+  imageContainer: {
+    gap: 6,
+  },
+  imageGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  imageThumb: {
+    width: 150,
+    height: 150,
+    borderRadius: 12,
+    resizeMode: 'cover',
+  },
+  fileContainer: {
+    gap: 6,
+  },
+  fileCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 10,
+    borderRadius: 8,
+    backgroundColor: '#ffffff80',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: '#e2e8f0',
+  },
+  fileIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    backgroundColor: '#eef2ff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  fileInfo: {
+    flex: 1,
+    minWidth: 0,
+  },
+  fileName: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#1e293b',
+  },
+  fileSize: {
+    fontSize: 10,
+    color: '#94a3b8',
+  },
+})
+
+const markdownStyles = StyleSheet.create({
+  body: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: '#1e293b',
+  },
+  heading1: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#0f172a',
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  heading2: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1e293b',
+    marginTop: 6,
+    marginBottom: 4,
+  },
+  heading3: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1e293b',
+    marginTop: 4,
+    marginBottom: 2,
+  },
+  code_inline: {
+    backgroundColor: '#f1f5f9',
+    color: '#6366f1',
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+    borderRadius: 4,
+    fontSize: 13,
+    fontFamily: 'Courier',
+  },
+  fence: {
+    backgroundColor: '#f8fafc',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 12,
+    fontFamily: 'Courier',
+    color: '#334155',
+    marginVertical: 4,
+  },
+  blockquote: {
+    borderLeftWidth: 3,
+    borderLeftColor: '#6366f140',
+    paddingLeft: 12,
+    marginVertical: 4,
+    backgroundColor: '#f8fafc',
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  link: {
+    color: '#6366f1',
+    textDecorationLine: 'underline',
+  },
+  list_item: {
+    marginVertical: 2,
+  },
+  strong: {
+    fontWeight: '600',
+    color: '#0f172a',
+  },
+  em: {
+    fontStyle: 'italic',
+  },
+} as Record<string, any>)

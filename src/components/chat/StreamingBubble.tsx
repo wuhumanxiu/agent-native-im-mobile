@@ -1,10 +1,115 @@
-import React, { useState, useCallback } from 'react'
-import { View, Text, Pressable, StyleSheet, ActivityIndicator } from 'react-native'
+import React, { useState, useEffect, useRef } from 'react'
+import { View, Text, Pressable, Animated, StyleSheet } from 'react-native'
 import { useTranslation } from 'react-i18next'
-import { useTheme } from '../../theme/ThemeContext'
-import { EntityAvatar } from '../entity/EntityAvatar'
-import { entityDisplayName } from '../../lib/utils'
+import Markdown from 'react-native-markdown-display'
+import { Loader2, Brain, ChevronDown, ChevronUp, Square } from 'lucide-react-native'
+import { EntityAvatar } from '../ui/EntityAvatar'
 import type { ActiveStream, Entity } from '../../lib/types'
+
+// ─── Typing indicator dots ───────────────────────────────────────
+
+function TypingDots() {
+  const dot1 = useRef(new Animated.Value(0.3)).current
+  const dot2 = useRef(new Animated.Value(0.3)).current
+  const dot3 = useRef(new Animated.Value(0.3)).current
+
+  useEffect(() => {
+    const animateDot = (dot: Animated.Value, delay: number) =>
+      Animated.loop(
+        Animated.sequence([
+          Animated.delay(delay),
+          Animated.timing(dot, { toValue: 1, duration: 300, useNativeDriver: true }),
+          Animated.timing(dot, { toValue: 0.3, duration: 300, useNativeDriver: true }),
+        ]),
+      )
+    const a1 = animateDot(dot1, 0)
+    const a2 = animateDot(dot2, 200)
+    const a3 = animateDot(dot3, 400)
+    a1.start()
+    a2.start()
+    a3.start()
+    return () => { a1.stop(); a2.stop(); a3.stop() }
+  }, [dot1, dot2, dot3])
+
+  return (
+    <View style={dotStyles.container}>
+      {[dot1, dot2, dot3].map((dot, i) => (
+        <Animated.View key={i} style={[dotStyles.dot, { opacity: dot }]} />
+      ))}
+    </View>
+  )
+}
+
+const dotStyles = StyleSheet.create({
+  container: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 4,
+  },
+  dot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#6366f1',
+  },
+})
+
+// ─── Cursor blink ────────────────────────────────────────────────
+
+function BlinkingCursor() {
+  const opacity = useRef(new Animated.Value(1)).current
+
+  useEffect(() => {
+    const anim = Animated.loop(
+      Animated.sequence([
+        Animated.timing(opacity, { toValue: 0, duration: 500, useNativeDriver: true }),
+        Animated.timing(opacity, { toValue: 1, duration: 500, useNativeDriver: true }),
+      ]),
+    )
+    anim.start()
+    return () => anim.stop()
+  }, [opacity])
+
+  return (
+    <Animated.View
+      style={{
+        width: 2,
+        height: 16,
+        backgroundColor: '#6366f1',
+        marginLeft: 2,
+        opacity,
+      }}
+    />
+  )
+}
+
+// ─── Spinner (rotating icon placeholder) ─────────────────────────
+
+function Spinner({ size = 14, color = '#6366f1' }: { size?: number; color?: string }) {
+  const spin = useRef(new Animated.Value(0)).current
+
+  useEffect(() => {
+    const anim = Animated.loop(
+      Animated.timing(spin, { toValue: 1, duration: 1200, useNativeDriver: true }),
+    )
+    anim.start()
+    return () => anim.stop()
+  }, [spin])
+
+  const rotate = spin.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg'],
+  })
+
+  return (
+    <Animated.View style={{ transform: [{ rotate }] }}>
+      <Loader2 size={size} color={color} />
+    </Animated.View>
+  )
+}
+
+// ─── Props ───────────────────────────────────────────────────────
 
 interface Props {
   stream: ActiveStream
@@ -12,9 +117,10 @@ interface Props {
   onCancel?: (streamId: string, conversationId: number) => void
 }
 
+// ─── Component ───────────────────────────────────────────────────
+
 export function StreamingBubble({ stream, sender, onCancel }: Props) {
   const { t } = useTranslation()
-  const { colors } = useTheme()
   const [showThinking, setShowThinking] = useState(false)
 
   const status = stream.layers.status
@@ -22,213 +128,246 @@ export function StreamingBubble({ stream, sender, onCancel }: Props) {
   const summary = stream.layers.summary || ''
   const progress = status?.progress ?? 0
 
-  const handleCancel = useCallback(() => {
-    onCancel?.(stream.stream_id, stream.conversation_id)
-  }, [stream.stream_id, stream.conversation_id, onCancel])
-
   return (
-    <View style={styles.container}>
+    <View style={styles.row}>
       {/* Avatar */}
-      <View style={styles.avatarCol}>
-        <EntityAvatar entity={sender} size="sm" />
-      </View>
+      <EntityAvatar entity={sender} size="sm" />
 
-      <View style={styles.bubbleCol}>
+      <View style={styles.column}>
         {/* Sender name */}
         {sender && (
-          <View style={styles.headerRow}>
-            <Text style={[styles.senderName, { color: colors.bot }]}>
-              {entityDisplayName(sender)}
+          <View style={styles.metaRow}>
+            <Text style={styles.senderName}>
+              {sender.display_name || sender.name}
             </Text>
-            <Text style={[styles.processingLabel, { color: colors.textMuted }]}>
-              {t('chat.streaming')}
+            <Text style={styles.statusLabel}>
+              {t('streaming.processing')}
             </Text>
           </View>
         )}
 
         {/* Bubble */}
-        <View style={[styles.bubble, { backgroundColor: colors.bubbleOther, borderColor: colors.borderSubtle }]}>
-          {summary ? (
-            <View style={styles.contentArea}>
-              <Text style={[styles.summaryText, { color: colors.textPrimary }]}>
-                {summary}
-              </Text>
-              {/* Typing cursor */}
-              <View style={[styles.cursor, { backgroundColor: colors.accent }]} />
-            </View>
-          ) : (
-            <View style={styles.loadingRow}>
-              <ActivityIndicator size="small" color={colors.accent} />
-              <Text style={[styles.loadingText, { color: colors.textSecondary }]}>
-                {status?.text || t('chat.streaming')}
-              </Text>
+        <View style={styles.bubble}>
+          {/* Content */}
+          <View style={styles.contentArea}>
+            {summary ? (
+              <View style={styles.markdownContainer}>
+                <Markdown style={markdownStyles}>{summary}</Markdown>
+                <BlinkingCursor />
+              </View>
+            ) : (
+              <View style={styles.loadingRow}>
+                <Spinner size={14} />
+                <Text style={styles.loadingText}>
+                  {status?.text || t('streaming.processing')}
+                </Text>
+              </View>
+            )}
+          </View>
+
+          {/* Status bar with progress */}
+          {(status?.phase || progress > 0) && (
+            <View style={styles.statusBar}>
+              {status?.phase && summary ? (
+                <View style={styles.phaseRow}>
+                  <Spinner size={12} />
+                  <Text style={styles.phaseText}>{status.text || status.phase}</Text>
+                </View>
+              ) : null}
+              {progress > 0 && (
+                <View style={styles.progressTrack}>
+                  <View
+                    style={[
+                      styles.progressFill,
+                      { width: `${Math.min(progress * 100, 100)}%` as any },
+                    ]}
+                  />
+                </View>
+              )}
             </View>
           )}
-
-          {/* Progress bar */}
-          {progress > 0 && (
-            <View style={[styles.progressTrack, { backgroundColor: colors.bgPrimary }]}>
-              <View
-                style={[
-                  styles.progressBar,
-                  { backgroundColor: colors.accent, width: `${Math.min(progress * 100, 100)}%` },
-                ]}
-              />
-            </View>
-          )}
-
-          {/* Status text when there is content */}
-          {status?.phase && summary ? (
-            <View style={styles.statusRow}>
-              <ActivityIndicator size="small" color={colors.accent} />
-              <Text style={[styles.statusText, { color: colors.textMuted }]}>
-                {status.text || status.phase}
-              </Text>
-            </View>
-          ) : null}
         </View>
 
-        {/* Controls: thinking toggle + cancel */}
-        <View style={styles.controlRow}>
-          {thinking ? (
-            <Pressable onPress={() => setShowThinking(!showThinking)} style={styles.controlBtn}>
-              <Text style={[styles.controlText, { color: colors.textMuted }]}>
-                {t('chat.thinking')} {showThinking ? '\u25B2' : '\u25BC'}
-              </Text>
+        {/* Controls: thinking + cancel */}
+        <View style={styles.controlsRow}>
+          {thinking && (
+            <Pressable
+              style={styles.controlButton}
+              onPress={() => setShowThinking(!showThinking)}
+            >
+              <Brain size={12} color="#94a3b8" />
+              <Text style={styles.controlText}>{t('message.thinking')}</Text>
+              {showThinking
+                ? <ChevronUp size={12} color="#94a3b8" />
+                : <ChevronDown size={12} color="#94a3b8" />
+              }
             </Pressable>
-          ) : null}
+          )}
           {onCancel && (
-            <Pressable onPress={handleCancel} style={styles.controlBtn}>
-              <Text style={[styles.controlText, { color: colors.error }]}>
-                {t('chat.streamStop')}
-              </Text>
+            <Pressable
+              style={styles.controlButton}
+              onPress={() => onCancel(stream.stream_id, stream.conversation_id)}
+            >
+              <Square size={10} color="#94a3b8" />
+              <Text style={styles.cancelText}>{t('chat.stopGenerating')}</Text>
             </Pressable>
           )}
         </View>
 
         {/* Expanded thinking */}
-        {showThinking && thinking ? (
-          <View style={[styles.thinkingBox, { backgroundColor: colors.bgTertiary }]}>
-            <Text style={[styles.thinkingText, { color: colors.textMuted }]}>
-              {thinking}
-            </Text>
+        {showThinking && thinking && (
+          <View style={styles.thinkingExpanded}>
+            <Text style={styles.thinkingText}>{thinking}</Text>
           </View>
-        ) : null}
+        )}
       </View>
     </View>
   )
 }
 
+// ─── Styles ──────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
-  container: {
+  row: {
     flexDirection: 'row',
+    gap: 10,
     paddingHorizontal: 12,
-    marginBottom: 4,
-  },
-  avatarCol: {
-    width: 36,
-    marginRight: 6,
-    alignItems: 'center',
-    justifyContent: 'flex-start',
-    paddingTop: 2,
-  },
-  bubbleCol: {
-    flex: 1,
     maxWidth: '85%',
   },
-  headerRow: {
+  column: {
+    flex: 1,
+    gap: 2,
+  },
+  metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    marginBottom: 2,
-    paddingLeft: 4,
+    gap: 8,
+    paddingHorizontal: 4,
   },
   senderName: {
-    fontSize: 12,
-    fontWeight: '600',
+    fontSize: 11,
+    fontWeight: '500',
+    color: '#a78bfa',
   },
-  processingLabel: {
+  statusLabel: {
     fontSize: 10,
+    color: '#94a3b8',
+    opacity: 0.6,
   },
   bubble: {
-    borderRadius: 16,
-    borderTopLeftRadius: 4,
+    borderRadius: 20,
+    borderTopLeftRadius: 6,
+    backgroundColor: '#f8fafc',
     borderWidth: StyleSheet.hairlineWidth,
+    borderColor: '#e2e8f0',
     overflow: 'hidden',
   },
   contentArea: {
     paddingHorizontal: 14,
     paddingVertical: 10,
+    minWidth: 200,
+  },
+  markdownContainer: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     alignItems: 'flex-end',
-  },
-  summaryText: {
-    fontSize: 15,
-    lineHeight: 21,
-  },
-  cursor: {
-    width: 2,
-    height: 16,
-    marginLeft: 2,
-    borderRadius: 1,
-    opacity: 0.7,
+    flexWrap: 'wrap',
   },
   loadingRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
   },
   loadingText: {
-    fontSize: 13,
+    fontSize: 12,
+    color: '#64748b',
   },
-  progressTrack: {
-    height: 3,
-    marginHorizontal: 14,
-    marginBottom: 8,
-    borderRadius: 2,
-    overflow: 'hidden',
-  },
-  progressBar: {
-    height: '100%',
-    borderRadius: 2,
-  },
-  statusRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
+  statusBar: {
     paddingHorizontal: 14,
     paddingBottom: 8,
+    gap: 6,
   },
-  statusText: {
-    fontSize: 10,
-  },
-  controlRow: {
+  phaseRow: {
     flexDirection: 'row',
-    gap: 12,
-    paddingLeft: 4,
-    marginTop: 4,
+    alignItems: 'center',
+    gap: 8,
   },
-  controlBtn: {
-    paddingVertical: 2,
+  phaseText: {
+    fontSize: 10,
+    color: '#94a3b8',
+  },
+  progressTrack: {
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#f1f5f9',
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: 2,
+    backgroundColor: '#6366f1',
+  },
+  controlsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 4,
+  },
+  controlButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   controlText: {
-    fontSize: 11,
-    fontWeight: '500',
+    fontSize: 10,
+    color: '#94a3b8',
   },
-  thinkingBox: {
-    marginTop: 4,
-    marginLeft: 4,
+  cancelText: {
+    fontSize: 10,
+    color: '#94a3b8',
+  },
+  thinkingExpanded: {
+    marginHorizontal: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: '#f8fafc',
     borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    maxHeight: 100,
+    maxHeight: 128,
   },
   thinkingText: {
     fontSize: 11,
+    color: '#94a3b8',
     fontStyle: 'italic',
     lineHeight: 16,
   },
 })
+
+const markdownStyles = StyleSheet.create({
+  body: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: '#1e293b',
+  },
+  code_inline: {
+    backgroundColor: '#f1f5f9',
+    color: '#6366f1',
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+    borderRadius: 4,
+    fontSize: 13,
+    fontFamily: 'Courier',
+  },
+  fence: {
+    backgroundColor: '#f1f5f9',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 12,
+    fontFamily: 'Courier',
+    color: '#334155',
+  },
+  link: {
+    color: '#6366f1',
+  },
+  strong: {
+    fontWeight: '600',
+  },
+} as Record<string, any>)

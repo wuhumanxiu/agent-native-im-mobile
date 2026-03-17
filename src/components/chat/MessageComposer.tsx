@@ -1,209 +1,599 @@
-import React, { useState, useRef, useCallback } from 'react'
-import { View, TextInput, Pressable, StyleSheet, Platform, KeyboardAvoidingView } from 'react-native'
-import * as ImagePicker from 'expo-image-picker'
-import * as DocumentPicker from 'expo-document-picker'
-import * as Haptics from 'expo-haptics'
-import { useTheme } from '../../theme/ThemeContext'
+import React, { useState, useRef, useCallback, useMemo, useEffect } from 'react'
+import { View, Text, TextInput, Pressable, FlatList, StyleSheet, Platform, KeyboardAvoidingView } from 'react-native'
 import { useTranslation } from 'react-i18next'
+import { Send, Paperclip, X, Mic, Smile, CornerUpLeft, Loader2, Image as ImageIcon, FileText } from 'lucide-react-native'
+import * as ImagePicker from 'expo-image-picker'
+import { EntityAvatar } from '../ui/EntityAvatar'
+import type { Participant, Message, Attachment } from '../../lib/types'
 
-interface MessageComposerProps {
-  onSend: (text: string) => void
-  onAttach?: (file: { uri: string; name: string; type: string }) => void
+// ─── Utility ─────────────────────────────────────────────────────
+
+function entityDisplayName(entity?: { display_name?: string; name?: string } | null): string {
+  if (!entity) return 'Unknown'
+  return entity.display_name || entity.name || 'Unknown'
+}
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1048576) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / 1048576).toFixed(1)} MB`
+}
+
+// ─── Types ───────────────────────────────────────────────────────
+
+export interface PendingFile {
+  uri: string
+  name: string
+  type: string
+  size: number
+  status: 'uploading' | 'uploaded' | 'failed'
+  url?: string
+}
+
+export type UploadedAttachment = Required<Pick<Attachment, 'type' | 'url' | 'filename' | 'mime_type' | 'size'>>
+
+// ─── Props ───────────────────────────────────────────────────────
+
+interface Props {
+  conversationId?: number
+  onSend: (text: string, attachments?: UploadedAttachment[], mentions?: number[]) => void
+  onAudioSend?: (blob: any, duration: number) => void
+  onFileUpload?: (file: { uri: string; name: string; type: string; size: number }) => Promise<string | null>
   onTyping?: () => void
+  placeholder?: string
+  participants?: Participant[]
+  isObserver?: boolean
+  replyTo?: Message | null
+  onCancelReply?: () => void
   disabled?: boolean
 }
 
-export function MessageComposer({ onSend, onAttach, onTyping, disabled = false }: MessageComposerProps) {
-  const { colors } = useTheme()
+// ─── Component ───────────────────────────────────────────────────
+
+export function MessageComposer({
+  conversationId,
+  onSend,
+  onAudioSend,
+  onFileUpload,
+  onTyping,
+  placeholder,
+  participants,
+  isObserver,
+  replyTo,
+  onCancelReply,
+  disabled,
+}: Props) {
   const { t } = useTranslation()
   const [text, setText] = useState('')
-  const inputRef = useRef<TextInput>(null)
-  const lastTypingRef = useRef(0)
+  const [pendingFiles, setPendingFiles] = useState<PendingFile[]>([])
+  const [mentionIds, setMentionIds] = useState<number[]>([])
+  const [inputHeight, setInputHeight] = useState(40)
+  const textInputRef = useRef<TextInput>(null)
 
-  const handleChangeText = useCallback((value: string) => {
-    setText(value)
+  // @mention autocomplete state
+  const [mentionQuery, setMentionQuery] = useState<string | null>(null)
+  const [mentionIndex, setMentionIndex] = useState(0)
+  const [mentionStart, setMentionStart] = useState(-1)
+
+  // Typing indicator throttle
+  const lastTypingRef = useRef(0)
+  const emitTyping = useCallback(() => {
+    if (!onTyping) return
     const now = Date.now()
-    if (now - lastTypingRef.current > 2000) {
+    if (now - lastTypingRef.current > 3000) {
       lastTypingRef.current = now
-      onTyping?.()
+      onTyping()
     }
   }, [onTyping])
 
-  const handleSend = useCallback(() => {
+  // Reset on conversation switch
+  const prevConvIdRef = useRef<number | undefined>(undefined)
+  useEffect(() => {
+    if (conversationId !== prevConvIdRef.current) {
+      setText('')
+      setPendingFiles([])
+      setMentionIds([])
+      setMentionQuery(null)
+      prevConvIdRef.current = conversationId
+    }
+  }, [conversationId])
+
+  // Focus input when reply is set
+  useEffect(() => {
+    if (replyTo) textInputRef.current?.focus()
+  }, [replyTo])
+
+  // Filter participants by mention query
+  const mentionCandidates = useMemo(() => {
+    if (mentionQuery === null || !participants) return []
+    const q = mentionQuery.toLowerCase()
+    return participants
+      .filter((p) => p.entity)
+      .filter((p) => {
+        const name = p.entity!.name.toLowerCase()
+        const display = (p.entity!.display_name || '').toLowerCase()
+        return name.includes(q) || display.includes(q)
+      })
+      .slice(0, 8)
+  }, [mentionQuery, participants])
+
+  useEffect(() => {
+    setMentionIndex(0)
+  }, [mentionCandidates.length])
+
+  const insertMention = useCallback((participant: Participant) => {
+    if (!participant.entity || mentionStart < 0) return
+    const before = text.slice(0, mentionStart)
+    const displayName = entityDisplayName(participant.entity)
+    const newText = `${before}@${displayName} `
+    setText(newText)
+    setMentionIds((prev) => prev.includes(participant.entity_id) ? prev : [...prev, participant.entity_id])
+    setMentionQuery(null)
+    setMentionStart(-1)
+  }, [text, mentionStart])
+
+  // Uploaded attachments
+  const uploadedAttachments: UploadedAttachment[] = useMemo(() =>
+    pendingFiles
+      .filter((pf): pf is PendingFile & { url: string } => pf.status === 'uploaded' && !!pf.url)
+      .map((pf) => ({
+        type: pf.type.startsWith('image/') ? 'image' : 'file',
+        url: pf.url,
+        filename: pf.name,
+        mime_type: pf.type,
+        size: pf.size,
+      })),
+  [pendingFiles])
+
+  const hasUploading = pendingFiles.some((pf) => pf.status === 'uploading')
+
+  const handleSubmit = useCallback(() => {
     const trimmed = text.trim()
-    if (!trimmed) return
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
-    onSend(trimmed)
+    if (!trimmed && uploadedAttachments.length === 0) return
+    if (hasUploading) return
+    onSend(trimmed, uploadedAttachments.length > 0 ? uploadedAttachments : undefined, mentionIds.length > 0 ? mentionIds : undefined)
     setText('')
-  }, [text, onSend])
+    setPendingFiles([])
+    setMentionIds([])
+    setMentionQuery(null)
+    textInputRef.current?.focus()
+  }, [text, uploadedAttachments, hasUploading, mentionIds, onSend])
 
-  const handleAttach = useCallback(async () => {
-    try {
-      const result = await DocumentPicker.getDocumentAsync({
-        type: '*/*',
-        copyToCacheDirectory: true,
-      })
+  // Handle text change with @mention detection
+  const handleTextChange = useCallback((value: string) => {
+    setText(value)
+    emitTyping()
 
-      if (!result.canceled && result.assets?.[0]) {
-        const asset = result.assets[0]
-        onAttach?.({
-          uri: asset.uri,
-          name: asset.name,
-          type: asset.mimeType || 'application/octet-stream',
-        })
+    // Detect @mention trigger
+    const atMatch = value.match(/(^|[^a-zA-Z0-9])@([^\s@]*)$/)
+    if (atMatch && participants && participants.length > 0) {
+      setMentionQuery(atMatch[2])
+      setMentionStart(value.length - atMatch[2].length - 1)
+    } else {
+      setMentionQuery(null)
+      setMentionStart(-1)
+    }
+  }, [emitTyping, participants])
+
+  // Image/file picker
+  const handlePickImage = useCallback(async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsMultipleSelection: true,
+      quality: 0.8,
+    })
+
+    if (result.canceled || !result.assets) return
+    if (!onFileUpload) return
+
+    for (const asset of result.assets) {
+      const name = asset.fileName || `image_${Date.now()}.jpg`
+      const type = asset.mimeType || 'image/jpeg'
+      const size = asset.fileSize || 0
+      const entry: PendingFile = {
+        uri: asset.uri,
+        name,
+        type,
+        size,
+        status: 'uploading',
       }
-    } catch {}
-  }, [onAttach])
+      setPendingFiles((prev) => [...prev, entry])
 
-  const handleImagePick = useCallback(async () => {
-    try {
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
-        quality: 0.8,
-        allowsMultipleSelection: false,
+      onFileUpload({ uri: asset.uri, name, type, size }).then((url) => {
+        setPendingFiles((prev) =>
+          prev.map((pf) =>
+            pf.uri === asset.uri
+              ? { ...pf, status: url ? 'uploaded' : 'failed', url: url ?? undefined }
+              : pf
+          )
+        )
       })
+    }
+  }, [onFileUpload])
 
-      if (!result.canceled && result.assets?.[0]) {
-        const asset = result.assets[0]
-        const filename = asset.uri.split('/').pop() || 'image.jpg'
-        onAttach?.({
-          uri: asset.uri,
-          name: filename,
-          type: asset.mimeType || 'image/jpeg',
-        })
-      }
-    } catch {}
-  }, [onAttach])
+  const removeFile = useCallback((uri: string) => {
+    setPendingFiles((prev) => prev.filter((pf) => pf.uri !== uri))
+  }, [])
 
-  const showSend = text.trim().length > 0
+  // Observer state
+  if (isObserver) {
+    return (
+      <View style={styles.observerContainer}>
+        <Text style={styles.observerText}>{t('conversation.observer')}</Text>
+      </View>
+    )
+  }
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
-    >
-      <View style={[styles.container, { backgroundColor: colors.bgSecondary, borderTopColor: colors.border }]}>
+    <View style={styles.container}>
+      {/* @mention autocomplete */}
+      {mentionQuery !== null && mentionCandidates.length > 0 && (
+        <View style={styles.mentionPopover}>
+          <FlatList
+            data={mentionCandidates}
+            keyExtractor={(p) => String(p.entity_id)}
+            keyboardShouldPersistTaps="always"
+            renderItem={({ item, index }) => (
+              <Pressable
+                style={[
+                  styles.mentionItem,
+                  index === mentionIndex && styles.mentionItemActive,
+                ]}
+                onPress={() => insertMention(item)}
+              >
+                <EntityAvatar entity={item.entity} size="xs" />
+                <View style={styles.mentionInfo}>
+                  <Text style={styles.mentionName} numberOfLines={1}>
+                    {entityDisplayName(item.entity)}
+                  </Text>
+                  <Text style={styles.mentionHandle}>
+                    @{item.entity?.name}
+                    {item.entity?.entity_type !== 'user' && (
+                      <Text style={styles.mentionBadge}> {item.entity?.entity_type}</Text>
+                    )}
+                  </Text>
+                </View>
+              </Pressable>
+            )}
+          />
+        </View>
+      )}
+
+      {/* Reply preview */}
+      {replyTo && (
+        <View style={styles.replyBar}>
+          <CornerUpLeft size={14} color="#6366f1" />
+          <View style={styles.replyContent}>
+            <Text style={styles.replyAuthor}>
+              {t('chat.replyTo', { name: entityDisplayName(replyTo.sender) })}
+            </Text>
+            <Text style={styles.replyPreview} numberOfLines={1}>
+              {(replyTo.layers?.summary || '').slice(0, 80)}
+            </Text>
+          </View>
+          <Pressable style={styles.replyCancelButton} onPress={onCancelReply}>
+            <X size={12} color="#94a3b8" />
+          </Pressable>
+        </View>
+      )}
+
+      {/* Pending files preview */}
+      {pendingFiles.length > 0 && (
+        <View style={styles.filesRow}>
+          {pendingFiles.map((pf) => (
+            <View
+              key={pf.uri}
+              style={[
+                styles.fileChip,
+                pf.status === 'failed' && styles.fileChipFailed,
+              ]}
+            >
+              {pf.status === 'uploading' ? (
+                <Loader2 size={14} color="#6366f1" />
+              ) : pf.type.startsWith('image/') ? (
+                <ImageIcon size={14} color="#6366f1" />
+              ) : (
+                <FileText size={14} color="#6366f1" />
+              )}
+              <Text style={styles.fileChipName} numberOfLines={1}>{pf.name}</Text>
+              <Text style={styles.fileChipSize}>{formatFileSize(pf.size)}</Text>
+              {pf.status === 'failed' && (
+                <Text style={styles.fileChipError}>Failed</Text>
+              )}
+              <Pressable onPress={() => removeFile(pf.uri)}>
+                <X size={12} color="#94a3b8" />
+              </Pressable>
+            </View>
+          ))}
+        </View>
+      )}
+
+      {/* Mention badges */}
+      {mentionIds.length > 0 && participants && (
+        <View style={styles.mentionBadgesRow}>
+          {mentionIds.map((eid) => {
+            const p = participants.find((pp) => pp.entity_id === eid)
+            return (
+              <View key={eid} style={styles.mentionBadgeChip}>
+                <Text style={styles.mentionBadgeText}>@{entityDisplayName(p?.entity)}</Text>
+                <Pressable onPress={() => setMentionIds((prev) => prev.filter((id) => id !== eid))}>
+                  <X size={10} color="#6366f1" />
+                </Pressable>
+              </View>
+            )
+          })}
+        </View>
+      )}
+
+      {/* Input row */}
+      <View style={styles.inputRow}>
         {/* Attach button */}
+        {onFileUpload && (
+          <Pressable
+            style={({ pressed }) => [styles.iconButton, pressed && styles.iconButtonPressed]}
+            onPress={handlePickImage}
+          >
+            <Paperclip size={20} color="#94a3b8" />
+          </Pressable>
+        )}
+
+        {/* Emoji placeholder */}
         <Pressable
-          onPress={handleAttach}
-          onLongPress={handleImagePick}
-          style={({ pressed }) => [
-            styles.iconButton,
-            { opacity: pressed ? 0.6 : 1 },
-          ]}
-          hitSlop={8}
+          style={({ pressed }) => [styles.iconButton, pressed && styles.iconButtonPressed]}
+          onPress={() => { /* Emoji picker placeholder */ }}
         >
-          <AttachIcon color={colors.textMuted} />
+          <Smile size={20} color="#94a3b8" />
         </Pressable>
 
-        {/* Text input */}
+        {/* TextInput */}
         <TextInput
-          ref={inputRef}
+          ref={textInputRef}
           value={text}
-          onChangeText={handleChangeText}
-          placeholder={t('conversation.typeMessage')}
-          placeholderTextColor={colors.textMuted}
-          style={[
-            styles.input,
-            {
-              color: colors.textPrimary,
-              backgroundColor: colors.bgTertiary,
-              borderColor: colors.borderSubtle,
-            },
-          ]}
+          onChangeText={handleTextChange}
+          placeholder={placeholder || t('conversation.typeMessage')}
+          placeholderTextColor="#94a3b8"
           multiline
           maxLength={4000}
           editable={!disabled}
-          returnKeyType="default"
-          blurOnSubmit={false}
+          style={[styles.textInput, { height: Math.max(40, Math.min(inputHeight, 96)) }]}
+          onContentSizeChange={(e) => {
+            setInputHeight(e.nativeEvent.contentSize.height)
+          }}
+          textAlignVertical="center"
         />
 
-        {/* Send button */}
-        {showSend && (
+        {/* Send or Mic button */}
+        {(text.trim() || pendingFiles.length > 0) ? (
           <Pressable
-            onPress={handleSend}
             style={({ pressed }) => [
               styles.sendButton,
-              {
-                backgroundColor: colors.accent,
-                opacity: pressed ? 0.8 : 1,
-              },
+              hasUploading && styles.sendButtonDisabled,
+              pressed && styles.sendButtonPressed,
             ]}
-            hitSlop={8}
+            onPress={handleSubmit}
+            disabled={disabled || hasUploading}
           >
-            <SendIcon color="#ffffff" />
+            {hasUploading ? (
+              <Loader2 size={18} color="#ffffff" />
+            ) : (
+              <Send size={18} color="#ffffff" />
+            )}
           </Pressable>
+        ) : onAudioSend ? (
+          <Pressable
+            style={({ pressed }) => [styles.iconButton, pressed && styles.iconButtonPressed]}
+            onPress={() => { /* Audio recording - will be handled by expo-av */ }}
+            disabled={disabled}
+          >
+            <Mic size={20} color="#94a3b8" />
+          </Pressable>
+        ) : (
+          <View style={[styles.sendButton, styles.sendButtonDisabled]}>
+            <Send size={18} color="#ffffff80" />
+          </View>
         )}
       </View>
-    </KeyboardAvoidingView>
-  )
-}
-
-// Simple SVG-like icons as Text components
-function AttachIcon({ color }: { color: string }) {
-  return (
-    <View style={{ width: 24, height: 24, alignItems: 'center', justifyContent: 'center' }}>
-      <View style={{
-        width: 12,
-        height: 18,
-        borderWidth: 2,
-        borderColor: color,
-        borderRadius: 6,
-        transform: [{ rotate: '-45deg' }],
-      }} />
     </View>
   )
 }
 
-function SendIcon({ color }: { color: string }) {
-  return (
-    <View style={{ width: 24, height: 24, alignItems: 'center', justifyContent: 'center' }}>
-      <View style={{
-        width: 0,
-        height: 0,
-        borderLeftWidth: 10,
-        borderTopWidth: 6,
-        borderBottomWidth: 6,
-        borderLeftColor: color,
-        borderTopColor: 'transparent',
-        borderBottomColor: 'transparent',
-        marginLeft: 3,
-      }} />
-    </View>
-  )
-}
+// ─── Styles ──────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
   container: {
+    paddingHorizontal: 12,
+    paddingTop: 8,
+    paddingBottom: Platform.OS === 'ios' ? 34 : 16,
+    backgroundColor: '#ffffff',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: '#e2e8f0',
+  },
+  observerContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    paddingBottom: Platform.OS === 'ios' ? 34 : 16,
+  },
+  observerText: {
+    fontSize: 14,
+    color: '#94a3b8',
+    textAlign: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#f8fafc',
+    borderRadius: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: '#e2e8f0',
+    overflow: 'hidden',
+  },
+  mentionPopover: {
+    maxHeight: 200,
+    marginBottom: 4,
+    borderRadius: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: '#e2e8f0',
+    backgroundColor: '#ffffff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+    overflow: 'hidden',
+  },
+  mentionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  mentionItemActive: {
+    backgroundColor: '#6366f11A',
+  },
+  mentionInfo: {
+    flex: 1,
+    minWidth: 0,
+  },
+  mentionName: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#1e293b',
+  },
+  mentionHandle: {
+    fontSize: 10,
+    color: '#94a3b8',
+  },
+  mentionBadge: {
+    color: '#a78bfa',
+    backgroundColor: '#a78bfa26',
+  },
+  replyBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: '#f8fafc',
+    borderLeftWidth: 2,
+    borderLeftColor: '#6366f1',
+  },
+  replyContent: {
+    flex: 1,
+    minWidth: 0,
+  },
+  replyAuthor: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: '#6366f1',
+  },
+  replyPreview: {
+    fontSize: 11,
+    color: '#94a3b8',
+  },
+  replyCancelButton: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  filesRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 8,
+  },
+  fileChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: '#f8fafc',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: '#e2e8f0',
+  },
+  fileChipFailed: {
+    backgroundColor: '#fef2f2',
+    borderColor: '#fecaca',
+  },
+  fileChipName: {
+    fontSize: 12,
+    color: '#64748b',
+    maxWidth: 100,
+  },
+  fileChipSize: {
+    fontSize: 10,
+    color: '#94a3b8',
+  },
+  fileChipError: {
+    fontSize: 10,
+    color: '#ef4444',
+  },
+  mentionBadgesRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginBottom: 8,
+  },
+  mentionBadgeChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+    backgroundColor: '#6366f11A',
+  },
+  mentionBadgeText: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: '#6366f1',
+  },
+  inputRow: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    paddingHorizontal: 8,
-    paddingVertical: 8,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    gap: 6,
+    gap: 4,
+    backgroundColor: '#f8fafc',
+    borderRadius: 20,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: '#e2e8f0',
+    paddingHorizontal: 4,
+    paddingVertical: 2,
   },
   iconButton: {
-    width: 44,
-    height: 44,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  input: {
+  iconButtonPressed: {
+    backgroundColor: '#f1f5f9',
+  },
+  textInput: {
     flex: 1,
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingTop: Platform.OS === 'ios' ? 10 : 8,
-    paddingBottom: Platform.OS === 'ios' ? 10 : 8,
-    fontSize: 15,
-    maxHeight: 120,
-    minHeight: 44,
-    borderWidth: StyleSheet.hairlineWidth,
+    fontSize: 16,
+    color: '#1e293b',
+    paddingHorizontal: 4,
+    paddingVertical: 8,
+    maxHeight: 96,
   },
   sendButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#6366f1',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  sendButtonDisabled: {
+    backgroundColor: '#6366f180',
+  },
+  sendButtonPressed: {
+    backgroundColor: '#4f46e5',
   },
 })

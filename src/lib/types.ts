@@ -144,6 +144,7 @@ export type WSEventType =
   | 'message.updated'
   | 'message.interaction_response'
   | 'message.reaction_updated'
+  | 'message.read'
   | 'conversation.updated'
   | 'conversation.memory_updated'
   | 'conversation.change_request'
@@ -205,6 +206,15 @@ export interface MessagesResponse {
 
 export interface SearchResponse {
   messages: Message[]
+  query: string
+}
+
+export interface GlobalSearchResult extends Message {
+  conversation_title: string
+}
+
+export interface GlobalSearchResponse {
+  messages: GlobalSearchResult[]
   query: string
 }
 

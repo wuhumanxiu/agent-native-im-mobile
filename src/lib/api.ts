@@ -1,53 +1,118 @@
 import type {
   APIResponse, LoginResponse, Entity, Conversation,
-  MessagesResponse, SearchResponse, Message, AdminStats,
+  MessagesResponse, SearchResponse, GlobalSearchResponse, Message, AdminStats,
   Task, ConversationMemory, ChangeRequest, EntitySelfCheck, EntityDiagnostics,
 } from './types'
+import { getSessionHooks } from './auth-session'
+import { reportApiError } from './errors'
+import { API_BASE_URL } from './constants'
 
-export const BASE_URL = 'https://ani-web.51pwd.com'
-
-let baseUrl = BASE_URL
+let baseUrl = API_BASE_URL
+let refreshInFlight: Promise<string | null> | null = null
 
 export function setBaseUrl(url: string) {
   baseUrl = url.replace(/\/+$/, '')
-}
-
-export function getBaseUrl(): string {
-  return baseUrl
 }
 
 function authHeaders(token: string): Record<string, string> {
   return { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
 }
 
-async function parseAPIResponse<T>(res: Response): Promise<APIResponse<T>> {
+async function parseAPIResponse<T>(res: Response, quiet = false): Promise<APIResponse<T>> {
   try {
     const parsed = await res.json()
+    if (!parsed.ok && !quiet) reportApiError(parsed)
     return parsed
   } catch {
-    return { ok: false, error: `HTTP ${res.status}` } as APIResponse<T>
+    const fallback = { ok: false, error: `HTTP ${res.status}` } as APIResponse<T>
+    if (!quiet) reportApiError(fallback)
+    return fallback
   }
 }
 
-async function request<T>(method: string, path: string, token?: string, body?: unknown): Promise<APIResponse<T>> {
+async function fetchWithAuthRetry<T>(
+  method: string,
+  path: string,
+  token: string,
+  body?: unknown,
+  retry = true,
+): Promise<APIResponse<T>> {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' }
-  if (token) headers.Authorization = `Bearer ${token}`
+  headers.Authorization = `Bearer ${token}`
 
   const res = await fetch(`${baseUrl}${path}`, {
     method,
     headers,
     body: body ? JSON.stringify(body) : undefined,
   })
+
+  if (res.status === 401 && retry && path !== '/api/v1/auth/refresh') {
+    const nextToken = await tryRefreshToken(token)
+    if (nextToken) {
+      return fetchWithAuthRetry(method, path, nextToken, body, false)
+    }
+  }
+
   return parseAPIResponse<T>(res)
 }
 
+async function request<T>(method: string, path: string, token?: string, body?: unknown): Promise<APIResponse<T>> {
+  if (token) {
+    return fetchWithAuthRetry<T>(method, path, token, body)
+  }
+
+  const res = await fetch(`${baseUrl}${path}`, {
+    method,
+    headers: { 'Content-Type': 'application/json' },
+    body: body ? JSON.stringify(body) : undefined,
+  })
+  return parseAPIResponse<T>(res)
+}
+
+/** Like request() but suppresses global error toasts -- use for probing/optional endpoints */
 async function requestQuiet<T>(method: string, path: string, token?: string, body?: unknown): Promise<APIResponse<T>> {
   const res = await fetch(`${baseUrl}${path}`, {
     method,
     headers: token ? authHeaders(token) : { 'Content-Type': 'application/json' },
     body: body ? JSON.stringify(body) : undefined,
   })
-  return parseAPIResponse<T>(res)
+  return parseAPIResponse<T>(res, true)
+}
+
+async function tryRefreshToken(oldToken: string): Promise<string | null> {
+  if (refreshInFlight) return refreshInFlight
+
+  refreshInFlight = (async () => {
+    try {
+      const res = await fetch(`${baseUrl}/api/v1/auth/refresh`, {
+        method: 'POST',
+        headers: authHeaders(oldToken),
+      })
+      const payload = await parseAPIResponse<{ token: string }>(res)
+      if (res.ok && payload.ok && payload.data?.token) {
+        const newToken = payload.data.token
+        const hooks = getSessionHooks()
+        hooks?.setToken(newToken)
+        return newToken
+      }
+
+      // Only auth failures should force logout.
+      if (res.status === 401 || res.status === 403) {
+        getSessionHooks()?.onAuthFailure()
+      }
+
+      return null
+    } catch {
+      // Network/server issues: keep session and let caller retry later.
+      return null
+    }
+  })()
+
+  try {
+    return await refreshInFlight
+  } finally {
+    refreshInFlight = null
+  }
 }
 
 // Auth
@@ -63,12 +128,18 @@ export const getMe = (token: string) =>
 export const refreshToken = (token: string) =>
   request<{ token: string }>('POST', '/api/v1/auth/refresh', token)
 
+export const logout = (token: string) =>
+  request('POST', '/api/v1/auth/logout', token)
+
 // Conversations
 export const listConversations = (token: string, archived = false) =>
   request<Conversation[]>('GET', `/api/v1/conversations${archived ? '?archived=true' : ''}`, token)
 
 export const getConversation = (token: string, id: number) =>
   request<Conversation>('GET', `/api/v1/conversations/${id}`, token)
+
+export const getConversationByPublicId = (token: string, publicId: string) =>
+  request<Conversation>('GET', `/api/v1/conversations/public/${encodeURIComponent(publicId)}`, token)
 
 export const createConversation = (token: string, data: { title: string; conv_type?: string; participant_ids?: number[] }) =>
   request<Conversation>('POST', '/api/v1/conversations', token, data)
@@ -82,6 +153,9 @@ export const addParticipant = (token: string, convId: number, entityId: number, 
 
 export const removeParticipant = (token: string, convId: number, entityId: number) =>
   request('DELETE', `/api/v1/conversations/${convId}/participants/${entityId}`, token)
+
+export const updateParticipantRole = (token: string, convId: number, entityId: number, role: string) =>
+  request('PUT', `/api/v1/conversations/${convId}/participants/${entityId}`, token, { role })
 
 export const updateSubscription = (token: string, convId: number, mode: string, contextWindow?: number) =>
   request('PUT', `/api/v1/conversations/${convId}/subscription`, token, {
@@ -113,6 +187,9 @@ export const revokeMessage = (token: string, msgId: number) =>
 
 export const searchMessages = (token: string, convId: number, query: string, limit = 20) =>
   request<SearchResponse>('GET', `/api/v1/conversations/${convId}/search?q=${encodeURIComponent(query)}&limit=${limit}`, token)
+
+export const searchGlobal = (token: string, query: string, limit = 20, offset = 0) =>
+  request<GlobalSearchResponse>('GET', `/api/v1/messages/search?q=${encodeURIComponent(query)}&limit=${limit}&offset=${offset}`, token)
 
 // Entities
 export const listEntities = (token: string) =>
@@ -147,11 +224,8 @@ export const getEntityCredentials = (token: string, id: number) =>
 export const getEntitySelfCheck = (token: string, id: number) =>
   request<EntitySelfCheck>('GET', `/api/v1/entities/${id}/self-check`, token)
 
-export const batchPresence = (token: string, entityIds: number[]) =>
-  request<{ presence: Record<string, boolean> }>('POST', '/api/v1/presence/batch', token, { entity_ids: entityIds })
-
-export const updateProfile = (token: string, data: { display_name?: string; avatar_url?: string; email?: string }) =>
-  request<Entity>('PUT', '/api/v1/me', token, data)
+export const getEntityDiagnostics = (token: string, id: number) =>
+  request<EntityDiagnostics>('GET', `/api/v1/entities/${id}/diagnostics`, token)
 
 export const regenerateEntityToken = (token: string, id: number) =>
   request<{ message: string; entity: Entity; api_key: string; disconnected: number }>(
@@ -160,17 +234,68 @@ export const regenerateEntityToken = (token: string, id: number) =>
     token,
   )
 
-// Files — React Native uses { uri, name, type } pattern
-export async function uploadFile(token: string, file: { uri: string; name: string; type: string }): Promise<APIResponse<{ url: string }>> {
+export const batchPresence = (token: string, entityIds: number[]) =>
+  request<{ presence: Record<string, boolean> }>('POST', '/api/v1/presence/batch', token, { entity_ids: entityIds })
+
+export const updateProfile = (token: string, data: { display_name?: string; avatar_url?: string; email?: string }) =>
+  request<Entity>('PUT', '/api/v1/me', token, data)
+
+// Admin
+export const createUser = (token: string, username: string, password: string) =>
+  request<Entity>('POST', '/api/v1/admin/users', token, { username, password })
+
+export const adminListUsers = (token: string, limit = 50, offset = 0) =>
+  request<{ entities: (Entity & { online: boolean })[]; total: number }>('GET', `/api/v1/admin/users?limit=${limit}&offset=${offset}`, token)
+
+export const adminUpdateUser = (token: string, id: number, data: { display_name?: string; status?: string }) =>
+  request<Entity>('PUT', `/api/v1/admin/users/${id}`, token, data)
+
+export const adminDeleteUser = (token: string, id: number) =>
+  request('DELETE', `/api/v1/admin/users/${id}`, token)
+
+export const adminGetStats = (token: string) =>
+  requestQuiet<AdminStats>('GET', '/api/v1/admin/stats', token)
+
+export const adminListConversations = (token: string, limit = 50, offset = 0) =>
+  request<{ conversations: Conversation[]; total: number }>('GET', `/api/v1/admin/conversations?limit=${limit}&offset=${offset}`, token)
+
+// Files
+export async function uploadFile(token: string, uri: string, filename: string, mimeType: string): Promise<APIResponse<{ url: string }>> {
   const form = new FormData()
-  form.append('file', file as unknown as Blob)
-  const res = await fetch(`${baseUrl}/api/v1/files/upload`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${token}` },
-    body: form,
-  })
+  // React Native FormData accepts { uri, name, type } objects
+  form.append('file', {
+    uri,
+    name: filename,
+    type: mimeType,
+  } as unknown as Blob)
+
+  const doUpload = async (accessToken: string) => {
+    return fetch(`${baseUrl}/api/v1/files/upload`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${accessToken}` },
+      body: form,
+    })
+  }
+
+  let res = await doUpload(token)
+  if (res.status === 401) {
+    const nextToken = await tryRefreshToken(token)
+    if (nextToken) {
+      res = await doUpload(nextToken)
+    }
+  }
   return parseAPIResponse<{ url: string }>(res)
 }
+
+// Push notifications (quiet -- endpoint may not exist)
+export const getVapidKey = () =>
+  requestQuiet<{ public_key: string }>('GET', '/api/v1/push/vapid-key')
+
+export const registerPush = (token: string, data: { endpoint: string; key_p256dh: string; key_auth: string }) =>
+  request('POST', '/api/v1/push/subscribe', token, data)
+
+export const unregisterPush = (token: string, endpoint: string) =>
+  request('POST', '/api/v1/push/unsubscribe', token, { endpoint })
 
 // Conversation lifecycle
 export const leaveConversation = (token: string, convId: number) =>
@@ -196,8 +321,17 @@ export const respondToInteraction = (token: string, msgId: number, value: string
 export const createInviteLink = (token: string, convId: number, data?: { max_uses?: number; expires_in?: number }) =>
   request<{ id: number; code: string; conversation_id: number }>('POST', `/api/v1/conversations/${convId}/invite`, token, data)
 
+export const listInviteLinks = (token: string, convId: number) =>
+  request<{ id: number; code: string; use_count: number; max_uses: number; expires_at?: string }[]>('GET', `/api/v1/conversations/${convId}/invites`, token)
+
+export const getInviteInfo = (token: string, code: string) =>
+  request<{ invite: unknown; conversation: unknown }>('GET', `/api/v1/invite/${code}`, token)
+
 export const joinViaInvite = (token: string, code: string) =>
   request('POST', `/api/v1/invite/${code}/join`, token)
+
+export const deleteInviteLink = (token: string, id: number) =>
+  request('DELETE', `/api/v1/invites/${id}`, token)
 
 // Reactions
 export const toggleReaction = (token: string, msgId: number, emoji: string) =>
@@ -210,17 +344,55 @@ export const editMessage = (token: string, msgId: number, text: string) =>
   request<Message>('PUT', `/api/v1/messages/${msgId}`, token, { layers: { summary: text } })
 
 // Tasks
+export const createTask = (token: string, convId: number, data: { title: string; description?: string; assignee_id?: number; priority?: string; due_date?: string; parent_task_id?: number }) =>
+  request<Task>('POST', `/api/v1/conversations/${convId}/tasks`, token, data)
+
 export const listTasks = (token: string, convId: number, status?: string) =>
   request<Task[]>('GET', `/api/v1/conversations/${convId}/tasks${status ? `?status=${status}` : ''}`, token)
+
+export const getTask = (token: string, taskId: number) =>
+  request<Task>('GET', `/api/v1/tasks/${taskId}`, token)
+
+export const updateTask = (token: string, taskId: number, data: { title?: string; description?: string; status?: string; priority?: string; assignee_id?: number; due_date?: string }) =>
+  request<Task>('PUT', `/api/v1/tasks/${taskId}`, token, data)
+
+export const deleteTask = (token: string, taskId: number) =>
+  request('DELETE', `/api/v1/tasks/${taskId}`, token)
 
 // Memories
 export const listMemories = (token: string, convId: number) =>
   request<{ memories: ConversationMemory[]; prompt: string }>('GET', `/api/v1/conversations/${convId}/memories`, token)
 
+export const upsertMemory = (token: string, convId: number, key: string, content: string) =>
+  request<ConversationMemory>('POST', `/api/v1/conversations/${convId}/memories`, token, { key, content })
+
+export const deleteMemory = (token: string, convId: number, memId: number) =>
+  request('DELETE', `/api/v1/conversations/${convId}/memories/${memId}`, token)
+
+// Change Requests
+export const createChangeRequest = (token: string, convId: number, field: string, newValue: string) =>
+  request<ChangeRequest>('POST', `/api/v1/conversations/${convId}/change-requests`, token, { field, new_value: newValue })
+
+export const listChangeRequests = (token: string, convId: number, status?: string) =>
+  request<ChangeRequest[]>('GET', `/api/v1/conversations/${convId}/change-requests${status ? `?status=${status}` : ''}`, token)
+
+export const approveChangeRequest = (token: string, convId: number, reqId: number) =>
+  request('POST', `/api/v1/conversations/${convId}/change-requests/${reqId}/approve`, token)
+
+export const rejectChangeRequest = (token: string, convId: number, reqId: number) =>
+  request('POST', `/api/v1/conversations/${convId}/change-requests/${reqId}/reject`, token)
+
 // Change password
 export const changePassword = (token: string, oldPassword: string, newPassword: string) =>
   request('PUT', '/api/v1/me/password', token, { old_password: oldPassword, new_password: newPassword })
 
-// Admin
-export const adminGetStats = (token: string) =>
-  requestQuiet<AdminStats>('GET', '/api/v1/admin/stats', token)
+// Devices
+export const listDevices = (token: string) =>
+  request<{ devices: { device_id: string; device_info: string; entity_id: number }[] }>('GET', '/api/v1/me/devices', token)
+
+export const kickDevice = (token: string, deviceId: string) =>
+  request('DELETE', `/api/v1/me/devices/${encodeURIComponent(deviceId)}`, token)
+
+// Updates (long polling fallback)
+export const getUpdates = (token: string, since?: string) =>
+  request<{ events: unknown[] }>('GET', `/api/v1/updates${since ? `?since=${since}` : ''}`, token)
