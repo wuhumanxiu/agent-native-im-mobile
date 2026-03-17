@@ -14,15 +14,25 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.wuzhi.agentim"
+      "bundleIdentifier": "com.flagify.ani",
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "Used for voice messages",
+        "NSCameraUsageDescription": "Used to take photos for chat",
+        "NSPhotoLibraryUsageDescription": "Used to attach photos to messages"
+      }
     },
     "android": {
-      "package": "com.wuzhi.agentim",
+      "package": "com.flagify.ani",
+      "versionCode": 1,
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png"
-      }
+        "backgroundColor": "#6366f1",
+        "foregroundImage": "./assets/adaptive-icon.png"
+      },
+      "permissions": [
+        "RECORD_AUDIO",
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE"
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -32,7 +42,10 @@
       "expo-router"
     ],
     "extra": {
-      "apiBaseUrl": "https://ani-web.51pwd.com"
+      "apiBaseUrl": "https://ani-web.51pwd.com",
+      "eas": {
+        "projectId": ""
+      }
     }
   }
 }

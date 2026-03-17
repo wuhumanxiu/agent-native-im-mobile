@@ -1,6 +1,4 @@
-import { MMKV } from 'react-native-mmkv'
-
-const storage = new MMKV()
+import { storage } from './storage'
 
 const TOKEN_KEY = 'aim_token'
 const ENTITY_KEY = 'aim_entity'

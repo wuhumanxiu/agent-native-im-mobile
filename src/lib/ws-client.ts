@@ -1,4 +1,4 @@
-import { MMKV } from 'react-native-mmkv'
+import { storage as mmkvStorage } from './storage'
 import { AppState, Platform } from 'react-native'
 import type { WSMessage } from './types'
 import { WS_BASE_URL } from './constants'
@@ -9,7 +9,7 @@ const PING_INTERVAL = 25_000 // 25 seconds
 const PONG_TIMEOUT = 10_000  // 10 seconds to receive pong
 const SEND_QUEUE_MAX = 50
 
-const mmkv = new MMKV()
+const mmkv = mmkvStorage
 
 /** Simple UUID v4 generator (no crypto.randomUUID in React Native) */
 function generateUUID(): string {
