@@ -127,8 +127,10 @@ export class AnimpWebSocket {
     this.stopPing()
 
     const deviceInfo = `${Platform.OS} ${Platform.Version}`
+    // Ensure WS URL includes the /api/v1/ws path
+    const baseWsUrl = this.url.endsWith('/ws') ? this.url : `${this.url}/api/v1/ws`
     // Token sent as query param for WebSocket auth
-    let wsUrl = `${this.url}?device_id=${encodeURIComponent(this.deviceId)}&device_info=${encodeURIComponent(deviceInfo)}`
+    let wsUrl = `${baseWsUrl}?device_id=${encodeURIComponent(this.deviceId)}&device_info=${encodeURIComponent(deviceInfo)}`
     if (this.token) {
       wsUrl += `&token=${encodeURIComponent(this.token)}`
     }
