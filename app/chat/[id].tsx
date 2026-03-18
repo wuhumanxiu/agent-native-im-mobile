@@ -4,6 +4,7 @@ import { useLocalSearchParams, Stack, useRouter } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useAuthStore } from '../../src/store/auth'
 import { useConversationsStore } from '../../src/store/conversations'
+import { useMessagesStore } from '../../src/store/messages'
 import * as api from '../../src/lib/api'
 import type { Message, Conversation } from '../../src/lib/types'
 import { ChatThread } from '../../src/components/chat/ChatThread'
@@ -24,10 +25,19 @@ export default function ChatDetailScreen() {
     conversations.find((c) => c.id === convId) || null,
   )
   const [messages, setMessages] = useState<Message[]>([])
+  const storeMessages = useMessagesStore((s) => s.byConv[convId])
+  const setStoreMessages = useMessagesStore((s) => s.setMessages)
   const [loading, setLoading] = useState(true)
   const [hasMore, setHasMore] = useState(true)
   const [showSettings, setShowSettings] = useState(false)
   const [showTasks, setShowTasks] = useState(false)
+
+  // Sync messages from store (WebSocket pushes go to store)
+  useEffect(() => {
+    if (storeMessages && storeMessages.length > messages.length) {
+      setMessages(storeMessages)
+    }
+  }, [storeMessages])
 
   // Load conversation detail if not in store
   useEffect(() => {
@@ -51,6 +61,7 @@ export default function ChatDetailScreen() {
         const data = res.data
         const msgs = Array.isArray(data) ? data : data?.messages || []
         setMessages(msgs)
+        setStoreMessages(convId, msgs) // sync to store for WS addMessage
         setHasMore(Array.isArray(data) ? msgs.length >= 30 : !!data?.has_more)
       }
       setLoading(false)
