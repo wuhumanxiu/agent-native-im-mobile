@@ -29,11 +29,14 @@ export default function ChatDetailScreen() {
   const [conversation, setConversation] = useState<Conversation | null>(
     conversations.find((c) => c.id === convId) || null,
   )
-  const [messages, setMessages] = useState<Message[]>([])
-  const storeMessages = useMessagesStore((s) => s.byConv[convId])
+  // Messages directly from store — WS addMessage writes here, no local state needed
+  const messages = useMessagesStore((s) => s.byConv[convId] || [])
   const storeStreams = useMessagesStore((s) => s.streams)
-  const storeProgress = useMessagesStore((s) => s.progress)
   const setStoreMessages = useMessagesStore((s) => s.setMessages)
+  const prependStoreMessages = useMessagesStore((s) => s.prependMessages)
+  const addStoreMessage = useMessagesStore((s) => s.addMessage)
+  const revokeStoreMessage = useMessagesStore((s) => s.revokeMessage)
+  const updateReactions = useMessagesStore((s) => s.updateMessageReactions)
   const [loading, setLoading] = useState(true)
   const [hasMore, setHasMore] = useState(true)
   const [showSettings, setShowSettings] = useState(false)
@@ -45,13 +48,6 @@ export default function ChatDetailScreen() {
     setActive(convId)
     return () => setActive(null)
   }, [convId, setActive])
-
-  // Sync messages from store (WebSocket pushes go to store)
-  useEffect(() => {
-    if (storeMessages && storeMessages.length > messages.length) {
-      setMessages(storeMessages)
-    }
-  }, [storeMessages])
 
   // Active streams for this conversation
   const convStreams = useMemo<ActiveStream[]>(() => {
@@ -122,8 +118,7 @@ export default function ChatDetailScreen() {
         const raw = Array.isArray(data) ? data : data?.messages || []
         // API returns newest-first, UI needs oldest-first (FlatList inverted flips it)
         const msgs = [...raw].reverse()
-        setMessages(msgs)
-        setStoreMessages(convId, msgs) // sync to store for WS addMessage
+        setStoreMessages(convId, msgs, raw.length >= 30)
         setHasMore(Array.isArray(data) ? raw.length >= 30 : !!data?.has_more)
       }
       setLoading(false)
@@ -143,7 +138,7 @@ export default function ChatDetailScreen() {
       if (older.length === 0) {
         setHasMore(false)
       } else {
-        setMessages((prev) => [...older, ...prev])
+        prependStoreMessages(convId, older, raw.length >= 30)
         setHasMore(Array.isArray(data) ? raw.length >= 30 : !!data?.has_more)
       }
     }
@@ -163,15 +158,7 @@ export default function ChatDetailScreen() {
     }
     const res = await api.sendMessage(token, msg)
     if (res.ok && res.data) {
-      setMessages((prev) => [...prev, res.data!])
-    } else {
-      // Fallback: reload messages
-      const reload = await api.listMessages(token, convId)
-      if (reload.ok && reload.data) {
-        const data = reload.data
-        const msgs = Array.isArray(data) ? data : data?.messages || []
-        setMessages(msgs)
-      }
+      addStoreMessage(res.data)
     }
   }, [token, convId])
 
@@ -180,20 +167,16 @@ export default function ChatDetailScreen() {
     if (!token) return
     const res = await api.revokeMessage(token, msgId)
     if (res.ok) {
-      setMessages((prev) =>
-        prev.map((m) => m.id === msgId ? { ...m, revoked_at: new Date().toISOString() } : m),
-      )
+      revokeStoreMessage(convId, msgId)
     }
-  }, [token])
+  }, [token, convId, revokeStoreMessage])
 
   // React to message
   const handleReact = useCallback(async (msgId: number, emoji: string) => {
     if (!token) return
     const res = await api.toggleReaction(token, msgId, emoji)
     if (res.ok && res.data) {
-      setMessages((prev) =>
-        prev.map((m) => m.id === msgId ? { ...m, reactions: res.data!.reactions } : m),
-      )
+      updateReactions(convId, msgId, res.data.reactions)
     }
   }, [token])
 
