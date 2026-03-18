@@ -1,9 +1,11 @@
 import React, { useState, useRef, useCallback, useMemo, useEffect } from 'react'
 import { View, Text, TextInput, Pressable, FlatList, StyleSheet, Platform, KeyboardAvoidingView } from 'react-native'
 import { useTranslation } from 'react-i18next'
-import { Send, Paperclip, X, Mic, Smile, CornerUpLeft, Loader2, Image as ImageIcon, FileText } from 'lucide-react-native'
+import { Send, Paperclip, X, Mic, MicOff, Smile, CornerUpLeft, Loader2, Image as ImageIcon, FileText } from 'lucide-react-native'
 import * as ImagePicker from 'expo-image-picker'
+import { Audio } from 'expo-av'
 import { EntityAvatar } from '../ui/EntityAvatar'
+import { storage } from '../../lib/storage'
 import type { Participant, Message, Attachment } from '../../lib/types'
 
 // ─── Utility ─────────────────────────────────────────────────────
@@ -70,6 +72,12 @@ export function MessageComposer({
   const [inputHeight, setInputHeight] = useState(40)
   const textInputRef = useRef<TextInput>(null)
 
+  // Audio recording state
+  const [isRecording, setIsRecording] = useState(false)
+  const [recordingDuration, setRecordingDuration] = useState(0)
+  const recordingRef = useRef<Audio.Recording | null>(null)
+  const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
   // @mention autocomplete state
   const [mentionQuery, setMentionQuery] = useState<string | null>(null)
   const [mentionIndex, setMentionIndex] = useState(0)
@@ -86,17 +94,48 @@ export function MessageComposer({
     }
   }, [onTyping])
 
-  // Reset on conversation switch
+  // ─── Draft persistence ───────────────────────────────────────
+  const draftKey = conversationId ? `aim_draft_${conversationId}` : null
+
+  // Restore draft on mount / conversation switch
   const prevConvIdRef = useRef<number | undefined>(undefined)
   useEffect(() => {
     if (conversationId !== prevConvIdRef.current) {
-      setText('')
+      // Save previous draft before switching
+      if (prevConvIdRef.current != null) {
+        const prevKey = `aim_draft_${prevConvIdRef.current}`
+        const prevText = text.trim()
+        if (prevText) {
+          storage.set(prevKey, prevText)
+        } else {
+          storage.delete(prevKey)
+        }
+      }
+
+      // Load draft for new conversation
+      const newDraftKey = conversationId ? `aim_draft_${conversationId}` : null
+      const savedDraft = newDraftKey ? storage.getString(newDraftKey) : undefined
+      setText(savedDraft || '')
       setPendingFiles([])
       setMentionIds([])
       setMentionQuery(null)
       prevConvIdRef.current = conversationId
     }
   }, [conversationId])
+
+  // Save draft on unmount
+  useEffect(() => {
+    return () => {
+      if (draftKey) {
+        const trimmed = text.trim()
+        if (trimmed) {
+          storage.set(draftKey, trimmed)
+        } else {
+          storage.delete(draftKey)
+        }
+      }
+    }
+  }, [draftKey, text])
 
   // Focus input when reply is set
   useEffect(() => {
@@ -156,6 +195,8 @@ export function MessageComposer({
     setPendingFiles([])
     setMentionIds([])
     setMentionQuery(null)
+    // Clear draft on send
+    if (draftKey) storage.delete(draftKey)
     textInputRef.current?.focus()
   }, [text, uploadedAttachments, hasUploading, mentionIds, onSend])
 
@@ -174,6 +215,92 @@ export function MessageComposer({
       setMentionStart(-1)
     }
   }, [emitTyping, participants])
+
+  // ─── Audio recording ──────────────────────────────────────────
+  const startRecording = useCallback(async () => {
+    if (!onAudioSend) return
+    try {
+      const { granted } = await Audio.requestPermissionsAsync()
+      if (!granted) return
+
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: true,
+        playsInSilentModeIOS: true,
+      })
+
+      const recording = new Audio.Recording()
+      await recording.prepareToRecordAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY)
+      await recording.startAsync()
+      recordingRef.current = recording
+      setIsRecording(true)
+      setRecordingDuration(0)
+
+      // Duration timer
+      const startTime = Date.now()
+      recordingTimerRef.current = setInterval(() => {
+        setRecordingDuration(Math.floor((Date.now() - startTime) / 1000))
+      }, 1000)
+    } catch (err) {
+      console.warn('[AudioRecording] Failed to start:', err)
+    }
+  }, [onAudioSend])
+
+  const stopRecording = useCallback(async () => {
+    if (!recordingRef.current) return
+    try {
+      if (recordingTimerRef.current) {
+        clearInterval(recordingTimerRef.current)
+        recordingTimerRef.current = null
+      }
+
+      await recordingRef.current.stopAndUnloadAsync()
+      await Audio.setAudioModeAsync({ allowsRecordingIOS: false })
+
+      const uri = recordingRef.current.getURI()
+      const status = await recordingRef.current.getStatusAsync()
+      const durationMs = status.durationMillis || 0
+
+      recordingRef.current = null
+      setIsRecording(false)
+      setRecordingDuration(0)
+
+      if (uri && durationMs > 500 && onAudioSend) {
+        onAudioSend(uri, Math.round(durationMs / 1000))
+      }
+    } catch (err) {
+      console.warn('[AudioRecording] Failed to stop:', err)
+      recordingRef.current = null
+      setIsRecording(false)
+      setRecordingDuration(0)
+    }
+  }, [onAudioSend])
+
+  const cancelRecording = useCallback(async () => {
+    if (!recordingRef.current) return
+    try {
+      if (recordingTimerRef.current) {
+        clearInterval(recordingTimerRef.current)
+        recordingTimerRef.current = null
+      }
+      await recordingRef.current.stopAndUnloadAsync()
+      await Audio.setAudioModeAsync({ allowsRecordingIOS: false })
+    } catch { /* already stopped */ }
+    recordingRef.current = null
+    setIsRecording(false)
+    setRecordingDuration(0)
+  }, [])
+
+  // Cleanup recording on unmount
+  useEffect(() => {
+    return () => {
+      if (recordingRef.current) {
+        recordingRef.current.stopAndUnloadAsync().catch(() => {})
+      }
+      if (recordingTimerRef.current) {
+        clearInterval(recordingTimerRef.current)
+      }
+    }
+  }, [])
 
   // Image/file picker
   const handlePickImage = useCallback(async () => {
@@ -380,13 +507,31 @@ export function MessageComposer({
             )}
           </Pressable>
         ) : onAudioSend ? (
-          <Pressable
-            style={({ pressed }) => [styles.iconButton, pressed && styles.iconButtonPressed]}
-            onPress={() => { /* Audio recording - will be handled by expo-av */ }}
-            disabled={disabled}
-          >
-            <Mic size={20} color="#94a3b8" />
-          </Pressable>
+          isRecording ? (
+            <View style={styles.recordingRow}>
+              <Text style={styles.recordingTimer}>{recordingDuration}s</Text>
+              <Pressable
+                style={({ pressed }) => [styles.iconButton, pressed && styles.iconButtonPressed]}
+                onPress={cancelRecording}
+              >
+                <X size={18} color="#ef4444" />
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [styles.sendButton, pressed && styles.sendButtonPressed]}
+                onPress={stopRecording}
+              >
+                <MicOff size={18} color="#ffffff" />
+              </Pressable>
+            </View>
+          ) : (
+            <Pressable
+              style={({ pressed }) => [styles.iconButton, pressed && styles.iconButtonPressed]}
+              onPress={startRecording}
+              disabled={disabled}
+            >
+              <Mic size={20} color="#94a3b8" />
+            </Pressable>
+          )
         ) : (
           <View style={[styles.sendButton, styles.sendButtonDisabled]}>
             <Send size={18} color="#ffffff80" />
@@ -595,5 +740,17 @@ const styles = StyleSheet.create({
   },
   sendButtonPressed: {
     backgroundColor: '#4f46e5',
+  },
+  recordingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  recordingTimer: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#ef4444',
+    minWidth: 28,
+    textAlign: 'center',
   },
 })

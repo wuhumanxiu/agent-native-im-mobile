@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import { View, Modal, StyleSheet } from 'react-native'
 import { useLocalSearchParams, Stack, useRouter } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -6,10 +6,11 @@ import { useAuthStore } from '../../src/store/auth'
 import { useConversationsStore } from '../../src/store/conversations'
 import { useMessagesStore } from '../../src/store/messages'
 import * as api from '../../src/lib/api'
-import type { Message, Conversation } from '../../src/lib/types'
+import type { Message, Conversation, ActiveStream } from '../../src/lib/types'
 import { ChatThread } from '../../src/components/chat/ChatThread'
 import { ConversationSettings } from '../../src/components/conversation/ConversationSettings'
 import { TaskPanel } from '../../src/components/task/TaskPanel'
+import { useWSContext } from '../../src/hooks/WebSocketContext'
 
 export default function ChatDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>()
@@ -20,17 +21,30 @@ export default function ChatDetailScreen() {
   const conversations = useConversationsStore((s) => s.conversations)
   const updateConversation = useConversationsStore((s) => s.updateConversation)
   const removeConversation = useConversationsStore((s) => s.removeConversation)
+  const readReceipts = useConversationsStore((s) => s.readReceipts)
+
+  // WebSocket context — typing, streams, cancel
+  const { typingMap, sendTyping, sendCancelStream } = useWSContext()
 
   const [conversation, setConversation] = useState<Conversation | null>(
     conversations.find((c) => c.id === convId) || null,
   )
   const [messages, setMessages] = useState<Message[]>([])
   const storeMessages = useMessagesStore((s) => s.byConv[convId])
+  const storeStreams = useMessagesStore((s) => s.streams)
+  const storeProgress = useMessagesStore((s) => s.progress)
   const setStoreMessages = useMessagesStore((s) => s.setMessages)
   const [loading, setLoading] = useState(true)
   const [hasMore, setHasMore] = useState(true)
   const [showSettings, setShowSettings] = useState(false)
   const [showTasks, setShowTasks] = useState(false)
+
+  // Set active conversation for unread count tracking
+  const setActive = useConversationsStore((s) => s.setActive)
+  useEffect(() => {
+    setActive(convId)
+    return () => setActive(null)
+  }, [convId, setActive])
 
   // Sync messages from store (WebSocket pushes go to store)
   useEffect(() => {
@@ -38,6 +52,52 @@ export default function ChatDetailScreen() {
       setMessages(storeMessages)
     }
   }, [storeMessages])
+
+  // Active streams for this conversation
+  const convStreams = useMemo<ActiveStream[]>(() => {
+    return Object.values(storeStreams).filter((s) => s.conversation_id === convId)
+  }, [storeStreams, convId])
+
+  // Typing text for this conversation
+  const typingText = useMemo<string | null>(() => {
+    const convTyping = typingMap.get(convId)
+    if (!convTyping || convTyping.size === 0) return null
+    const now = Date.now()
+    const activeNames: string[] = []
+    convTyping.forEach((entry, eid) => {
+      if (entry.expiresAt > now && eid !== entity?.id) {
+        if (entry.isProcessing) {
+          activeNames.push(`${entry.name} (${entry.phase || 'thinking'})`)
+        } else {
+          activeNames.push(entry.name)
+        }
+      }
+    })
+    if (activeNames.length === 0) return null
+    if (activeNames.length === 1) return `${activeNames[0]} is typing...`
+    return `${activeNames.join(', ')} are typing...`
+  }, [typingMap, convId, entity?.id])
+
+  // Read receipts for this conversation: entityId -> last read messageId
+  const convReadReceipts = useMemo<Record<number, number>>(() => {
+    const receipts = readReceipts[convId]
+    if (!receipts) return {}
+    const map: Record<number, number> = {}
+    for (const [eid, receipt] of Object.entries(receipts)) {
+      map[Number(eid)] = receipt.messageId
+    }
+    return map
+  }, [readReceipts, convId])
+
+  // Typing sender callback
+  const handleTyping = useCallback(() => {
+    sendTyping(convId)
+  }, [sendTyping, convId])
+
+  // Cancel stream callback
+  const handleCancelStream = useCallback((streamId: string, conversationId: number) => {
+    sendCancelStream(streamId, conversationId)
+  }, [sendCancelStream])
 
   // Load conversation detail if not in store
   useEffect(() => {
@@ -185,11 +245,13 @@ export default function ChatDetailScreen() {
         <ChatThread
           conversation={displayConv}
           messages={messages}
-          streams={[]}
+          streams={convStreams}
           myEntityId={entity?.id || 0}
           myEntity={entity || { id: 0, entity_type: 'user', name: 'me', display_name: 'Me', status: 'active', metadata: {}, created_at: '', updated_at: '' }}
           loading={loading}
           hasMore={hasMore}
+          typingText={typingText}
+          readReceipts={convReadReceipts}
           onBack={() => router.back()}
           onSettings={() => setShowSettings(true)}
           onLoadMore={handleLoadMore}
@@ -198,6 +260,8 @@ export default function ChatDetailScreen() {
           onReact={handleReact}
           onMarkAsRead={handleMarkAsRead}
           onFileUpload={handleFileUpload}
+          onTyping={handleTyping}
+          onCancelStream={handleCancelStream}
         />
       </SafeAreaView>
 
