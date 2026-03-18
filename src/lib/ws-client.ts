@@ -138,6 +138,8 @@ export class AnimpWebSocket {
     if (this.wasConnected && this._sinceId > 0) {
       wsUrl += `&since_id=${this._sinceId}`
     }
+    console.log('[WS] Full URL:', wsUrl.substring(0, 100) + '...')
+    console.log('[WS] Token length:', this.token?.length || 0)
     this.ws = new WebSocket(wsUrl)
     let opened = false
 
