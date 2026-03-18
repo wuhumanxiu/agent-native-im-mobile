@@ -6,6 +6,7 @@ import * as ImagePicker from 'expo-image-picker'
 import { Audio } from 'expo-av'
 import { EntityAvatar } from '../ui/EntityAvatar'
 import { storage } from '../../lib/storage'
+import { useThemeColors } from '../../lib/theme'
 import type { Participant, Message, Attachment } from '../../lib/types'
 
 // ─── Utility ─────────────────────────────────────────────────────
@@ -66,10 +67,12 @@ export function MessageComposer({
   disabled,
 }: Props) {
   const { t } = useTranslation()
+  const colors = useThemeColors()
   const [text, setText] = useState('')
   const [pendingFiles, setPendingFiles] = useState<PendingFile[]>([])
   const [mentionIds, setMentionIds] = useState<number[]>([])
   const [inputHeight, setInputHeight] = useState(40)
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false)
   const textInputRef = useRef<TextInput>(null)
 
   // Audio recording state
@@ -352,7 +355,7 @@ export function MessageComposer({
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.bgSecondary, borderTopColor: colors.border }]}>
       {/* @mention autocomplete */}
       {mentionQuery !== null && mentionCandidates.length > 0 && (
         <View style={styles.mentionPopover}>
@@ -478,8 +481,33 @@ export function MessageComposer({
         </View>
       )}
 
+      {/* Quick emoji picker */}
+      {showEmojiPicker && (
+        <View style={[styles.emojiGrid, { backgroundColor: colors.bgTertiary, borderColor: colors.border }]}>
+          {[
+            '\uD83D\uDE00', '\uD83D\uDE02', '\uD83D\uDE0D', '\uD83E\uDD29', '\uD83E\uDD14',
+            '\uD83D\uDE22', '\uD83D\uDE31', '\uD83D\uDE44', '\uD83E\uDD73', '\uD83D\uDE0E',
+            '\uD83D\uDC4D', '\uD83D\uDC4E', '\uD83D\uDC4F', '\uD83D\uDE4F', '\uD83D\uDCAA',
+            '\u2764\uFE0F', '\uD83D\uDD25', '\uD83C\uDF89', '\u2705', '\u274C',
+            '\uD83D\uDCA1', '\uD83D\uDCDD', '\uD83D\uDCBC', '\uD83D\uDE80', '\u2B50',
+          ].map((emoji) => (
+            <Pressable
+              key={emoji}
+              style={styles.emojiButton}
+              onPress={() => {
+                setText((prev) => prev + emoji)
+                setShowEmojiPicker(false)
+                textInputRef.current?.focus()
+              }}
+            >
+              <Text style={styles.emojiText}>{emoji}</Text>
+            </Pressable>
+          ))}
+        </View>
+      )}
+
       {/* Input row */}
-      <View style={styles.inputRow}>
+      <View style={[styles.inputRow, { backgroundColor: colors.bgTertiary, borderColor: colors.border }]}>
         {/* Attach button */}
         {onFileUpload && (
           <Pressable
@@ -490,12 +518,12 @@ export function MessageComposer({
           </Pressable>
         )}
 
-        {/* Emoji placeholder */}
+        {/* Emoji button */}
         <Pressable
           style={({ pressed }) => [styles.iconButton, pressed && styles.iconButtonPressed]}
-          onPress={() => { /* Emoji picker placeholder */ }}
+          onPress={() => setShowEmojiPicker(!showEmojiPicker)}
         >
-          <Smile size={20} color="#94a3b8" />
+          <Smile size={20} color={showEmojiPicker ? colors.accent : colors.textMuted} />
         </Pressable>
 
         {/* TextInput */}
@@ -504,11 +532,11 @@ export function MessageComposer({
           value={text}
           onChangeText={handleTextChange}
           placeholder={placeholder || t('conversation.typeMessage')}
-          placeholderTextColor="#94a3b8"
+          placeholderTextColor={colors.textMuted}
           multiline
           maxLength={4000}
           editable={!disabled}
-          style={[styles.textInput, { height: Math.max(40, Math.min(inputHeight, 96)) }]}
+          style={[styles.textInput, { color: colors.text, height: Math.max(40, Math.min(inputHeight, 96)) }]}
           onContentSizeChange={(e) => {
             setInputHeight(e.nativeEvent.contentSize.height)
           }}
@@ -520,8 +548,9 @@ export function MessageComposer({
           <Pressable
             style={({ pressed }) => [
               styles.sendButton,
-              hasUploading && styles.sendButtonDisabled,
-              pressed && styles.sendButtonPressed,
+              { backgroundColor: colors.accent },
+              hasUploading && { backgroundColor: colors.accent + '80' },
+              pressed && { backgroundColor: colors.accentHover },
             ]}
             onPress={handleSubmit}
             disabled={disabled || hasUploading}
@@ -785,5 +814,23 @@ const styles = StyleSheet.create({
     color: '#ef4444',
     minWidth: 28,
     textAlign: 'center',
+  },
+  emojiGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginBottom: 8,
+    borderRadius: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    padding: 8,
+    gap: 2,
+  },
+  emojiButton: {
+    width: '20%' as any,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+  },
+  emojiText: {
+    fontSize: 22,
   },
 })

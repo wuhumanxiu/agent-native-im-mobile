@@ -262,55 +262,22 @@ export const adminListConversations = (token: string, limit = 50, offset = 0) =>
 // Files
 export async function uploadFile(token: string, uri: string, filename: string, mimeType: string): Promise<APIResponse<{ url: string }>> {
   const uploadUrl = `${baseUrl}/api/v1/files/upload`
-  console.log('[Upload] Starting:', { uploadUrl, uri: uri.slice(0, 80), filename, mimeType })
-  try {
-    // Use expo-file-system for reliable uploads in Expo Go
-    const FileSystem = require('expo-file-system')
-    // FileSystemUploadType.MULTIPART = 1 (enum may not resolve in all SDK versions)
-    const MULTIPART = FileSystem.FileSystemUploadType?.MULTIPART ?? 1
-    console.log('[Upload] Using FileSystem.uploadAsync, MULTIPART=', MULTIPART)
-    const result = await FileSystem.uploadAsync(
-      uploadUrl,
-      uri,
-      {
-        httpMethod: 'POST',
-        uploadType: MULTIPART,
-        fieldName: 'file',
-        mimeType,
-        parameters: {},
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      },
-    )
-    console.log('[Upload] Response:', { status: result.status, body: result.body?.slice(0, 200) })
-    const parsed = JSON.parse(result.body)
-    if (result.status >= 200 && result.status < 300 && parsed.ok) {
-      return parsed
-    }
-    return { ok: false, error: parsed.error || `HTTP ${result.status}` } as APIResponse<{ url: string }>
-  } catch (err) {
-    console.log('[Upload] FileSystem failed, trying FormData:', String(err))
-    // Fallback: standard FormData upload
-    const form = new FormData()
-    form.append('file', {
-      uri,
-      name: filename,
-      type: mimeType,
-    } as unknown as Blob)
+  const form = new FormData()
+  form.append('file', {
+    uri,
+    name: filename,
+    type: mimeType,
+  } as unknown as Blob)
 
-    try {
-      const res = await fetch(uploadUrl, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-        body: form,
-      })
-      console.log('[Upload] FormData response:', res.status)
-      return parseAPIResponse<{ url: string }>(res)
-    } catch (fetchErr) {
-      console.log('[Upload] FormData also failed:', String(fetchErr))
-      return { ok: false, error: String(fetchErr) } as APIResponse<{ url: string }>
-    }
+  try {
+    const res = await fetch(uploadUrl, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: form,
+    })
+    return parseAPIResponse<{ url: string }>(res)
+  } catch (err) {
+    return { ok: false, error: String(err) } as APIResponse<{ url: string }>
   }
 }
 

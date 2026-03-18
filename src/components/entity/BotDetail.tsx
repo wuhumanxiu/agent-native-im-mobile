@@ -13,6 +13,7 @@ import { useAuthStore } from '../../store/auth'
 import * as api from '../../lib/api'
 import type { Entity, Conversation } from '../../lib/types'
 import { EntityAvatar } from '../ui/EntityAvatar'
+import { useThemeColors } from '../../lib/theme'
 
 interface Props {
   bot: Entity | null
@@ -36,6 +37,7 @@ export function BotDetail({
   onOpenConversation, onDisable, onReactivate, onStartChat, onRefresh,
 }: Props) {
   const { t } = useTranslation()
+  const colors = useThemeColors()
   const token = useAuthStore((s) => s.token)!
   const myEntity = useAuthStore((s) => s.entity)!
   const [conversations, setConversations] = useState<Conversation[]>([])
@@ -158,9 +160,9 @@ export function BotDetail({
 
   if (!bot) {
     return (
-      <View style={styles.emptyContainer}>
-        <Text style={styles.emptyTitle}>{t('bot.agentDetails')}</Text>
-        <Text style={styles.emptySubtitle}>{t('bot.selectAgent')}</Text>
+      <View style={[styles.emptyContainer, { backgroundColor: colors.bgSecondary }]}>
+        <Text style={[styles.emptyTitle, { color: colors.textSecondary }]}>{t('bot.agentDetails')}</Text>
+        <Text style={[styles.emptySubtitle, { color: colors.textMuted }]}>{t('bot.selectAgent')}</Text>
       </View>
     )
   }
@@ -178,16 +180,16 @@ export function BotDetail({
   const accessToken = rotatedToken || (showFullCreds ? createdCredentials?.key : null)
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.bgSecondary }]}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { backgroundColor: colors.bg, borderBottomColor: colors.border }]}>
         <Pressable onPress={onBack} style={styles.backButton}>
-          <ArrowLeft size={16} color="#94a3b8" />
+          <ArrowLeft size={16} color={colors.textMuted} />
         </Pressable>
         <EntityAvatar entity={bot} size="md" showStatus isOnline={isOnline} />
         <View style={styles.headerInfo}>
-          <Text style={styles.headerName} numberOfLines={1}>{entityDisplayName(bot)}</Text>
-          <Text style={styles.headerHandle}>@{bot.name}</Text>
+          <Text style={[styles.headerName, { color: colors.text }]} numberOfLines={1}>{entityDisplayName(bot)}</Text>
+          <Text style={[styles.headerHandle, { color: colors.textMuted }]}>@{bot.name}</Text>
         </View>
         <View style={[
           styles.headerBadge,

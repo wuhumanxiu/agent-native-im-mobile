@@ -8,6 +8,7 @@ import { useAuthStore } from '../../store/auth'
 import * as api from '../../lib/api'
 import type { Entity } from '../../lib/types'
 import { EntityAvatar } from '../ui/EntityAvatar'
+import { useThemeColors } from '../../lib/theme'
 
 interface Props {
   selectedId: number | null
@@ -24,6 +25,7 @@ function entityDisplayName(entity?: Entity | null): string {
 
 export function BotList({ selectedId, onSelect, onCreatePress, refreshTrigger }: Props) {
   const { t } = useTranslation()
+  const colors = useThemeColors()
   const token = useAuthStore((s) => s.token)!
   const [entities, setEntities] = useState<Entity[]>([])
   const [loading, setLoading] = useState(true)
@@ -89,9 +91,10 @@ export function BotList({ selectedId, onSelect, onCreatePress, refreshTrigger }:
         onPress={() => onSelect(entity.id)}
         style={({ pressed }) => [
           styles.botCard,
-          isActive && styles.botCardActive,
+          { borderColor: colors.border },
+          isActive && { borderColor: colors.accent, backgroundColor: colors.accentDim },
           isDisabled && styles.botCardDisabled,
-          pressed && styles.botCardPressed,
+          pressed && { backgroundColor: colors.bgHover },
         ]}
       >
         <View style={styles.avatarContainer}>
@@ -99,7 +102,7 @@ export function BotList({ selectedId, onSelect, onCreatePress, refreshTrigger }:
         </View>
         <View style={styles.botInfo}>
           <View style={styles.nameRow}>
-            <Text style={styles.botName} numberOfLines={1}>
+            <Text style={[styles.botName, { color: colors.text }]} numberOfLines={1}>
               {entityDisplayName(entity)}
             </Text>
             <View style={[
@@ -159,29 +162,29 @@ export function BotList({ selectedId, onSelect, onCreatePress, refreshTrigger }:
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.bgSecondary }]}>
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <Bot size={18} color="#6366f1" />
-          <Text style={styles.headerTitle}>{t('bot.agents')}</Text>
-          <Text style={styles.headerCount}>({activeBots.length})</Text>
+          <Bot size={18} color={colors.accent} />
+          <Text style={[styles.headerTitle, { color: colors.text }]}>{t('bot.agents')}</Text>
+          <Text style={[styles.headerCount, { color: colors.textMuted }]}>({activeBots.length})</Text>
         </View>
         <Pressable onPress={onCreatePress} style={styles.addButton}>
-          <Plus size={20} color="#64748b" />
+          <Plus size={20} color={colors.textSecondary} />
         </Pressable>
       </View>
 
       {/* Search */}
       <View style={styles.searchContainer}>
-        <View style={styles.searchRow}>
-          <Search size={14} color="#94a3b8" />
+        <View style={[styles.searchRow, { backgroundColor: colors.bgTertiary }]}>
+          <Search size={14} color={colors.textMuted} />
           <TextInput
             value={search}
             onChangeText={setSearch}
             placeholder={t('bot.searchPlaceholder')}
-            placeholderTextColor="#94a3b8"
-            style={styles.searchInput}
+            placeholderTextColor={colors.textMuted}
+            style={[styles.searchInput, { color: colors.text }]}
           />
         </View>
       </View>

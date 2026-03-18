@@ -4,6 +4,7 @@ import { Users, VolumeX, Pin } from 'lucide-react-native'
 import * as Haptics from 'expo-haptics'
 import { EntityAvatar } from '../ui/EntityAvatar'
 import { ActionSheet, type ActionSheetOption } from '../ui/ActionSheet'
+import { useThemeColors } from '../../lib/theme'
 import type { Conversation, Entity } from '../../lib/types'
 
 // ─── Utility helpers (mirrors web utils.ts) ──────────────────────
@@ -68,6 +69,7 @@ export function ConversationItem({
   isArchived,
   onUnarchive,
 }: Props) {
+  const colors = useThemeColors()
   const [showMenu, setShowMenu] = useState(false)
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -140,15 +142,15 @@ export function ConversationItem({
         delayLongPress={500}
         style={({ pressed }) => [
           styles.container,
-          active && styles.active,
-          pressed && !active && styles.pressed,
+          active && { backgroundColor: colors.accentDim },
+          pressed && !active && { backgroundColor: colors.bgHover },
         ]}
       >
         {/* Avatar */}
         {isGroup ? (
           <View style={styles.groupAvatarContainer}>
-            <View style={styles.groupAvatar}>
-              <Users size={18} color="#6366f1" />
+            <View style={[styles.groupAvatar, { backgroundColor: colors.accentDim }]}>
+              <Users size={18} color={colors.accent} />
             </View>
             {conv.participants?.some((p) => isBotOrService(p.entity)) && (
               <View style={styles.botBadge}>
@@ -167,28 +169,28 @@ export function ConversationItem({
           <View style={styles.topRow}>
             <View style={styles.titleRow}>
               <Text
-                style={[styles.title, hasUnread && styles.titleUnread]}
+                style={[styles.title, { color: colors.text }, hasUnread && styles.titleUnread]}
                 numberOfLines={1}
               >
                 {title}
               </Text>
-              {isPinned && <Pin size={12} color="#6366f1" />}
-              {isMuted && <VolumeX size={12} color="#94a3b8" />}
+              {isPinned && <Pin size={12} color={colors.accent} />}
+              {isMuted && <VolumeX size={12} color={colors.textMuted} />}
             </View>
             {(lastMsg?.created_at || conv.updated_at) && (
-              <Text style={styles.time}>
+              <Text style={[styles.time, { color: colors.textMuted }]}>
                 {formatRelativeTime(lastMsg?.created_at || conv.updated_at)}
               </Text>
             )}
           </View>
           {lastText ? (
             <Text
-              style={[styles.preview, hasUnread && styles.previewUnread]}
+              style={[styles.preview, { color: colors.textMuted }, hasUnread && { color: colors.textSecondary, fontWeight: '500' }]}
               numberOfLines={1}
             >
               {lastMsgSenderName ? (
                 <>
-                  <Text style={[styles.senderPrefix, hasUnread && styles.senderPrefixUnread]}>
+                  <Text style={{ color: hasUnread ? colors.text : colors.textSecondary }}>
                     {lastMsgSenderName}:{' '}
                   </Text>
                   {truncate(lastText, 45)}
@@ -204,7 +206,7 @@ export function ConversationItem({
 
         {/* Unread badge */}
         {!isMuted && unreadCount > 0 && (
-          <View style={styles.unreadBadge}>
+          <View style={[styles.unreadBadge, { backgroundColor: colors.error }]}>
             <Text style={styles.unreadText}>
               {unreadCount > 99 ? '99+' : unreadCount}
             </Text>

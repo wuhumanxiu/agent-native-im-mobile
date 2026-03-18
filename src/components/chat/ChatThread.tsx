@@ -7,6 +7,7 @@ import { StreamingBubble } from './StreamingBubble'
 import { MessageComposer, type UploadedAttachment } from './MessageComposer'
 import { SkeletonLoader } from '../ui/SkeletonLoader'
 import { EntityAvatar } from '../ui/EntityAvatar'
+import { useThemeColors } from '../../lib/theme'
 import type { Conversation, Message, ActiveStream, Entity, Participant } from '../../lib/types'
 
 // ─── Utility ─────────────────────────────────────────────────────
@@ -78,6 +79,7 @@ export function ChatThread({
   onMarkAsRead,
 }: Props) {
   const { t } = useTranslation()
+  const colors = useThemeColors()
   const flatListRef = useRef<FlatList>(null)
   const [replyTo, setReplyTo] = useState<Message | null>(null)
 
@@ -211,46 +213,46 @@ export function ChatThread({
     if (!loading || messages.length === 0) return null
     return (
       <View style={itemStyles.loadingMore}>
-        <ActivityIndicator size="small" color="#6366f1" />
+        <ActivityIndicator size="small" color={colors.accent} />
       </View>
     )
-  }, [loading, messages.length])
+  }, [loading, messages.length, colors.accent])
 
   const keyExtractor = useCallback((item: Message) => String(item.id) + (item.temp_id || ''), [])
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: colors.bgSecondary }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
     >
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { backgroundColor: colors.bg, borderBottomColor: colors.border }]}>
         {onBack && (
           <Pressable
-            style={({ pressed }) => [styles.headerButton, styles.headerBackButton, pressed && styles.headerButtonPressed]}
+            style={({ pressed }) => [styles.headerButton, styles.headerBackButton, pressed && { backgroundColor: colors.bgHover }]}
             onPress={onBack}
             hitSlop={12}
           >
-            <ArrowLeft size={20} color="#64748b" />
+            <ArrowLeft size={20} color={colors.textSecondary} />
           </Pressable>
         )}
 
         {/* Title area */}
         <Pressable style={styles.titleArea} onPress={onSettings}>
           {isGroup ? (
-            <View style={styles.groupIconContainer}>
-              <Users size={16} color="#6366f1" />
+            <View style={[styles.groupIconContainer, { backgroundColor: colors.accentDim }]}>
+              <Users size={16} color={colors.accent} />
             </View>
           ) : (
             <EntityAvatar entity={otherParticipant} size="sm" showStatus isOnline={isOnline} />
           )}
 
           <View style={styles.titleContent}>
-            <Text style={styles.titleText} numberOfLines={1}>
+            <Text style={[styles.titleText, { color: colors.text }]} numberOfLines={1}>
               {conversation.title || entityDisplayName(otherParticipant)}
             </Text>
-            <Text style={styles.subtitleText}>
+            <Text style={[styles.subtitleText, { color: colors.textMuted }]}>
               {isGroup
                 ? t('conversation.participants', { count: conversation.participants?.length || 0 })
                 : isOnline
@@ -263,10 +265,10 @@ export function ChatThread({
 
         {onSettings && (
           <Pressable
-            style={({ pressed }) => [styles.headerButton, pressed && styles.headerButtonPressed]}
+            style={({ pressed }) => [styles.headerButton, pressed && { backgroundColor: colors.bgHover }]}
             onPress={onSettings}
           >
-            <Settings size={20} color="#94a3b8" />
+            <Settings size={20} color={colors.textMuted} />
           </Pressable>
         )}
       </View>

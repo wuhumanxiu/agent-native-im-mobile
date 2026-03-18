@@ -138,13 +138,10 @@ export class AnimpWebSocket {
     if (this.wasConnected && this._sinceId > 0) {
       wsUrl += `&since_id=${this._sinceId}`
     }
-    console.log('[WS] Full URL:', wsUrl.substring(0, 100) + '...')
-    console.log('[WS] Token length:', this.token?.length || 0)
     this.ws = new WebSocket(wsUrl)
     let opened = false
 
     this.ws.onopen = () => {
-      console.log('[WS] Connected successfully')
       opened = true
       const isReconnect = this.wasConnected
       this._connected = true
@@ -170,12 +167,11 @@ export class AnimpWebSocket {
       } catch { /* malformed JSON from server */ }
     }
 
-    this.ws.onerror = (ev: any) => {
-      console.log('[WS] Error:', ev?.message || 'unknown error')
+    this.ws.onerror = (_ev: any) => {
+      // handled by onclose
     }
 
     this.ws.onclose = (ev: any) => {
-      console.log('[WS] Closed:', ev?.code, ev?.reason || 'no reason')
       this._connected = false
       this.stopPing()
       this.connectionChangeHandlers.forEach((h) => h(false))

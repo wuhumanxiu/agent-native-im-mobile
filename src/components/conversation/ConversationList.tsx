@@ -5,6 +5,7 @@ import { Search, Plus, MessageSquare, X } from 'lucide-react-native'
 import { ConversationItem } from './ConversationItem'
 import { SkeletonLoader } from '../ui/SkeletonLoader'
 import { EmptyState } from '../ui/EmptyState'
+import { useThemeColors } from '../../lib/theme'
 import type { Conversation } from '../../lib/types'
 
 // ─── Utility ─────────────────────────────────────────────────────
@@ -48,6 +49,7 @@ export function ConversationList({
   loading,
 }: Props) {
   const { t } = useTranslation()
+  const colors = useThemeColors()
   const [search, setSearch] = useState('')
   const [refreshing, setRefreshing] = useState(false)
 
@@ -124,7 +126,7 @@ export function ConversationList({
         title={t('conversation.noConversations')}
         description={t('conversation.noConversationsDesc')}
         action={
-          <Pressable style={styles.newChatButton} onPress={onNewChat}>
+          <Pressable style={[styles.newChatButton, { backgroundColor: colors.accent }]} onPress={onNewChat}>
             <Text style={styles.newChatButtonText}>{t('conversation.newChat')}</Text>
           </Pressable>
         }
@@ -133,34 +135,34 @@ export function ConversationList({
   }, [loading, conversations.length, search, t, onNewChat])
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.bgSecondary }]}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>{t('conversation.messages')}</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>{t('conversation.messages')}</Text>
         <Pressable
-          style={({ pressed }) => [styles.headerButton, pressed && styles.headerButtonPressed]}
+          style={({ pressed }) => [styles.headerButton, pressed && { backgroundColor: colors.bgHover }]}
           onPress={onNewChat}
         >
-          <Plus size={20} color="#64748b" />
+          <Plus size={20} color={colors.textSecondary} />
         </Pressable>
       </View>
 
       {/* Search */}
       <View style={styles.searchContainer}>
-        <View style={styles.searchBox}>
-          <Search size={16} color="#94a3b8" />
+        <View style={[styles.searchBox, { backgroundColor: colors.bgTertiary }]}>
+          <Search size={16} color={colors.textMuted} />
           <TextInput
             value={search}
             onChangeText={setSearch}
             placeholder={t('conversation.search')}
-            placeholderTextColor="#94a3b8"
-            style={styles.searchInput}
+            placeholderTextColor={colors.textMuted}
+            style={[styles.searchInput, { color: colors.text }]}
             returnKeyType="search"
             clearButtonMode="never"
           />
           {search.length > 0 && (
             <Pressable onPress={() => setSearch('')} style={styles.searchClear}>
-              <X size={14} color="#94a3b8" />
+              <X size={14} color={colors.textMuted} />
             </Pressable>
           )}
         </View>
@@ -181,7 +183,7 @@ export function ConversationList({
               <RefreshControl
                 refreshing={refreshing}
                 onRefresh={handleRefresh}
-                tintColor="#6366f1"
+                tintColor={colors.accent}
               />
             ) : undefined
           }

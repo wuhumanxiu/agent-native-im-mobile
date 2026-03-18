@@ -12,6 +12,7 @@ import {
 import { useAuthStore } from '../../store/auth'
 import * as api from '../../lib/api'
 import { EntityAvatar } from '../ui/EntityAvatar'
+import { useThemeColors } from '../../lib/theme'
 
 type Section = 'profile' | 'security' | 'devices' | 'theme' | 'language' | 'about' | null
 
@@ -29,6 +30,7 @@ function entityDisplayName(entity?: { display_name?: string; name?: string } | n
 
 export function SettingsScreen({ onBack }: Props) {
   const { t, i18n } = useTranslation()
+  const colors = useThemeColors()
   const entity = useAuthStore((s) => s.entity)
   const token = useAuthStore((s) => s.token)!
   const logoutAction = useAuthStore((s) => s.logout)
@@ -188,13 +190,13 @@ export function SettingsScreen({ onBack }: Props) {
   // Section detail views
   if (section) {
     return (
-      <View style={styles.container}>
+      <View style={[styles.container, { backgroundColor: colors.bgSecondary }]}>
         {/* Section header */}
-        <View style={styles.header}>
+        <View style={[styles.header, { borderBottomColor: colors.border }]}>
           <Pressable onPress={() => setSection(null)} style={styles.backBtn}>
-            <ArrowLeft size={16} color="#64748b" />
+            <ArrowLeft size={16} color={colors.textSecondary} />
           </Pressable>
-          <Text style={styles.headerTitle}>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>
             {navItems.find((n) => n.id === section)?.label || t('settings.title')}
           </Text>
           <View style={{ width: 32 }} />
@@ -434,52 +436,58 @@ export function SettingsScreen({ onBack }: Props) {
 
   // Main menu
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
+    <View style={[styles.container, { backgroundColor: colors.bgSecondary }]}>
+      <View style={[styles.header, { borderBottomColor: colors.border }]}>
         <Pressable onPress={onBack} style={styles.backBtn}>
-          <ArrowLeft size={16} color="#64748b" />
+          <ArrowLeft size={16} color={colors.textSecondary} />
         </Pressable>
-        <Text style={styles.headerTitle}>{t('settings.title')}</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>{t('settings.title')}</Text>
         <View style={{ width: 32 }} />
       </View>
 
       <ScrollView style={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {/* Profile preview */}
-        <View style={styles.profilePreview}>
+        <View style={[styles.profilePreview, { borderBottomColor: colors.bgTertiary }]}>
           <EntityAvatar entity={entity} size="lg" />
           <View style={styles.profilePreviewInfo}>
-            <Text style={styles.profilePreviewName}>{entityDisplayName(entity)}</Text>
-            <Text style={styles.profilePreviewEmail}>{entity?.email || `@${entity?.name}`}</Text>
+            <Text style={[styles.profilePreviewName, { color: colors.text }]}>{entityDisplayName(entity)}</Text>
+            <Text style={[styles.profilePreviewEmail, { color: colors.textMuted }]}>{entity?.email || `@${entity?.name}`}</Text>
           </View>
         </View>
 
         {/* Nav items */}
-        <View style={styles.navGroup}>
+        <View style={[styles.navGroup, { borderBottomColor: colors.bgTertiary }]}>
           {navItems.map((item) => {
             const Icon = item.icon
             return (
               <Pressable
                 key={item.id}
                 onPress={() => setSection(item.id)}
-                style={({ pressed }) => [styles.navItem, pressed && styles.navItemPressed]}
+                style={({ pressed }) => [styles.navItem, { borderBottomColor: colors.bg }, pressed && { backgroundColor: colors.bgHover }]}
               >
-                <Icon size={18} color="#64748b" />
-                <Text style={styles.navItemText}>{item.label}</Text>
-                <ChevronRight size={16} color="#cbd5e1" />
+                <Icon size={18} color={colors.textSecondary} />
+                <Text style={[styles.navItemText, { color: colors.text }]}>{item.label}</Text>
+                <ChevronRight size={16} color={colors.textMuted} />
               </Pressable>
             )
           })}
         </View>
 
         {/* Push notifications toggle */}
-        <View style={styles.navGroup}>
+        <View style={[styles.navGroup, { borderBottomColor: colors.bgTertiary }]}>
           <View style={styles.toggleRow}>
-            <Bell size={18} color="#64748b" />
-            <Text style={styles.navItemText}>{t('settings.pushNotifications')}</Text>
+            <Bell size={18} color={colors.textSecondary} />
+            <Text style={[styles.navItemText, { color: colors.text }]}>{t('settings.pushNotifications')}</Text>
             <Switch
               value={pushEnabled}
-              onValueChange={setPushEnabled}
-              trackColor={{ false: '#e2e8f0', true: '#6366f1' }}
+              onValueChange={(val) => {
+                Alert.alert(
+                  t('settings.pushNotifications'),
+                  'Push notifications will be available in the standalone app build. Expo Go does not support push notifications.',
+                  [{ text: 'OK' }]
+                )
+              }}
+              trackColor={{ false: colors.border, true: colors.accent }}
               thumbColor="#ffffff"
             />
           </View>

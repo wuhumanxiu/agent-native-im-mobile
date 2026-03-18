@@ -11,6 +11,7 @@ import {
 } from 'lucide-react-native'
 import { EntityAvatar } from '../ui/EntityAvatar'
 import { ActionSheet, type ActionSheetOption } from '../ui/ActionSheet'
+import { useThemeColors } from '../../lib/theme'
 import type { Message, Entity, Attachment } from '../../lib/types'
 
 // ─── Utility helpers ─────────────────────────────────────────────
@@ -170,6 +171,7 @@ export function MessageBubble({
   isRead,
 }: Props) {
   const { t } = useTranslation()
+  const colors = useThemeColors()
   const [showThinking, setShowThinking] = useState(false)
   const [lightboxUri, setLightboxUri] = useState<string | null>(null)
   const [showActionSheet, setShowActionSheet] = useState(false)
@@ -391,11 +393,11 @@ export function MessageBubble({
           {showSender && (
             <View style={[styles.metaRow, isSelf && styles.metaRowSelf]}>
               {!isSelf && (
-                <Text style={[styles.senderName, isBot && styles.senderBot]}>
+                <Text style={[styles.senderName, { color: colors.textSecondary }, isBot && styles.senderBot]}>
                   {entityDisplayName(message.sender)}
                 </Text>
               )}
-              <Text style={styles.timestamp}>{formatTime(message.created_at)}</Text>
+              <Text style={[styles.timestamp, { color: colors.textMuted }]}>{formatTime(message.created_at)}</Text>
             </View>
           )}
 
@@ -426,8 +428,10 @@ export function MessageBubble({
             delayLongPress={500}
             style={({ pressed }) => [
               styles.bubble,
-              isSelf ? styles.bubbleSelf : styles.bubbleOther,
-              isMentioned && !isSelf && styles.bubbleMentioned,
+              isSelf
+                ? [styles.bubbleSelf, { backgroundColor: colors.bubbleSelf }]
+                : [styles.bubbleOther, { backgroundColor: colors.bubbleOther, borderColor: colors.bubbleBorderOther }],
+              isMentioned && !isSelf && [styles.bubbleMentioned, { borderLeftColor: colors.accent }],
               message.client_state === 'sending' && styles.bubbleSending,
               pressed && styles.bubblePressed,
             ]}
