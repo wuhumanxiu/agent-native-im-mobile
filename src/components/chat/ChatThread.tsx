@@ -157,14 +157,40 @@ export function ChatThread({
   // Inverted data (newest first for FlatList inverted)
   const invertedMessages = useMemo(() => [...messages].reverse(), [messages])
 
+  // Date separator helper
+  const formatDateSeparator = useCallback((dateStr: string) => {
+    const d = new Date(dateStr)
+    const now = new Date()
+    const diff = now.getTime() - d.getTime()
+    const days = Math.floor(diff / 86400000)
+    if (days === 0) return t('message.today') || 'Today'
+    if (days === 1) return t('message.yesterday') || 'Yesterday'
+    return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: d.getFullYear() !== now.getFullYear() ? 'numeric' : undefined })
+  }, [t])
+
   // Render message item
   const renderMessage = useCallback(({ item, index }: { item: Message; index: number }) => {
     const isSelf = item.sender_id === myEntityId
     const showSender = isGroup ? shouldShowSender(index, item, invertedMessages) : (index === invertedMessages.length - 1 || invertedMessages[index + 1]?.sender_id !== item.sender_id)
     const replyMessage = item.reply_to ? messageMap.get(item.reply_to) : undefined
 
+    // Date separator: show when day changes from next message (inverted list, so next = older)
+    const nextMsg = invertedMessages[index + 1]
+    const itemDate = new Date(item.created_at).toDateString()
+    const nextDate = nextMsg ? new Date(nextMsg.created_at).toDateString() : null
+    const showDateSeparator = !nextDate || itemDate !== nextDate
+
     return (
       <View style={itemStyles.container}>
+        {showDateSeparator && (
+          <View style={itemStyles.dateSeparator}>
+            <View style={[itemStyles.dateLine, { backgroundColor: colors.border }]} />
+            <Text style={[itemStyles.dateText, { color: colors.textMuted, backgroundColor: colors.bg }]}>
+              {formatDateSeparator(item.created_at)}
+            </Text>
+            <View style={[itemStyles.dateLine, { backgroundColor: colors.border }]} />
+          </View>
+        )}
         <MessageBubble
           message={item}
           isSelf={isSelf}
@@ -179,7 +205,7 @@ export function ChatThread({
         />
       </View>
     )
-  }, [myEntityId, isGroup, shouldShowSender, invertedMessages, messageMap, isMessageRead, isArchived, onRevoke, handleReply, onReact, onRetryOutbox])
+  }, [myEntityId, isGroup, shouldShowSender, invertedMessages, messageMap, isMessageRead, isArchived, onRevoke, handleReply, onReact, onRetryOutbox, colors, formatDateSeparator])
 
   // Render streaming bubbles at the top (bottom visually in inverted list)
   const renderHeader = useCallback(() => {
@@ -386,6 +412,22 @@ const styles = StyleSheet.create({
 const itemStyles = StyleSheet.create({
   container: {
     paddingVertical: 2,
+  },
+  dateSeparator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    gap: 12,
+  },
+  dateLine: {
+    flex: 1,
+    height: StyleSheet.hairlineWidth,
+  },
+  dateText: {
+    fontSize: 11,
+    fontWeight: '500',
+    paddingHorizontal: 8,
   },
   headerContainer: {
     gap: 8,
