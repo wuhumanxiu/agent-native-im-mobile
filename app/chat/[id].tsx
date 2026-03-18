@@ -30,7 +30,8 @@ export default function ChatDetailScreen() {
     conversations.find((c) => c.id === convId) || null,
   )
   // Messages directly from store — WS addMessage writes here, no local state needed
-  const messages = useMessagesStore((s) => s.byConv[convId] || [])
+  const EMPTY: Message[] = useMemo(() => [], [])
+  const messages = useMessagesStore((s) => s.byConv[convId]) || EMPTY
   const storeStreams = useMessagesStore((s) => s.streams)
   const setStoreMessages = useMessagesStore((s) => s.setMessages)
   const prependStoreMessages = useMessagesStore((s) => s.prependMessages)
@@ -47,7 +48,8 @@ export default function ChatDetailScreen() {
   useEffect(() => {
     setActive(convId)
     return () => setActive(null)
-  }, [convId, setActive])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [convId])
 
   // Active streams for this conversation
   const convStreams = useMemo<ActiveStream[]>(() => {

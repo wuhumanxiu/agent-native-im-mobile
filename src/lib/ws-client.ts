@@ -142,6 +142,7 @@ export class AnimpWebSocket {
     let opened = false
 
     this.ws.onopen = () => {
+      console.log('[WS] Connected successfully')
       opened = true
       const isReconnect = this.wasConnected
       this._connected = true
@@ -167,7 +168,12 @@ export class AnimpWebSocket {
       } catch { /* malformed JSON from server */ }
     }
 
-    this.ws.onclose = () => {
+    this.ws.onerror = (ev: any) => {
+      console.log('[WS] Error:', ev?.message || 'unknown error')
+    }
+
+    this.ws.onclose = (ev: any) => {
+      console.log('[WS] Closed:', ev?.code, ev?.reason || 'no reason')
       this._connected = false
       this.stopPing()
       this.connectionChangeHandlers.forEach((h) => h(false))
