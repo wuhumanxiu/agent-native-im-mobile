@@ -1,6 +1,7 @@
 /**
  * Shared storage abstraction.
- * Uses MMKV on native, localStorage on web.
+ * Uses AsyncStorage on native, localStorage on web.
+ * Synchronous API (AsyncStorage reads are cached at init).
  */
 import { Platform } from 'react-native'
 
@@ -10,6 +11,9 @@ interface StorageAdapter {
   delete(key: string): void
 }
 
+// In-memory cache for synchronous access (populated from AsyncStorage on native)
+const cache = new Map<string, string>()
+
 function createStorage(): StorageAdapter {
   if (Platform.OS === 'web') {
     return {
@@ -17,24 +21,40 @@ function createStorage(): StorageAdapter {
         try { return localStorage.getItem(key) ?? undefined } catch { return undefined }
       },
       set: (key, value) => {
-        try { localStorage.setItem(key, value) } catch { /* quota */ }
+        try { localStorage.setItem(key, value) } catch {}
       },
       delete: (key) => {
         try { localStorage.removeItem(key) } catch {}
       },
     }
   }
-  // Native: use MMKV
+
+  // Native: use AsyncStorage with sync cache
+  let AsyncStorage: any = null
   try {
-    const { MMKV } = require('react-native-mmkv')
-    return new MMKV()
-  } catch {
-    // Fallback if MMKV fails to load
-    return {
-      getString: () => undefined,
-      set: () => {},
-      delete: () => {},
-    }
+    AsyncStorage = require('@react-native-async-storage/async-storage').default
+    // Hydrate cache from AsyncStorage (fire and forget)
+    AsyncStorage.getAllKeys().then((keys: string[]) => {
+      if (keys.length > 0) {
+        AsyncStorage.multiGet(keys).then((pairs: [string, string | null][]) => {
+          for (const [k, v] of pairs) {
+            if (v != null) cache.set(k, v)
+          }
+        })
+      }
+    }).catch(() => {})
+  } catch {}
+
+  return {
+    getString: (key) => cache.get(key),
+    set: (key, value) => {
+      cache.set(key, value)
+      AsyncStorage?.setItem(key, value).catch(() => {})
+    },
+    delete: (key) => {
+      cache.delete(key)
+      AsyncStorage?.removeItem(key).catch(() => {})
+    },
   }
 }
 
