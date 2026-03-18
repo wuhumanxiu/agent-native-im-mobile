@@ -544,11 +544,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 8,
     paddingHorizontal: 12,
-    maxWidth: '85%',
   },
   rowSelf: {
     flexDirection: 'row-reverse',
     alignSelf: 'flex-end',
+    maxWidth: '85%',
   },
   avatarSpacer: {
     width: 32,
