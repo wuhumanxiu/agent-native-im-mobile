@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import { Appearance } from 'react-native'
 import { loadSetting, saveSetting } from '../lib/storage'
 
-export type Theme = 'system' | 'dark' | 'light'
+export type Theme = 'system' | 'dark' | 'light' | 'midnight' | 'green' | 'rose' | 'ocean' | 'amber' | 'violet' | 'light-rose' | 'light-ocean' | 'light-green'
 export type Locale = 'en' | 'zh-CN'
 
 interface SettingsState {
@@ -37,7 +37,8 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     if (theme === 'system') {
       return Appearance.getColorScheme() === 'dark' ? 'dark' : 'light'
     }
-    return theme
+    const darkThemes = ['dark', 'midnight', 'green', 'rose', 'ocean', 'amber', 'violet']
+    return darkThemes.includes(theme) ? 'dark' : 'light'
   },
 }))
 

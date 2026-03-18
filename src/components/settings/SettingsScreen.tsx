@@ -52,8 +52,8 @@ export function SettingsScreen({ onBack }: Props) {
   const [passSuccess, setPassSuccess] = useState('')
 
   // Theme — read/write from Zustand store so it persists and triggers re-renders
-  const selectedTheme = useSettingsStore((s) => s.theme) as Theme
-  const setSelectedTheme = useSettingsStore((s) => s.setTheme) as (t: Theme) => void
+  const selectedTheme = useSettingsStore((s) => s.theme)
+  const setSelectedTheme = useSettingsStore((s) => s.setTheme)
 
   // Language
   const [selectedLocale, setSelectedLocale] = useState(i18n.language || 'en')

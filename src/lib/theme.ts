@@ -37,8 +37,10 @@ export function resolveThemeColors(theme: string): ThemeColors {
     const scheme = Appearance.getColorScheme()
     return scheme === 'dark' ? darkColors : lightColors
   }
-  if (theme === 'dark') return darkColors
+  // All dark variants use dark colors (midnight is extra dark)
+  const darkThemes = ['dark', 'green', 'rose', 'ocean', 'amber', 'violet']
   if (theme === 'midnight') return midnightColors
+  if (darkThemes.includes(theme)) return darkColors
   return lightColors
 }
 
