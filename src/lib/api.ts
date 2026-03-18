@@ -266,13 +266,15 @@ export async function uploadFile(token: string, uri: string, filename: string, m
   try {
     // Use expo-file-system for reliable uploads in Expo Go
     const FileSystem = require('expo-file-system')
-    console.log('[Upload] Using FileSystem.uploadAsync')
+    // FileSystemUploadType.MULTIPART = 1 (enum may not resolve in all SDK versions)
+    const MULTIPART = FileSystem.FileSystemUploadType?.MULTIPART ?? 1
+    console.log('[Upload] Using FileSystem.uploadAsync, MULTIPART=', MULTIPART)
     const result = await FileSystem.uploadAsync(
       uploadUrl,
       uri,
       {
         httpMethod: 'POST',
-        uploadType: FileSystem.FileSystemUploadType.MULTIPART,
+        uploadType: MULTIPART,
         fieldName: 'file',
         mimeType,
         parameters: {},
