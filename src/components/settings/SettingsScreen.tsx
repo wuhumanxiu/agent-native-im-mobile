@@ -10,6 +10,7 @@ import {
   Check, Eye, EyeOff, Smartphone, LogOut, Info, ArrowLeft,
 } from 'lucide-react-native'
 import { useAuthStore } from '../../store/auth'
+import { useSettingsStore } from '../../store/settings'
 import * as api from '../../lib/api'
 import { EntityAvatar } from '../ui/EntityAvatar'
 import { useThemeColors } from '../../lib/theme'
@@ -50,8 +51,9 @@ export function SettingsScreen({ onBack }: Props) {
   const [passError, setPassError] = useState('')
   const [passSuccess, setPassSuccess] = useState('')
 
-  // Theme
-  const [selectedTheme, setSelectedTheme] = useState<Theme>('light')
+  // Theme — read/write from Zustand store so it persists and triggers re-renders
+  const selectedTheme = useSettingsStore((s) => s.theme) as Theme
+  const setSelectedTheme = useSettingsStore((s) => s.setTheme) as (t: Theme) => void
 
   // Language
   const [selectedLocale, setSelectedLocale] = useState(i18n.language || 'en')
