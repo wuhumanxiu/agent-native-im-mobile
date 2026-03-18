@@ -2,6 +2,7 @@ import React, { useState, useCallback, useRef } from 'react'
 import { View, Text, Pressable, Image, StyleSheet, Linking, Modal } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import Markdown from 'react-native-markdown-display'
+import { ArtifactRenderer } from './ArtifactRenderer'
 import * as Haptics from 'expo-haptics'
 import * as Clipboard from 'expo-clipboard'
 import {
@@ -314,6 +315,24 @@ export function MessageBubble({
             ))}
           </View>
         )
+
+      case 'artifact': {
+        const artifactType = (layers?.data?.artifact_type as string) || 'html'
+        const artifactSource = (layers?.data?.source as string) || body
+        const artifactTitle = (layers?.data?.title as string) || ''
+        const artifactLang = (layers?.data?.language as string) || ''
+        return (
+          <View>
+            {body && artifactSource !== body ? <Text style={contentStyles.bodyText}>{body}</Text> : null}
+            <ArtifactRenderer
+              artifactType={artifactType}
+              source={artifactSource}
+              title={artifactTitle}
+              language={artifactLang}
+            />
+          </View>
+        )
+      }
 
       default: // text
         return (
