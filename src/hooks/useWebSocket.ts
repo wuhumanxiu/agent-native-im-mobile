@@ -29,7 +29,7 @@ export function useWebSocket() {
     const wsUrl = WS_BASE_URL || `wss://${typeof location !== 'undefined' ? location.host : 'ani-web.51pwd.com'}`
     const ws = new AnimpWebSocket(wsUrl, token)
     wsRef.current = ws
-    setWsConnected(true)
+    ws.connect()
 
     const unsub = ws.onMessage((msg: WSMessage) => {
       switch (msg.type) {
