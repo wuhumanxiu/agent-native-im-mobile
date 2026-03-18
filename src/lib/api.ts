@@ -261,30 +261,44 @@ export const adminListConversations = (token: string, limit = 50, offset = 0) =>
 
 // Files
 export async function uploadFile(token: string, uri: string, filename: string, mimeType: string): Promise<APIResponse<{ url: string }>> {
-  const form = new FormData()
-  // React Native FormData accepts { uri, name, type } objects
-  form.append('file', {
-    uri,
-    name: filename,
-    type: mimeType,
-  } as unknown as Blob)
+  try {
+    // Use expo-file-system for reliable uploads in Expo Go
+    const FileSystem = require('expo-file-system')
+    const result = await FileSystem.uploadAsync(
+      `${baseUrl}/api/v1/files/upload`,
+      uri,
+      {
+        httpMethod: 'POST',
+        uploadType: FileSystem.FileSystemUploadType.MULTIPART,
+        fieldName: 'file',
+        mimeType,
+        parameters: {},
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      },
+    )
+    const parsed = JSON.parse(result.body)
+    if (result.status >= 200 && result.status < 300 && parsed.ok) {
+      return parsed
+    }
+    return { ok: false, error: parsed.error || `HTTP ${result.status}` } as APIResponse<{ url: string }>
+  } catch (err) {
+    // Fallback: standard FormData upload (works in standalone builds)
+    const form = new FormData()
+    form.append('file', {
+      uri,
+      name: filename,
+      type: mimeType,
+    } as unknown as Blob)
 
-  const doUpload = async (accessToken: string) => {
-    return fetch(`${baseUrl}/api/v1/files/upload`, {
+    const res = await fetch(`${baseUrl}/api/v1/files/upload`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${accessToken}` },
+      headers: { Authorization: `Bearer ${token}` },
       body: form,
     })
+    return parseAPIResponse<{ url: string }>(res)
   }
-
-  let res = await doUpload(token)
-  if (res.status === 401) {
-    const nextToken = await tryRefreshToken(token)
-    if (nextToken) {
-      res = await doUpload(nextToken)
-    }
-  }
-  return parseAPIResponse<{ url: string }>(res)
 }
 
 // Push notifications (quiet -- endpoint may not exist)
