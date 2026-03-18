@@ -15,9 +15,10 @@ export default function RootLayout() {
   // Connect WebSocket when authenticated
   useWebSocket()
 
-  // Mark ready after first render (navigator is mounted)
+  // Mark ready after navigator is fully mounted (next frame)
   useEffect(() => {
-    setIsReady(true)
+    const timer = setTimeout(() => setIsReady(true), 100)
+    return () => clearTimeout(timer)
   }, [])
 
   useEffect(() => {
