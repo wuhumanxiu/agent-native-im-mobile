@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Stack, useRouter, useSegments, useRootNavigationState } from 'expo-router'
+import { Stack, useRouter, useSegments } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { useAuthStore } from '../src/store/auth'
@@ -10,14 +10,18 @@ export default function RootLayout() {
   const router = useRouter()
   const segments = useSegments()
   const token = useAuthStore((s) => s.token)
-  const navigationState = useRootNavigationState()
+  const [isReady, setIsReady] = useState(false)
 
   // Connect WebSocket when authenticated
   useWebSocket()
 
+  // Mark ready after first render (navigator is mounted)
   useEffect(() => {
-    // Wait until navigation is ready before redirecting
-    if (!navigationState?.key) return
+    setIsReady(true)
+  }, [])
+
+  useEffect(() => {
+    if (!isReady) return
 
     const inAuthGroup = segments[0] === 'login' || segments[0] === 'register'
 
@@ -26,7 +30,7 @@ export default function RootLayout() {
     } else if (token && inAuthGroup) {
       router.replace('/(tabs)/chat')
     }
-  }, [token, segments, navigationState?.key])
+  }, [token, segments, isReady])
 
   return (
     <SafeAreaProvider>
