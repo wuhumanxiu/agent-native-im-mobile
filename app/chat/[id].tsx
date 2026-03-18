@@ -1,13 +1,14 @@
 import { useEffect, useState, useCallback } from 'react'
-import { View, Text, FlatList, TextInput, Pressable, StyleSheet, ActivityIndicator } from 'react-native'
+import { View, Modal, StyleSheet } from 'react-native'
 import { useLocalSearchParams, Stack, useRouter } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { ArrowLeft, Send } from 'lucide-react-native'
 import { useAuthStore } from '../../src/store/auth'
 import { useConversationsStore } from '../../src/store/conversations'
 import * as api from '../../src/lib/api'
-import type { Message } from '../../src/lib/types'
-import { EntityAvatar } from '../../src/components/ui/EntityAvatar'
+import type { Message, Conversation } from '../../src/lib/types'
+import { ChatThread } from '../../src/components/chat/ChatThread'
+import { ConversationSettings } from '../../src/components/conversation/ConversationSettings'
+import { TaskPanel } from '../../src/components/task/TaskPanel'
 
 export default function ChatDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>()
@@ -16,144 +17,212 @@ export default function ChatDetailScreen() {
   const token = useAuthStore((s) => s.token)
   const entity = useAuthStore((s) => s.entity)
   const conversations = useConversationsStore((s) => s.conversations)
-  const conversation = conversations.find((c) => c.id === convId)
+  const updateConversation = useConversationsStore((s) => s.updateConversation)
+  const removeConversation = useConversationsStore((s) => s.removeConversation)
 
+  const [conversation, setConversation] = useState<Conversation | null>(
+    conversations.find((c) => c.id === convId) || null,
+  )
   const [messages, setMessages] = useState<Message[]>([])
   const [loading, setLoading] = useState(true)
-  const [text, setText] = useState('')
-  const [sending, setSending] = useState(false)
+  const [hasMore, setHasMore] = useState(true)
+  const [showSettings, setShowSettings] = useState(false)
+  const [showTasks, setShowTasks] = useState(false)
 
+  // Load conversation detail if not in store
+  useEffect(() => {
+    if (!token || !convId) return
+    const fromStore = conversations.find((c) => c.id === convId)
+    if (fromStore) {
+      setConversation(fromStore)
+    } else {
+      api.getConversation(token, convId).then((res) => {
+        if (res.ok && res.data) setConversation(res.data)
+      }).catch(() => {})
+    }
+  }, [token, convId, conversations])
+
+  // Load messages
   useEffect(() => {
     if (!token || !convId) return
     setLoading(true)
     api.listMessages(token, convId).then((res) => {
       if (res.ok && res.data) {
-        const msgs = Array.isArray(res.data) ? res.data : (res.data as any).messages || []
+        const data = res.data
+        const msgs = Array.isArray(data) ? data : data?.messages || []
         setMessages(msgs)
+        setHasMore(Array.isArray(data) ? msgs.length >= 30 : !!data?.has_more)
       }
       setLoading(false)
     }).catch(() => setLoading(false))
   }, [token, convId])
 
-  const handleSend = useCallback(async () => {
-    if (!token || !text.trim() || sending) return
-    setSending(true)
-    await api.sendMessage(token, convId, { layers: { summary: text.trim() } })
-    setText('')
-    const res = await api.listMessages(token, convId)
+  // Load more messages (pagination)
+  const handleLoadMore = useCallback(async () => {
+    if (!token || !convId || messages.length === 0 || !hasMore) return
+    const oldest = messages[0]
+    if (!oldest) return
+    const res = await api.listMessages(token, convId, oldest.id)
     if (res.ok && res.data) {
-      const msgs = Array.isArray(res.data) ? res.data : (res.data as any).messages || []
-      setMessages(msgs)
+      const data = res.data
+      const older = Array.isArray(data) ? data : data?.messages || []
+      if (older.length === 0) {
+        setHasMore(false)
+      } else {
+        setMessages((prev) => [...older, ...prev])
+        setHasMore(Array.isArray(data) ? older.length >= 30 : !!data?.has_more)
+      }
     }
-    setSending(false)
-  }, [token, convId, text, sending])
+  }, [token, convId, messages, hasMore])
 
-  const title = conversation?.title || `Chat #${id}`
+  // Send message - backend expects { conversation_id, layers: { summary }, mentions, reply_to }
+  const handleSend = useCallback(async (text: string, attachments?: any[], mentions?: number[]) => {
+    if (!token || !convId) return
+    const msg: Parameters<typeof api.sendMessage>[1] = {
+      conversation_id: convId,
+      layers: { summary: text },
+      mentions: mentions || [],
+      reply_to: undefined,
+    }
+    if (attachments && attachments.length > 0) {
+      msg.attachments = attachments
+    }
+    const res = await api.sendMessage(token, msg)
+    if (res.ok && res.data) {
+      setMessages((prev) => [...prev, res.data!])
+    } else {
+      // Fallback: reload messages
+      const reload = await api.listMessages(token, convId)
+      if (reload.ok && reload.data) {
+        const data = reload.data
+        const msgs = Array.isArray(data) ? data : data?.messages || []
+        setMessages(msgs)
+      }
+    }
+  }, [token, convId])
 
-  const renderMessage = useCallback(({ item }: { item: Message }) => {
-    const isSelf = item.sender_id === entity?.id
-    const senderName = item.sender?.display_name || item.sender?.name || '?'
-    const content = item.layers?.summary || ''
-    const isRevoked = !!item.revoked_at
+  // Revoke message
+  const handleRevoke = useCallback(async (msgId: number) => {
+    if (!token) return
+    const res = await api.revokeMessage(token, msgId)
+    if (res.ok) {
+      setMessages((prev) =>
+        prev.map((m) => m.id === msgId ? { ...m, revoked_at: new Date().toISOString() } : m),
+      )
+    }
+  }, [token])
 
-    return (
-      <View style={[styles.msgRow, isSelf && styles.msgRowSelf]}>
-        {!isSelf && <EntityAvatar entity={item.sender} size="sm" />}
-        <View style={[styles.bubble, isSelf ? styles.bubbleSelf : styles.bubbleOther]}>
-          {!isSelf && <Text style={styles.senderName}>{senderName}</Text>}
-          <Text style={[styles.msgText, isRevoked && styles.revokedText]}>
-            {isRevoked ? 'Message revoked' : content}
-          </Text>
-          <Text style={styles.timestamp}>
-            {new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-          </Text>
-        </View>
-      </View>
-    )
-  }, [entity?.id])
+  // React to message
+  const handleReact = useCallback(async (msgId: number, emoji: string) => {
+    if (!token) return
+    const res = await api.toggleReaction(token, msgId, emoji)
+    if (res.ok && res.data) {
+      setMessages((prev) =>
+        prev.map((m) => m.id === msgId ? { ...m, reactions: res.data!.reactions } : m),
+      )
+    }
+  }, [token])
+
+  // Mark as read
+  const handleMarkAsRead = useCallback(async (conversationId: number, messageId: number) => {
+    if (!token) return
+    api.markAsRead(token, conversationId, messageId).catch(() => {})
+  }, [token])
+
+  // File upload handler
+  const handleFileUpload = useCallback(async (file: { uri: string; name: string; type: string; size: number }): Promise<string | null> => {
+    if (!token) return null
+    const res = await api.uploadFile(token, file.uri, file.name, file.type)
+    if (res.ok && res.data?.url) return res.data.url
+    return null
+  }, [token])
+
+  // Conversation settings handlers
+  const handleConvUpdated = useCallback((partial: Partial<Conversation>) => {
+    if (conversation) {
+      const updated = { ...conversation, ...partial }
+      setConversation(updated)
+      updateConversation(convId, partial)
+    }
+  }, [conversation, convId, updateConversation])
+
+  const handleConvLeave = useCallback(() => {
+    removeConversation(convId)
+    router.back()
+  }, [convId, removeConversation, router])
+
+  // Build a fallback conversation for ChatThread if null
+  const displayConv = conversation || {
+    id: convId,
+    conv_type: 'direct' as const,
+    title: `Chat #${id}`,
+    description: '',
+    prompt: '',
+    metadata: {},
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    participants: [],
+  }
 
   return (
     <>
       <Stack.Screen options={{ headerShown: false }} />
       <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-        {/* Header */}
-        <View style={styles.header}>
-          <Pressable onPress={() => router.back()} style={styles.backBtn}>
-            <ArrowLeft size={20} color="#1a1a2e" />
-          </Pressable>
-          <Text style={styles.headerTitle} numberOfLines={1}>{title}</Text>
-        </View>
-
-        {/* Messages */}
-        {loading ? (
-          <View style={styles.center}><ActivityIndicator size="large" color="#6366f1" /></View>
-        ) : (
-          <FlatList
-            data={[...messages].reverse()}
-            renderItem={renderMessage}
-            keyExtractor={(m) => String(m.id)}
-            inverted
-            contentContainerStyle={styles.list}
-          />
-        )}
-
-        {/* Composer */}
-        <View style={styles.composer}>
-          <TextInput
-            style={styles.input}
-            value={text}
-            onChangeText={setText}
-            placeholder="Type a message..."
-            placeholderTextColor="#9ca3af"
-            multiline
-            maxLength={4000}
-          />
-          <Pressable
-            onPress={handleSend}
-            disabled={!text.trim() || sending}
-            style={[styles.sendBtn, text.trim() ? styles.sendBtnActive : null]}
-          >
-            <Send size={18} color={text.trim() ? '#fff' : '#9ca3af'} />
-          </Pressable>
-        </View>
+        <ChatThread
+          conversation={displayConv}
+          messages={messages}
+          streams={[]}
+          myEntityId={entity?.id || 0}
+          myEntity={entity || { id: 0, entity_type: 'user', name: 'me', display_name: 'Me', status: 'active', metadata: {}, created_at: '', updated_at: '' }}
+          loading={loading}
+          hasMore={hasMore}
+          onBack={() => router.back()}
+          onSettings={() => setShowSettings(true)}
+          onLoadMore={handleLoadMore}
+          onSend={handleSend}
+          onRevoke={handleRevoke}
+          onReact={handleReact}
+          onMarkAsRead={handleMarkAsRead}
+          onFileUpload={handleFileUpload}
+        />
       </SafeAreaView>
+
+      {/* Conversation Settings Modal */}
+      <Modal
+        visible={showSettings}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowSettings(false)}
+      >
+        <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+          <ConversationSettings
+            conversation={displayConv}
+            onClose={() => setShowSettings(false)}
+            onLeave={handleConvLeave}
+            onUpdated={handleConvUpdated}
+          />
+        </SafeAreaView>
+      </Modal>
+
+      {/* Task Panel Modal */}
+      <Modal
+        visible={showTasks}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowTasks(false)}
+      >
+        <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+          <TaskPanel
+            conversationId={convId}
+            participants={displayConv.participants || []}
+            onClose={() => setShowTasks(false)}
+          />
+        </SafeAreaView>
+      </Modal>
     </>
   )
 }
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#f8f9fa' },
-  header: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    paddingHorizontal: 16, paddingVertical: 12,
-    borderBottomWidth: 1, borderBottomColor: '#e5e7eb', backgroundColor: '#fff',
-  },
-  backBtn: { width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontSize: 17, fontWeight: '600', color: '#1a1a2e', flex: 1 },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  list: { paddingHorizontal: 12, paddingVertical: 8 },
-  msgRow: { flexDirection: 'row', marginBottom: 8, gap: 8, alignItems: 'flex-end' },
-  msgRowSelf: { flexDirection: 'row-reverse' },
-  bubble: { maxWidth: '75%', borderRadius: 16, paddingHorizontal: 14, paddingVertical: 8 },
-  bubbleSelf: { backgroundColor: '#6366f1', borderBottomRightRadius: 4 },
-  bubbleOther: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#e5e7eb', borderBottomLeftRadius: 4 },
-  senderName: { fontSize: 11, fontWeight: '600', color: '#6366f1', marginBottom: 2 },
-  msgText: { fontSize: 15, color: '#1a1a2e', lineHeight: 20 },
-  revokedText: { fontStyle: 'italic', color: '#9ca3af' },
-  timestamp: { fontSize: 10, color: '#9ca3af', marginTop: 4, alignSelf: 'flex-end' },
-  composer: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    paddingHorizontal: 12, paddingVertical: 8,
-    borderTopWidth: 1, borderTopColor: '#e5e7eb', backgroundColor: '#fff',
-  },
-  input: {
-    flex: 1, backgroundColor: '#f3f4f6', borderRadius: 20,
-    paddingHorizontal: 16, paddingVertical: 10,
-    fontSize: 15, color: '#1a1a2e', maxHeight: 100,
-  },
-  sendBtn: {
-    width: 36, height: 36, borderRadius: 18,
-    alignItems: 'center', justifyContent: 'center', backgroundColor: '#e5e7eb',
-  },
-  sendBtnActive: { backgroundColor: '#6366f1' },
 })

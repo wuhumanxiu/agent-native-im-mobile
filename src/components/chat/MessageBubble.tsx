@@ -173,10 +173,10 @@ export function MessageBubble({
   const [lightboxUri, setLightboxUri] = useState<string | null>(null)
   const [showActionSheet, setShowActionSheet] = useState(false)
 
-  const layers = message.layers || {}
-  const isRevoked = !!message.revoked_at
-  const isBot = isBotOrService(message.sender)
-  const isMentioned = myEntityId != null && message.mentions?.includes(myEntityId)
+  const layers = message?.layers || {}
+  const isRevoked = !!message?.revoked_at
+  const isBot = isBotOrService(message?.sender)
+  const isMentioned = myEntityId != null && (message?.mentions || []).includes(myEntityId)
 
   // Can revoke within 2 minutes
   const canRevoke = isSelf && !isRevoked && !!onRevoke &&
@@ -194,7 +194,7 @@ export function MessageBubble({
   // Build action sheet options
   const actionOptions: ActionSheetOption[] = []
   // Copy
-  const summary = layers.data?.body as string || layers.summary || ''
+  const summary = (layers?.data?.body as string) || layers?.summary || ''
   if (summary) {
     actionOptions.push({
       label: t('message.copyText'),
@@ -249,15 +249,17 @@ export function MessageBubble({
   // ─── Content renderer ────────────────────────────────────
 
   const renderContent = () => {
-    const body = (layers.data?.body as string) || layers.summary || ''
-    const effectiveType = (message.content_type === 'text' && isBot) ? 'markdown' : message.content_type
+    const body = (layers?.data?.body as string) || layers?.summary || ''
+    const effectiveType = (message?.content_type === 'text' && isBot) ? 'markdown' : (message?.content_type || 'text')
 
     switch (effectiveType) {
       case 'markdown':
-        return (
+        return body ? (
           <Markdown style={markdownStyles}>
             {body}
           </Markdown>
+        ) : (
+          <Text style={contentStyles.bodyText}> </Text>
         )
 
       case 'image':

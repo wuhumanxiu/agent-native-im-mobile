@@ -45,11 +45,11 @@ export function ConversationSettings({ conversation, onClose, onLeave, onUpdated
   const [addMemberSearch, setAddMemberSearch] = useState('')
   const [addMemberLoading, setAddMemberLoading] = useState(false)
 
-  const participants = conversation.participants || []
-  const myParticipant = participants.find((p) => p.entity_id === myEntity.id)
+  const participants = conversation?.participants || []
+  const myParticipant = participants.find((p) => p.entity_id === myEntity?.id)
   const canManage = myParticipant?.role === 'owner' || myParticipant?.role === 'admin'
-  const isGroup = conversation.conv_type === 'group' || conversation.conv_type === 'channel'
-  const displayConversationId = conversation.public_id || String(conversation.id)
+  const isGroup = conversation?.conv_type === 'group' || conversation?.conv_type === 'channel'
+  const displayConversationId = conversation?.public_id || String(conversation?.id || 0)
 
   const handleSaveTitle = async () => {
     if (!titleValue.trim() || titleValue === conversation.title) {

@@ -30,11 +30,11 @@ export default function RootLayout() {
         <Stack.Screen name="(tabs)" />
         <Stack.Screen
           name="chat/[id]"
-          options={{ headerShown: true, headerBackTitle: 'Back' }}
+          options={{ headerShown: false }}
         />
         <Stack.Screen
           name="bots/[id]"
-          options={{ headerShown: true, headerBackTitle: 'Back' }}
+          options={{ headerShown: false }}
         />
         <Stack.Screen
           name="join/[code]"

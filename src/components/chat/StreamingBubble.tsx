@@ -123,9 +123,10 @@ export function StreamingBubble({ stream, sender, onCancel }: Props) {
   const { t } = useTranslation()
   const [showThinking, setShowThinking] = useState(false)
 
-  const status = stream.layers.status
-  const thinking = stream.layers.thinking
-  const summary = stream.layers.summary || ''
+  const streamLayers = stream?.layers || {}
+  const status = streamLayers.status
+  const thinking = streamLayers.thinking
+  const summary = streamLayers.summary || ''
   const progress = status?.progress ?? 0
 
   return (

@@ -81,9 +81,9 @@ export function ChatThread({
   const flatListRef = useRef<FlatList>(null)
   const [replyTo, setReplyTo] = useState<Message | null>(null)
 
-  const isGroup = conversation.conv_type === 'group' || conversation.conv_type === 'channel'
-  const otherParticipant = conversation.participants?.find((p) => p.entity_id !== myEntityId)?.entity
-  const myParticipant = conversation.participants?.find((p) => p.entity_id === myEntityId)
+  const isGroup = conversation?.conv_type === 'group' || conversation?.conv_type === 'channel'
+  const otherParticipant = (conversation?.participants || []).find((p) => p.entity_id !== myEntityId)?.entity
+  const myParticipant = (conversation?.participants || []).find((p) => p.entity_id === myEntityId)
   const isObserver = myParticipant?.role === 'observer'
 
   // Active streams for this conversation
