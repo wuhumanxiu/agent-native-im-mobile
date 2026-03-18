@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react'
-import { View, Text, FlatList, Pressable, ActivityIndicator, StyleSheet, Platform } from 'react-native'
+import { View, Text, FlatList, Pressable, ActivityIndicator, StyleSheet, Platform, KeyboardAvoidingView } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { ArrowLeft, Users, Settings, Search } from 'lucide-react-native'
 import { MessageBubble } from './MessageBubble'
@@ -219,7 +219,11 @@ export function ChatThread({
   const keyExtractor = useCallback((item: Message) => String(item.id) + (item.temp_id || ''), [])
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+    >
       {/* Header */}
       <View style={styles.header}>
         {onBack && (
@@ -304,7 +308,7 @@ export function ChatThread({
         replyTo={replyTo}
         onCancelReply={() => setReplyTo(null)}
       />
-    </View>
+    </KeyboardAvoidingView>
   )
 }
 
