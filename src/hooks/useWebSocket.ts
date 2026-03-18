@@ -46,7 +46,7 @@ export function useWebSocket() {
         case 'message.new': {
           const data = msg.data as Message
           if (data?.conversation_id && data?.id) {
-            addMessage(data.conversation_id, data)
+            addMessage(data)
             // Update conversation's last message preview
             updateConversation(data.conversation_id, {
               updated_at: data.created_at,

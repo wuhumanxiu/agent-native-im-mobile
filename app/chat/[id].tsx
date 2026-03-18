@@ -59,10 +59,12 @@ export default function ChatDetailScreen() {
     api.listMessages(token, convId).then((res) => {
       if (res.ok && res.data) {
         const data = res.data
-        const msgs = Array.isArray(data) ? data : data?.messages || []
+        const raw = Array.isArray(data) ? data : data?.messages || []
+        // API returns newest-first, UI needs oldest-first (FlatList inverted flips it)
+        const msgs = [...raw].reverse()
         setMessages(msgs)
         setStoreMessages(convId, msgs) // sync to store for WS addMessage
-        setHasMore(Array.isArray(data) ? msgs.length >= 30 : !!data?.has_more)
+        setHasMore(Array.isArray(data) ? raw.length >= 30 : !!data?.has_more)
       }
       setLoading(false)
     }).catch(() => setLoading(false))
@@ -76,12 +78,13 @@ export default function ChatDetailScreen() {
     const res = await api.listMessages(token, convId, oldest.id)
     if (res.ok && res.data) {
       const data = res.data
-      const older = Array.isArray(data) ? data : data?.messages || []
+      const raw = Array.isArray(data) ? data : data?.messages || []
+      const older = [...raw].reverse() // API returns newest-first
       if (older.length === 0) {
         setHasMore(false)
       } else {
         setMessages((prev) => [...older, ...prev])
-        setHasMore(Array.isArray(data) ? older.length >= 30 : !!data?.has_more)
+        setHasMore(Array.isArray(data) ? raw.length >= 30 : !!data?.has_more)
       }
     }
   }, [token, convId, messages, hasMore])
