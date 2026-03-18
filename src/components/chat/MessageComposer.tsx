@@ -1,7 +1,7 @@
 import React, { useState, useRef, useCallback, useMemo, useEffect } from 'react'
-import { View, Text, TextInput, Pressable, FlatList, StyleSheet, Platform, KeyboardAvoidingView } from 'react-native'
+import { View, Text, TextInput, Pressable, FlatList, StyleSheet, Platform, KeyboardAvoidingView, ActivityIndicator } from 'react-native'
 import { useTranslation } from 'react-i18next'
-import { Send, Paperclip, X, Mic, MicOff, Smile, CornerUpLeft, Loader2, Image as ImageIcon, FileText } from 'lucide-react-native'
+import { Send, Paperclip, X, Mic, MicOff, Smile, CornerUpLeft, Loader2, Image as ImageIcon, FileText, CheckCircle, RotateCw } from 'lucide-react-native'
 import * as ImagePicker from 'expo-image-picker'
 import { Audio } from 'expo-av'
 import { EntityAvatar } from '../ui/EntityAvatar'
@@ -412,23 +412,49 @@ export function MessageComposer({
               key={pf.uri}
               style={[
                 styles.fileChip,
+                pf.status === 'uploaded' && styles.fileChipUploaded,
                 pf.status === 'failed' && styles.fileChipFailed,
               ]}
             >
-              {pf.status === 'uploading' ? (
-                <Loader2 size={14} color="#6366f1" />
-              ) : pf.type.startsWith('image/') ? (
-                <ImageIcon size={14} color="#6366f1" />
+              {/* File type icon */}
+              {pf.type.startsWith('image/') ? (
+                <ImageIcon size={14} color={pf.status === 'failed' ? '#ef4444' : '#6366f1'} />
               ) : (
-                <FileText size={14} color="#6366f1" />
+                <FileText size={14} color={pf.status === 'failed' ? '#ef4444' : '#6366f1'} />
               )}
-              <Text style={styles.fileChipName} numberOfLines={1}>{pf.name}</Text>
+              <Text style={[styles.fileChipName, pf.status === 'failed' && styles.fileChipNameFailed]} numberOfLines={1}>{pf.name}</Text>
               <Text style={styles.fileChipSize}>{formatFileSize(pf.size)}</Text>
-              {pf.status === 'failed' && (
-                <Text style={styles.fileChipError}>Failed</Text>
+              {/* Status indicator */}
+              {pf.status === 'uploading' && (
+                <ActivityIndicator size="small" color="#6366f1" style={{ width: 14, height: 14 }} />
               )}
-              <Pressable onPress={() => removeFile(pf.uri)}>
-                <X size={12} color="#94a3b8" />
+              {pf.status === 'uploaded' && (
+                <CheckCircle size={14} color="#16a34a" />
+              )}
+              {pf.status === 'failed' && (
+                <Pressable
+                  onPress={() => {
+                    if (!onFileUpload) return
+                    setPendingFiles((prev) =>
+                      prev.map((f) => f.uri === pf.uri ? { ...f, status: 'uploading' } : f)
+                    )
+                    onFileUpload({ uri: pf.uri, name: pf.name, type: pf.type, size: pf.size }).then((url) => {
+                      setPendingFiles((prev) =>
+                        prev.map((f) =>
+                          f.uri === pf.uri
+                            ? { ...f, status: url ? 'uploaded' : 'failed', url: url ?? undefined }
+                            : f
+                        )
+                      )
+                    })
+                  }}
+                  hitSlop={8}
+                >
+                  <RotateCw size={14} color="#ef4444" />
+                </Pressable>
+              )}
+              <Pressable onPress={() => removeFile(pf.uri)} hitSlop={8}>
+                <X size={12} color={pf.status === 'failed' ? '#ef4444' : '#94a3b8'} />
               </Pressable>
             </View>
           ))}
@@ -661,9 +687,16 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: '#e2e8f0',
   },
+  fileChipUploaded: {
+    backgroundColor: '#f0fdf4',
+    borderColor: '#bbf7d0',
+  },
   fileChipFailed: {
     backgroundColor: '#fef2f2',
     borderColor: '#fecaca',
+  },
+  fileChipNameFailed: {
+    color: '#ef4444',
   },
   fileChipName: {
     fontSize: 12,

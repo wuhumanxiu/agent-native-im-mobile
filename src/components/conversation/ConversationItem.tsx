@@ -175,9 +175,9 @@ export function ConversationItem({
               {isPinned && <Pin size={12} color="#6366f1" />}
               {isMuted && <VolumeX size={12} color="#94a3b8" />}
             </View>
-            {lastMsg && (
+            {(lastMsg?.created_at || conv.updated_at) && (
               <Text style={styles.time}>
-                {formatRelativeTime(lastMsg.created_at)}
+                {formatRelativeTime(lastMsg?.created_at || conv.updated_at)}
               </Text>
             )}
           </View>

@@ -3,7 +3,9 @@ import { Stack, useRouter, useSegments } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { useAuthStore } from '../src/store/auth'
+import { useSettingsStore } from '../src/store/settings'
 import { WebSocketProvider } from '../src/hooks/WebSocketContext'
+import { useThemeColors } from '../src/lib/theme'
 import '../src/i18n'
 
 export default function RootLayout() {
@@ -11,6 +13,7 @@ export default function RootLayout() {
   const segments = useSegments()
   const token = useAuthStore((s) => s.token)
   const [isReady, setIsReady] = useState(false)
+  const colors = useThemeColors()
 
   // Mark ready after navigator is fully mounted (next frame)
   useEffect(() => {
@@ -33,7 +36,7 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <WebSocketProvider>
-        <StatusBar style="dark" />
+        <StatusBar style={colors.statusBar} />
         <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="index" />
           <Stack.Screen name="login" />

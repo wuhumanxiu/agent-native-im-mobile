@@ -6,6 +6,7 @@ import { NewConversation } from '../../src/components/conversation/NewConversati
 import { GlobalSearch } from '../../src/components/conversation/GlobalSearch'
 import { useAuthStore } from '../../src/store/auth'
 import { useConversationsStore } from '../../src/store/conversations'
+import { useThemeColors } from '../../src/lib/theme'
 import * as api from '../../src/lib/api'
 
 export default function ChatTab() {
@@ -18,6 +19,7 @@ export default function ChatTab() {
   const isMuted = useConversationsStore((s) => s.isMuted)
   const removeConversation = useConversationsStore((s) => s.removeConversation)
 
+  const colors = useThemeColors()
   const [showNewChat, setShowNewChat] = useState(false)
   const [showSearch, setShowSearch] = useState(false)
 
@@ -70,7 +72,7 @@ export default function ChatTab() {
   }, [token, removeConversation])
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#f8f9fa' }} edges={['top']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }} edges={['top']}>
       <ConversationList
         conversations={conversations || []}
         activeId={null}

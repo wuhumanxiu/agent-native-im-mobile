@@ -228,8 +228,9 @@ export function ChatThread({
       <View style={styles.header}>
         {onBack && (
           <Pressable
-            style={({ pressed }) => [styles.headerButton, pressed && styles.headerButtonPressed]}
+            style={({ pressed }) => [styles.headerButton, styles.headerBackButton, pressed && styles.headerButtonPressed]}
             onPress={onBack}
+            hitSlop={12}
           >
             <ArrowLeft size={20} color="#64748b" />
           </Pressable>
@@ -336,6 +337,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
+  },
+  headerBackButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
   },
   headerButtonPressed: {
     backgroundColor: '#f1f5f9',

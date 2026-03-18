@@ -510,9 +510,9 @@ const styles = StyleSheet.create({
     borderBottomColor: '#e2e8f0',
   },
   backBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
   },

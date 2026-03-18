@@ -1,7 +1,8 @@
-import React from 'react'
+import React, { useState, useMemo } from 'react'
 import { View, Text, Image, StyleSheet } from 'react-native'
 import { Bot } from 'lucide-react-native'
 import type { Entity } from '../../lib/types'
+import { API_BASE_URL } from '../../lib/constants'
 
 interface Props {
   entity?: Entity | null
@@ -61,6 +62,19 @@ function isBotOrService(entity?: { entity_type?: string } | null): boolean {
   return entity?.entity_type === 'bot' || entity?.entity_type === 'service'
 }
 
+function resolveAvatarUrl(url?: string): string | null {
+  if (!url) return null
+  // Already absolute URL or data URI
+  if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:image/')) {
+    return url
+  }
+  // Relative path like /files/xxx.jpg — prepend API base URL
+  if (url.startsWith('/')) {
+    return API_BASE_URL + url
+  }
+  return url
+}
+
 export function EntityAvatar({ entity, size = 'md', showStatus = false, isOnline = false }: Props) {
   const dimension = SIZE_MAP[size]
   const fontSize = FONT_SIZE_MAP[size]
@@ -68,6 +82,10 @@ export function EntityAvatar({ entity, size = 'md', showStatus = false, isOnline
   const iconDim = ICON_SIZE_MAP[size]
   const color = entityColor(entity)
   const isBot = isBotOrService(entity)
+  const [imgError, setImgError] = useState(false)
+
+  const avatarUri = useMemo(() => resolveAvatarUrl(entity?.avatar_url), [entity?.avatar_url])
+  const showImage = !!avatarUri && !imgError
 
   return (
     <View style={[styles.container, { width: dimension, height: dimension }]}>
@@ -83,10 +101,11 @@ export function EntityAvatar({ entity, size = 'md', showStatus = false, isOnline
           isBot && { borderWidth: 1, borderColor: color + '4D' },
         ]}
       >
-        {entity?.avatar_url ? (
+        {showImage ? (
           <Image
-            source={{ uri: entity.avatar_url }}
+            source={{ uri: avatarUri }}
             style={[styles.avatarImage, { width: dimension, height: dimension, borderRadius: 9999 }]}
+            onError={() => setImgError(true)}
           />
         ) : isBot ? (
           <Bot size={iconDim} color={color} />

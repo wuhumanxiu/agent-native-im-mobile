@@ -4,12 +4,14 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { useAuthStore } from '../../src/store/auth'
 import * as api from '../../src/lib/api'
 import { BotList } from '../../src/components/entity/BotList'
+import { useThemeColors } from '../../src/lib/theme'
 import { CreateBotDialog } from '../../src/components/entity/CreateBotDialog'
 import type { Entity } from '../../src/lib/types'
 
 export default function BotsTab() {
   const router = useRouter()
   const token = useAuthStore((s) => s.token)
+  const colors = useThemeColors()
   const [showCreate, setShowCreate] = useState(false)
   const [selectedId, setSelectedId] = useState<number | null>(null)
   const [refreshTrigger, setRefreshTrigger] = useState(0)
@@ -49,7 +51,7 @@ export default function BotsTab() {
   }, [router])
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#f8f9fa' }} edges={['top']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }} edges={['top']}>
       <BotList
         selectedId={selectedId}
         onSelect={handleSelect}

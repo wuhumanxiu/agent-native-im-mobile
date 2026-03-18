@@ -2,6 +2,8 @@ import { Tabs } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { MessageSquare, Bot, Settings2 } from 'lucide-react-native'
 import { View, Text, StyleSheet } from 'react-native'
+import { useThemeColors } from '../../src/lib/theme'
+import { useConversationsStore } from '../../src/store/conversations'
 
 function TabBarIcon({
   Icon,
@@ -54,19 +56,23 @@ const tabIconStyles = StyleSheet.create({
 
 export default function TabLayout() {
   const { t } = useTranslation()
-
-  // TODO: wire up real unread count from conversation store
-  const unreadCount = 0
+  const colors = useThemeColors()
+  const conversations = useConversationsStore((s) => s.conversations)
+  const mutedIds = useConversationsStore((s) => s.mutedIds)
+  const unreadCount = conversations.reduce((sum, c) => {
+    if (mutedIds.has(c.id)) return sum
+    return sum + (c.unread_count || 0)
+  }, 0)
 
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: '#6366f1',
-        tabBarInactiveTintColor: '#9ca3af',
+        tabBarActiveTintColor: colors.accent,
+        tabBarInactiveTintColor: colors.textMuted,
         tabBarStyle: {
-          backgroundColor: '#ffffff',
-          borderTopColor: '#e5e7eb',
+          backgroundColor: colors.bgSecondary,
+          borderTopColor: colors.border,
           borderTopWidth: 1,
         },
         tabBarLabelStyle: {
