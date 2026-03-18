@@ -53,6 +53,7 @@ export function ConversationList({
 
   // Sort: pinned first, then by last message time
   const sorted = useMemo(() => {
+    if (!Array.isArray(conversations)) return []
     return [...conversations].sort((a, b) => {
       const pinnedA = a.participants?.find((p) => p.entity_id === myEntityId)?.pinned_at
       const pinnedB = b.participants?.find((p) => p.entity_id === myEntityId)?.pinned_at
