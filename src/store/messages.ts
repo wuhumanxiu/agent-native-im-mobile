@@ -70,10 +70,14 @@ export const useMessagesStore = create<MessagesState>((set) => ({
     }),
 
   prependMessages: (convId, msgs, hasMore) =>
-    set((s) => ({
-      byConv: { ...s.byConv, [convId]: [...msgs, ...(s.byConv[convId] || [])] },
+    set((s) => {
+      const existing = s.byConv[convId] || []
+      const existingIds = new Set(existing.map((m) => m.id))
+      const unique = msgs.filter((m) => !existingIds.has(m.id))
+      return {
+      byConv: { ...s.byConv, [convId]: [...unique, ...existing] },
       hasMore: { ...s.hasMore, [convId]: hasMore },
-    })),
+    }}),
 
   addMessage: (msg) =>
     set((s) => {

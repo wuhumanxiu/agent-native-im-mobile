@@ -53,6 +53,7 @@ export function useWebSocket() {
     if (!token || !entity) return
 
     const wsUrl = WS_BASE_URL || `wss://ani-web.51pwd.com`
+    console.log('[WS] Connecting to:', wsUrl)
     const ws = new AnimpWebSocket(wsUrl, token)
     wsRef.current = ws
 
@@ -81,6 +82,7 @@ export function useWebSocket() {
         // ─── Messages ──────────────────────────────────
         case 'message.new': {
           const message = msg.data as Message
+          console.log('[WS] message.new received:', message?.id, message?.conversation_id, message?.layers?.summary?.slice(0, 40))
           if (message?.conversation_id && message?.id) {
             addMessage(message)
             clearProgressBySender(message.conversation_id, message.sender_id)
