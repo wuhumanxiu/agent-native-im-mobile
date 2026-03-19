@@ -1,11 +1,53 @@
-import React from 'react'
-import { View, Text, ActivityIndicator, StyleSheet } from 'react-native'
+import React, { useEffect, useRef } from 'react'
+import { View, Text, Animated, StyleSheet } from 'react-native'
 import { useThemeColors } from '../../lib/theme'
 import { EntityAvatar } from '../ui/EntityAvatar'
 import type { Entity } from '../../lib/types'
 
 interface Props {
   entity?: Entity
+}
+
+export function ProcessingDots({ color }: { color: string }) {
+  const dot1 = useRef(new Animated.Value(0.3)).current
+  const dot2 = useRef(new Animated.Value(0.3)).current
+  const dot3 = useRef(new Animated.Value(0.3)).current
+
+  useEffect(() => {
+    const animateDot = (dot: Animated.Value, delay: number) =>
+      Animated.loop(
+        Animated.sequence([
+          Animated.delay(delay),
+          Animated.timing(dot, { toValue: 1, duration: 300, useNativeDriver: true }),
+          Animated.timing(dot, { toValue: 0.3, duration: 300, useNativeDriver: true }),
+        ]),
+      )
+
+    const a1 = animateDot(dot1, 0)
+    const a2 = animateDot(dot2, 200)
+    const a3 = animateDot(dot3, 400)
+    a1.start()
+    a2.start()
+    a3.start()
+    return () => { a1.stop(); a2.stop(); a3.stop() }
+  }, [dot1, dot2, dot3])
+
+  return (
+    <View style={styles.dotsContainer}>
+      {[dot1, dot2, dot3].map((dot, index) => (
+        <Animated.View
+          key={index}
+          style={[
+            styles.dot,
+            {
+              backgroundColor: color,
+              opacity: dot,
+            },
+          ]}
+        />
+      ))}
+    </View>
+  )
 }
 
 export function ThinkingBubble({ entity }: Props) {
@@ -34,7 +76,7 @@ export function ThinkingBubble({ entity }: Props) {
             },
           ]}
         >
-          <ActivityIndicator size="small" color={colors.accent} />
+          <ProcessingDots color={colors.accent} />
         </View>
       </View>
     </View>
@@ -70,5 +112,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     justifyContent: 'center',
+  },
+  dotsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 2,
+  },
+  dot: {
+    width: 7,
+    height: 7,
+    borderRadius: 999,
   },
 })

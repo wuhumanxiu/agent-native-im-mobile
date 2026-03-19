@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { ArrowLeft, Users, Settings, Search } from 'lucide-react-native'
 import { MessageBubble } from './MessageBubble'
 import { StreamingBubble } from './StreamingBubble'
-import { ThinkingBubble } from './ThinkingBubble'
+import { ThinkingBubble, ProcessingDots } from './ThinkingBubble'
 import { MessageComposer, type UploadedAttachment } from './MessageComposer'
 import { SkeletonLoader } from '../ui/SkeletonLoader'
 import { EntityAvatar } from '../ui/EntityAvatar'
@@ -262,7 +262,7 @@ export function ChatThread({
       <View style={itemStyles.headerContainer}>
         {progress && !hasStreams && (
           <View style={itemStyles.processingRow}>
-            <ActivityIndicator size="small" color={colors.accent} />
+            <ProcessingDots color={colors.accent} />
             <Text style={itemStyles.processingText}>
               {progress.status?.text || t('chat.processing')}
             </Text>
@@ -276,7 +276,7 @@ export function ChatThread({
         {typingInfo && (
           <View style={itemStyles.typingRow}>
             {typingInfo.isProcessing ? (
-              <ActivityIndicator size="small" color={colors.accent} />
+              <ProcessingDots color={colors.accent} />
             ) : null}
             <Text
               style={[

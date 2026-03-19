@@ -2,58 +2,10 @@ import React, { useState, useEffect, useRef } from 'react'
 import { View, Text, Pressable, Animated, StyleSheet } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import Markdown from 'react-native-markdown-display'
-import { Loader2, Brain, ChevronDown, ChevronUp, Square } from 'lucide-react-native'
+import { Brain, ChevronDown, ChevronUp, Square } from 'lucide-react-native'
 import { EntityAvatar } from '../ui/EntityAvatar'
+import { ProcessingDots } from './ThinkingBubble'
 import type { ActiveStream, Entity } from '../../lib/types'
-
-// ─── Typing indicator dots ───────────────────────────────────────
-
-function TypingDots() {
-  const dot1 = useRef(new Animated.Value(0.3)).current
-  const dot2 = useRef(new Animated.Value(0.3)).current
-  const dot3 = useRef(new Animated.Value(0.3)).current
-
-  useEffect(() => {
-    const animateDot = (dot: Animated.Value, delay: number) =>
-      Animated.loop(
-        Animated.sequence([
-          Animated.delay(delay),
-          Animated.timing(dot, { toValue: 1, duration: 300, useNativeDriver: true }),
-          Animated.timing(dot, { toValue: 0.3, duration: 300, useNativeDriver: true }),
-        ]),
-      )
-    const a1 = animateDot(dot1, 0)
-    const a2 = animateDot(dot2, 200)
-    const a3 = animateDot(dot3, 400)
-    a1.start()
-    a2.start()
-    a3.start()
-    return () => { a1.stop(); a2.stop(); a3.stop() }
-  }, [dot1, dot2, dot3])
-
-  return (
-    <View style={dotStyles.container}>
-      {[dot1, dot2, dot3].map((dot, i) => (
-        <Animated.View key={i} style={[dotStyles.dot, { opacity: dot }]} />
-      ))}
-    </View>
-  )
-}
-
-const dotStyles = StyleSheet.create({
-  container: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingVertical: 4,
-  },
-  dot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#6366f1',
-  },
-})
 
 // ─── Cursor blink ────────────────────────────────────────────────
 
@@ -81,31 +33,6 @@ function BlinkingCursor() {
         opacity,
       }}
     />
-  )
-}
-
-// ─── Spinner (rotating icon placeholder) ─────────────────────────
-
-function Spinner({ size = 14, color = '#6366f1' }: { size?: number; color?: string }) {
-  const spin = useRef(new Animated.Value(0)).current
-
-  useEffect(() => {
-    const anim = Animated.loop(
-      Animated.timing(spin, { toValue: 1, duration: 1200, useNativeDriver: true }),
-    )
-    anim.start()
-    return () => anim.stop()
-  }, [spin])
-
-  const rotate = spin.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0deg', '360deg'],
-  })
-
-  return (
-    <Animated.View style={{ transform: [{ rotate }] }}>
-      <Loader2 size={size} color={color} />
-    </Animated.View>
   )
 }
 
@@ -158,7 +85,7 @@ export function StreamingBubble({ stream, sender, onCancel }: Props) {
               </View>
             ) : (
               <View style={styles.loadingRow}>
-                <Spinner size={14} />
+                <ProcessingDots color="#6366f1" />
                 <Text style={styles.loadingText}>
                   {status?.text || t('streaming.processing')}
                 </Text>
@@ -171,7 +98,7 @@ export function StreamingBubble({ stream, sender, onCancel }: Props) {
             <View style={styles.statusBar}>
               {status?.phase && summary ? (
                 <View style={styles.phaseRow}>
-                  <Spinner size={12} />
+                  <ProcessingDots color="#6366f1" />
                   <Text style={styles.phaseText}>{status.text || status.phase}</Text>
                 </View>
               ) : null}
