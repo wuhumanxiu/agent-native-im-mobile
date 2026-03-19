@@ -618,7 +618,9 @@ export function SettingsScreen({ onBack }: Props) {
         <View style={[styles.navGroup, { borderBottomColor: colors.bgTertiary }]}>
           <View style={styles.toggleRow}>
             <Bell size={18} color={colors.textSecondary} />
-            <Text style={[styles.navItemText, { color: colors.text }]}>{t('settings.pushNotifications')}</Text>
+            <View style={styles.toggleBody}>
+              <Text style={[styles.navItemText, { color: colors.text }]}>{t('settings.pushNotifications')}</Text>
+            </View>
             <Switch
               value={pushEnabled}
               onValueChange={(val) => {
@@ -730,6 +732,11 @@ const styles = StyleSheet.create({
     gap: 14,
     paddingHorizontal: 20,
     paddingVertical: 14,
+    justifyContent: 'space-between',
+  },
+  toggleBody: {
+    flex: 1,
+    minWidth: 0,
   },
   signOutBtn: {
     flexDirection: 'row',

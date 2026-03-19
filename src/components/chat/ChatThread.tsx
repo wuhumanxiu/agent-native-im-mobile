@@ -320,15 +320,20 @@ export function ChatThread({
 
   return (
     <KeyboardAvoidingView
-      style={[styles.container, { backgroundColor: colors.bgSecondary }]}
+      style={[styles.container, { backgroundColor: colors.bg }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
     >
       {/* Header */}
-      <View style={[styles.header, { backgroundColor: colors.bg, borderBottomColor: colors.border }]}>
+      <View style={[styles.header, { backgroundColor: colors.bgSecondary, borderBottomColor: colors.border }]}>
         {onBack && (
           <Pressable
-            style={({ pressed }) => [styles.headerButton, styles.headerBackButton, pressed && { backgroundColor: colors.bgHover }]}
+            style={({ pressed }) => [
+              styles.headerButton,
+              styles.headerBackButton,
+              { backgroundColor: colors.bg, borderColor: colors.border },
+              pressed && { backgroundColor: colors.bgHover },
+            ]}
             onPress={onBack}
             hitSlop={12}
           >
@@ -363,7 +368,11 @@ export function ChatThread({
 
         {onSettings && (
           <Pressable
-            style={({ pressed }) => [styles.headerButton, pressed && { backgroundColor: colors.bgHover }]}
+            style={({ pressed }) => [
+              styles.headerButton,
+              { backgroundColor: colors.bg, borderColor: colors.border },
+              pressed && { backgroundColor: colors.bgHover },
+            ]}
             onPress={onSettings}
           >
             <Settings size={20} color={colors.textMuted} />
@@ -430,9 +439,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    paddingHorizontal: 8,
+    paddingHorizontal: 10,
     paddingVertical: 10,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: 1,
     borderBottomColor: '#e2e8f0',
     backgroundColor: '#f8fafc',
   },
@@ -443,6 +452,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
+    borderWidth: 1,
   },
   headerBackButton: {
     width: 44,
@@ -482,7 +492,8 @@ const styles = StyleSheet.create({
     color: '#94a3b8',
   },
   messageList: {
-    paddingVertical: 8,
+    paddingHorizontal: 4,
+    paddingVertical: 10,
     gap: 4,
   },
 })

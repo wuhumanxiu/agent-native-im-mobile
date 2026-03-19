@@ -385,10 +385,10 @@ export function MessageComposer({
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.bgSecondary, borderTopColor: colors.border }]}>
+    <View style={[styles.container, { backgroundColor: colors.bg, borderTopColor: colors.border }]}>
       {/* @mention autocomplete */}
       {mentionQuery !== null && mentionCandidates.length > 0 && (
-        <View style={styles.mentionPopover}>
+        <View style={[styles.mentionPopover, { backgroundColor: colors.bgSecondary, borderColor: colors.border }]}>
           <FlatList
             data={mentionCandidates}
             keyExtractor={(p) => String(p.entity_id)}
@@ -397,19 +397,19 @@ export function MessageComposer({
               <Pressable
                 style={[
                   styles.mentionItem,
-                  index === mentionIndex && styles.mentionItemActive,
+                  index === mentionIndex && { backgroundColor: colors.accentDim },
                 ]}
                 onPress={() => insertMention(item)}
               >
                 <EntityAvatar entity={item.entity} size="xs" />
                 <View style={styles.mentionInfo}>
-                  <Text style={styles.mentionName} numberOfLines={1}>
+                  <Text style={[styles.mentionName, { color: colors.text }]} numberOfLines={1}>
                     {entityDisplayName(item.entity)}
                   </Text>
-                  <Text style={styles.mentionHandle}>
+                  <Text style={[styles.mentionHandle, { color: colors.textMuted }]}>
                     @{item.entity?.name}
                     {item.entity?.entity_type !== 'user' && (
-                      <Text style={styles.mentionBadge}> {item.entity?.entity_type}</Text>
+                      <Text style={[styles.mentionBadge, { color: colors.accent, backgroundColor: colors.accentDim }]}> {item.entity?.entity_type}</Text>
                     )}
                   </Text>
                 </View>
@@ -421,18 +421,18 @@ export function MessageComposer({
 
       {/* Reply preview */}
       {replyTo && (
-        <View style={styles.replyBar}>
-          <CornerUpLeft size={14} color="#6366f1" />
+        <View style={[styles.replyBar, { backgroundColor: colors.bgSecondary, borderColor: colors.border, borderLeftColor: colors.accent }]}>
+          <CornerUpLeft size={14} color={colors.accent} />
           <View style={styles.replyContent}>
-            <Text style={styles.replyAuthor}>
+            <Text style={[styles.replyAuthor, { color: colors.accent }]}>
               {t('chat.replyTo', { name: entityDisplayName(replyTo.sender) })}
             </Text>
-            <Text style={styles.replyPreview} numberOfLines={1}>
+            <Text style={[styles.replyPreview, { color: colors.textMuted }]} numberOfLines={1}>
               {(replyTo.layers?.summary || '').slice(0, 80)}
             </Text>
           </View>
-          <Pressable style={styles.replyCancelButton} onPress={onCancelReply}>
-            <X size={12} color="#94a3b8" />
+          <Pressable style={[styles.replyCancelButton, { backgroundColor: colors.bgHover }]} onPress={onCancelReply}>
+            <X size={12} color={colors.textMuted} />
           </Pressable>
         </View>
       )}
@@ -445,24 +445,28 @@ export function MessageComposer({
               key={pf.uri}
               style={[
                 styles.fileChip,
-                pf.status === 'uploaded' && styles.fileChipUploaded,
-                pf.status === 'failed' && styles.fileChipFailed,
+                {
+                  backgroundColor: colors.bgSecondary,
+                  borderColor: colors.border,
+                },
+                pf.status === 'uploaded' && { backgroundColor: `${colors.success}15`, borderColor: `${colors.success}55` },
+                pf.status === 'failed' && { backgroundColor: `${colors.error}12`, borderColor: `${colors.error}45` },
               ]}
             >
               {/* File type icon */}
               {pf.type.startsWith('image/') ? (
-                <ImageIcon size={14} color={pf.status === 'failed' ? '#ef4444' : '#6366f1'} />
+                <ImageIcon size={14} color={pf.status === 'failed' ? colors.error : colors.accent} />
               ) : (
-                <FileText size={14} color={pf.status === 'failed' ? '#ef4444' : '#6366f1'} />
+                <FileText size={14} color={pf.status === 'failed' ? colors.error : colors.accent} />
               )}
-              <Text style={[styles.fileChipName, pf.status === 'failed' && styles.fileChipNameFailed]} numberOfLines={1}>{pf.name}</Text>
-              <Text style={styles.fileChipSize}>{formatFileSize(pf.size)}</Text>
+              <Text style={[styles.fileChipName, { color: pf.status === 'failed' ? colors.error : colors.text }, pf.status === 'failed' && styles.fileChipNameFailed]} numberOfLines={1}>{pf.name}</Text>
+              <Text style={[styles.fileChipSize, { color: colors.textMuted }]}>{formatFileSize(pf.size)}</Text>
               {/* Status indicator */}
               {pf.status === 'uploading' && (
-                <ActivityIndicator size="small" color="#6366f1" style={{ width: 14, height: 14 }} />
+                <ActivityIndicator size="small" color={colors.accent} style={{ width: 14, height: 14 }} />
               )}
               {pf.status === 'uploaded' && (
-                <CheckCircle size={14} color="#16a34a" />
+                <CheckCircle size={14} color={colors.success} />
               )}
               {pf.status === 'failed' && (
                 <Pressable
@@ -483,11 +487,11 @@ export function MessageComposer({
                   }}
                   hitSlop={8}
                 >
-                  <RotateCw size={14} color="#ef4444" />
+                  <RotateCw size={14} color={colors.error} />
                 </Pressable>
               )}
               <Pressable onPress={() => removeFile(pf.uri)} hitSlop={8}>
-                <X size={12} color={pf.status === 'failed' ? '#ef4444' : '#94a3b8'} />
+                <X size={12} color={pf.status === 'failed' ? colors.error : colors.textMuted} />
               </Pressable>
             </View>
           ))}
@@ -500,10 +504,10 @@ export function MessageComposer({
           {mentionIds.map((eid) => {
             const p = participants.find((pp) => pp.entity_id === eid)
             return (
-              <View key={eid} style={styles.mentionBadgeChip}>
-                <Text style={styles.mentionBadgeText}>@{entityDisplayName(p?.entity)}</Text>
+              <View key={eid} style={[styles.mentionBadgeChip, { backgroundColor: colors.accentDim }]}>
+                <Text style={[styles.mentionBadgeText, { color: colors.accent }]}>@{entityDisplayName(p?.entity)}</Text>
                 <Pressable onPress={() => setMentionIds((prev) => prev.filter((id) => id !== eid))}>
-                  <X size={10} color="#6366f1" />
+                  <X size={10} color={colors.accent} />
                 </Pressable>
               </View>
             )
@@ -537,20 +541,28 @@ export function MessageComposer({
       )}
 
       {/* Input row */}
-      <View style={[styles.inputRow, { backgroundColor: colors.bgTertiary, borderColor: colors.border }]}>
+      <View style={[styles.inputRow, { backgroundColor: colors.bgSecondary, borderColor: colors.border }]}>
         {/* Attach button */}
         {onFileUpload && (
           <Pressable
-            style={({ pressed }) => [styles.iconButton, pressed && styles.iconButtonPressed]}
+            style={({ pressed }) => [
+              styles.iconButton,
+              { backgroundColor: colors.bgTertiary },
+              pressed && { backgroundColor: colors.bgHover },
+            ]}
             onPress={handlePickImage}
           >
-            <Paperclip size={20} color="#94a3b8" />
+            <Paperclip size={20} color={colors.textMuted} />
           </Pressable>
         )}
 
         {/* Emoji button */}
         <Pressable
-          style={({ pressed }) => [styles.iconButton, pressed && styles.iconButtonPressed]}
+          style={({ pressed }) => [
+            styles.iconButton,
+            { backgroundColor: colors.bgTertiary },
+            pressed && { backgroundColor: colors.bgHover },
+          ]}
           onPress={() => setShowEmojiPicker(!showEmojiPicker)}
         >
           <Smile size={20} color={showEmojiPicker ? colors.accent : colors.textMuted} />
@@ -594,15 +606,19 @@ export function MessageComposer({
         ) : onAudioSend ? (
           isRecording ? (
             <View style={styles.recordingRow}>
-              <Text style={styles.recordingTimer}>{recordingDuration}s</Text>
+              <Text style={[styles.recordingTimer, { color: colors.textSecondary }]}>{recordingDuration}s</Text>
               <Pressable
-                style={({ pressed }) => [styles.iconButton, pressed && styles.iconButtonPressed]}
+                style={({ pressed }) => [
+                  styles.iconButton,
+                  { backgroundColor: colors.bgTertiary },
+                  pressed && { backgroundColor: colors.bgHover },
+                ]}
                 onPress={cancelRecording}
               >
-                <X size={18} color="#ef4444" />
+                <X size={18} color={colors.error} />
               </Pressable>
               <Pressable
-                style={({ pressed }) => [styles.sendButton, pressed && styles.sendButtonPressed]}
+                style={({ pressed }) => [styles.sendButton, { backgroundColor: colors.accent }, pressed && { backgroundColor: colors.accentHover }]}
                 onPress={stopRecording}
               >
                 <MicOff size={18} color="#ffffff" />
@@ -610,15 +626,19 @@ export function MessageComposer({
             </View>
           ) : (
             <Pressable
-              style={({ pressed }) => [styles.iconButton, pressed && styles.iconButtonPressed]}
+              style={({ pressed }) => [
+                styles.iconButton,
+                { backgroundColor: colors.bgTertiary },
+                pressed && { backgroundColor: colors.bgHover },
+              ]}
               onPress={startRecording}
               disabled={disabled}
             >
-              <Mic size={20} color="#94a3b8" />
+              <Mic size={20} color={colors.textMuted} />
             </Pressable>
           )
         ) : (
-          <View style={[styles.sendButton, styles.sendButtonDisabled]}>
+          <View style={[styles.sendButton, styles.sendButtonDisabled, { backgroundColor: colors.bgTertiary }]}>
             <Send size={18} color="#ffffff80" />
           </View>
         )}
@@ -632,10 +652,10 @@ export function MessageComposer({
 const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 12,
-    paddingTop: 8,
+    paddingTop: 10,
     paddingBottom: Platform.OS === 'ios' ? 34 : 16,
     backgroundColor: '#ffffff',
-    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopWidth: 1,
     borderTopColor: '#e2e8f0',
   },
   observerContainer: {
@@ -703,8 +723,9 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     paddingHorizontal: 12,
     paddingVertical: 8,
-    borderRadius: 8,
+    borderRadius: 14,
     backgroundColor: '#f8fafc',
+    borderWidth: 1,
     borderLeftWidth: 2,
     borderLeftColor: '#6366f1',
   },
@@ -781,8 +802,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 4,
     paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 6,
+    paddingVertical: 4,
+    borderRadius: 999,
     backgroundColor: '#6366f11A',
   },
   mentionBadgeText: {
@@ -796,15 +817,15 @@ const styles = StyleSheet.create({
     gap: 4,
     backgroundColor: '#f8fafc',
     borderRadius: 20,
-    borderWidth: StyleSheet.hairlineWidth,
+    borderWidth: 1,
     borderColor: '#e2e8f0',
-    paddingHorizontal: 4,
-    paddingVertical: 2,
+    paddingHorizontal: 5,
+    paddingVertical: 4,
   },
   iconButton: {
     width: 36,
     height: 36,
-    borderRadius: 18,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },

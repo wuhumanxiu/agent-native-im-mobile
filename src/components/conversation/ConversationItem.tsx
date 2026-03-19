@@ -138,14 +138,17 @@ export function ConversationItem({
         delayLongPress={500}
         style={({ pressed }) => [
           styles.container,
-          active && { backgroundColor: colors.accentDim },
+          {
+            backgroundColor: active ? colors.accentDim : colors.bgSecondary,
+            borderColor: active ? colors.accent : colors.border,
+          },
           pressed && !active && { backgroundColor: colors.bgHover },
         ]}
       >
         {/* Avatar */}
         {isGroup ? (
           <View style={styles.groupAvatarContainer}>
-            <View style={[styles.groupAvatar, { backgroundColor: colors.accentDim }]}>
+            <View style={[styles.groupAvatar, { backgroundColor: colors.accentDim, borderColor: colors.border }]}>
               <Users size={18} color={colors.accent} />
             </View>
           </View>
@@ -221,9 +224,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
     paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 12,
+    paddingVertical: 11,
+    borderRadius: 16,
     marginHorizontal: 8,
+    borderWidth: 1,
   },
   active: {
     backgroundColor: '#eff6ff',
@@ -244,6 +248,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#eef2ff',
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
   },
   content: {
     flex: 1,

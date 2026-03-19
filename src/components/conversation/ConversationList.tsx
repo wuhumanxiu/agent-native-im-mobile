@@ -137,12 +137,22 @@ export function ConversationList({
   }, [loading, conversations.length, search, t, onNewChat])
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.bgSecondary }]}>
+    <View style={[styles.container, { backgroundColor: colors.bg }]}>
       {/* Header */}
-      <View style={styles.header}>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>{t('conversation.messages')}</Text>
+      <View style={[styles.header, { borderBottomColor: colors.border }]}>
+        <View>
+          <Text style={[styles.headerEyebrow, { color: colors.textMuted }]}>{t('conversation.messages')}</Text>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>{t('conversation.messages')}</Text>
+        </View>
         <Pressable
-          style={({ pressed }) => [styles.headerButton, pressed && { backgroundColor: colors.bgHover }]}
+          style={({ pressed }) => [
+            styles.headerButton,
+            {
+              backgroundColor: colors.bgSecondary,
+              borderColor: colors.border,
+            },
+            pressed && { backgroundColor: colors.bgHover },
+          ]}
           onPress={onNewChat}
         >
           <Plus size={20} color={colors.textSecondary} />
@@ -151,7 +161,7 @@ export function ConversationList({
 
       {/* Search */}
       <View style={styles.searchContainer}>
-        <View style={[styles.searchBox, { backgroundColor: colors.bgTertiary }]}>
+        <View style={[styles.searchBox, { backgroundColor: colors.bgSecondary, borderColor: colors.border }]}>
           <Search size={16} color={colors.textMuted} />
           <TextInput
             value={search}
@@ -207,34 +217,45 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 8,
+    paddingTop: 18,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+  },
+  headerEyebrow: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    marginBottom: 2,
   },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: 22,
+    fontWeight: '700',
     color: '#1e293b',
   },
   headerButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
+    width: 40,
+    height: 40,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
   },
   headerButtonPressed: {
     backgroundColor: '#f1f5f9',
   },
   searchContainer: {
     paddingHorizontal: 12,
-    paddingBottom: 8,
+    paddingTop: 12,
+    paddingBottom: 10,
   },
   searchBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    height: 36,
-    paddingHorizontal: 12,
-    borderRadius: 12,
+    height: 42,
+    paddingHorizontal: 13,
+    borderRadius: 16,
+    borderWidth: 1,
     backgroundColor: '#f8fafc',
     gap: 8,
   },
@@ -253,7 +274,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   listContent: {
-    paddingBottom: 16,
+    paddingHorizontal: 2,
+    paddingBottom: 22,
   },
   emptyContainer: {
     flexGrow: 1,
