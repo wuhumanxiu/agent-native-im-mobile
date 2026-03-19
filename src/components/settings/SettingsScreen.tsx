@@ -7,7 +7,7 @@ import { useTranslation } from 'react-i18next'
 import * as Clipboard from 'expo-clipboard'
 import {
   User, Lock, Palette, Globe, ChevronRight, Bell,
-  Check, Eye, EyeOff, Smartphone, LogOut, Info, ArrowLeft,
+  Check, Eye, EyeOff, Smartphone, LogOut, Info, ArrowLeft, Copy,
 } from 'lucide-react-native'
 import { useAuthStore } from '../../store/auth'
 import { useSettingsStore } from '../../store/settings'
@@ -441,10 +441,10 @@ export function SettingsScreen({ onBack }: Props) {
                 }}
                 style={styles.copyBtn}
               >
-                {aboutCopied
-                  ? <Check size={14} color="#16a34a" />
-                  : <Text style={styles.copyBtnText}>{t('settings.copyVersionInfo')}</Text>
-                }
+                {aboutCopied ? <Check size={14} color="#dcfce7" /> : <Copy size={14} color="#ffffff" />}
+                <Text style={[styles.copyBtnText, aboutCopied && styles.copyBtnTextSuccess]}>
+                  {aboutCopied ? t('common.copied') : t('settings.copyVersionInfo')}
+                </Text>
               </Pressable>
             </View>
           )}
@@ -485,7 +485,12 @@ export function SettingsScreen({ onBack }: Props) {
                 style={({ pressed }) => [styles.navItem, { borderBottomColor: colors.bg }, pressed && { backgroundColor: colors.bgHover }]}
               >
                 <Icon size={18} color={colors.textSecondary} />
-                <Text style={[styles.navItemText, { color: colors.text }]}>{item.label}</Text>
+                <View style={styles.navItemBody}>
+                  <Text style={[styles.navItemText, { color: colors.text }]}>{item.label}</Text>
+                  {item.id === 'about' && (
+                    <Text style={[styles.navItemMeta, { color: colors.textMuted }]}>v{buildInfo.version}</Text>
+                  )}
+                </View>
                 <ChevronRight size={16} color={colors.textMuted} />
               </Pressable>
             )
@@ -587,13 +592,20 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#f8fafc',
   },
+  navItemBody: {
+    flex: 1,
+    minWidth: 0,
+  },
   navItemPressed: {
     backgroundColor: '#f8fafc',
   },
   navItemText: {
-    flex: 1,
     fontSize: 15,
     color: '#1e293b',
+  },
+  navItemMeta: {
+    fontSize: 11,
+    marginTop: 2,
   },
   toggleRow: {
     flexDirection: 'row',
@@ -825,15 +837,23 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   copyBtn: {
-    alignSelf: 'flex-start',
+    alignSelf: 'stretch',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
     paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingVertical: 10,
     borderRadius: 8,
-    backgroundColor: '#f1f5f9',
+    backgroundColor: '#6366f1',
     marginTop: 8,
   },
   copyBtnText: {
     fontSize: 12,
-    color: '#64748b',
+    color: '#ffffff',
+    fontWeight: '500',
+  },
+  copyBtnTextSuccess: {
+    color: '#dcfce7',
   },
 })
