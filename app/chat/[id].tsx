@@ -1,12 +1,13 @@
-import { useEffect, useState, useCallback, useMemo } from 'react'
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { View, Modal, StyleSheet } from 'react-native'
 import { useLocalSearchParams, Stack, useRouter } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '../../src/store/auth'
 import { useConversationsStore } from '../../src/store/conversations'
 import { useMessagesStore } from '../../src/store/messages'
 import * as api from '../../src/lib/api'
-import type { Message, Conversation, ActiveStream } from '../../src/lib/types'
+import type { Message, Conversation, ActiveStream, Entity } from '../../src/lib/types'
 import { ChatThread } from '../../src/components/chat/ChatThread'
 import { ConversationSettings } from '../../src/components/conversation/ConversationSettings'
 import { TaskPanel } from '../../src/components/task/TaskPanel'
@@ -14,6 +15,7 @@ import { useWSContext } from '../../src/hooks/WebSocketContext'
 import { usePresenceStore } from '../../src/store/presence'
 
 export default function ChatDetailScreen() {
+  const { t } = useTranslation()
   const { id } = useLocalSearchParams<{ id: string }>()
   const convId = Number(id)
   const router = useRouter()
@@ -35,6 +37,7 @@ export default function ChatDetailScreen() {
   const EMPTY: Message[] = useMemo(() => [], [])
   const messages = useMessagesStore((s) => s.byConv[convId]) || EMPTY
   const storeStreams = useMessagesStore((s) => s.streams)
+  const progress = useMessagesStore((s) => s.progress[convId])
   const setStoreMessages = useMessagesStore((s) => s.setMessages)
   const prependStoreMessages = useMessagesStore((s) => s.prependMessages)
   const addStoreMessage = useMessagesStore((s) => s.addMessage)
@@ -47,6 +50,8 @@ export default function ChatDetailScreen() {
   const [hasMore, setHasMore] = useState(true)
   const [showSettings, setShowSettings] = useState(false)
   const [showTasks, setShowTasks] = useState(false)
+  const [botThinking, setBotThinking] = useState(false)
+  const botThinkingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Set active conversation for unread count tracking
   const setActive = useConversationsStore((s) => s.setActive)
@@ -61,25 +66,85 @@ export default function ChatDetailScreen() {
     return Object.values(storeStreams).filter((s) => s.conversation_id === convId)
   }, [storeStreams, convId])
 
-  // Typing text for this conversation
-  const typingText = useMemo<string | null>(() => {
+  const isGroup = conversation?.conv_type === 'group' || conversation?.conv_type === 'channel'
+  const botParticipant = useMemo(() => {
+    const participants = conversation?.participants || []
+    return participants.find((participant) => {
+      const participantEntity = participant.entity
+      return participant.entity_id !== entity?.id && (
+        participantEntity?.entity_type === 'bot' || participantEntity?.entity_type === 'service'
+      )
+    })?.entity
+  }, [conversation?.participants, entity?.id])
+  const isDmWithBot = !isGroup && !!botParticipant
+
+  const stopBotThinking = useCallback(() => {
+    if (botThinkingTimerRef.current) {
+      clearTimeout(botThinkingTimerRef.current)
+      botThinkingTimerRef.current = null
+    }
+    setBotThinking(false)
+  }, [])
+
+  const startBotThinking = useCallback(() => {
+    if (botThinkingTimerRef.current) clearTimeout(botThinkingTimerRef.current)
+    setBotThinking(true)
+    botThinkingTimerRef.current = setTimeout(() => {
+      setBotThinking(false)
+      botThinkingTimerRef.current = null
+    }, 60000)
+  }, [])
+
+  // Typing/processing info for this conversation
+  const typingInfo = useMemo<{ text: string; isProcessing: boolean } | null>(() => {
     const convTyping = typingMap.get(convId)
     if (!convTyping || convTyping.size === 0) return null
     const now = Date.now()
     const activeNames: string[] = []
+    let processingEntry: { name: string; phase?: string } | null = null
     convTyping.forEach((entry, eid) => {
       if (entry.expiresAt > now && eid !== entity?.id) {
         if (entry.isProcessing) {
-          activeNames.push(`${entry.name} (${entry.phase || 'thinking'})`)
+          processingEntry = { name: entry.name, phase: entry.phase }
         } else {
           activeNames.push(entry.name)
         }
       }
     })
+    if (processingEntry) {
+      const phaseKey = processingEntry.phase
+      const phaseText = phaseKey
+        ? t(`chat.${phaseKey}`, { defaultValue: t('chat.processing') })
+        : t('chat.processing')
+      return { text: `${processingEntry.name} ${phaseText}`, isProcessing: true }
+    }
     if (activeNames.length === 0) return null
-    if (activeNames.length === 1) return `${activeNames[0]} is typing...`
-    return `${activeNames.join(', ')} are typing...`
-  }, [typingMap, convId, entity?.id])
+    if (activeNames.length === 1) {
+      return { text: t('message.isTyping', { name: activeNames[0] }), isProcessing: false }
+    }
+    return { text: t('message.areTyping', { names: activeNames.join(', ') }), isProcessing: false }
+  }, [typingMap, convId, entity?.id, t])
+
+  useEffect(() => {
+    if (!botThinking) return
+
+    const lastMessage = messages[messages.length - 1]
+    if (
+      lastMessage &&
+      lastMessage.sender_id !== entity?.id &&
+      (lastMessage.sender_type === 'bot' || lastMessage.sender_type === 'service')
+    ) {
+      queueMicrotask(stopBotThinking)
+      return
+    }
+
+    if (typingInfo || progress || convStreams.length > 0) {
+      queueMicrotask(stopBotThinking)
+      return
+    }
+
+    return () => stopBotThinking()
+  }, [botThinking, messages, entity?.id, typingInfo, progress, convStreams.length, stopBotThinking])
 
   // Read receipts for this conversation: entityId -> last read messageId
   const convReadReceipts = useMemo<Record<number, number>>(() => {
@@ -166,8 +231,13 @@ export default function ChatDetailScreen() {
     const res = await api.sendMessage(token, msg)
     if (res.ok && res.data) {
       addStoreMessage(res.data)
+      if (isDmWithBot) {
+        startBotThinking()
+      } else if (isGroup && mentions && botParticipant && mentions.includes(botParticipant.id)) {
+        startBotThinking()
+      }
     }
-  }, [token, convId, addStoreMessage])
+  }, [token, convId, addStoreMessage, isDmWithBot, isGroup, botParticipant, startBotThinking])
 
   // Revoke message
   const handleRevoke = useCallback(async (msgId: number) => {
@@ -216,10 +286,15 @@ export default function ChatDetailScreen() {
     })
     if (res.ok && res.data) {
       replaceOptimisticMessage(tempId, res.data)
+      if (isDmWithBot) {
+        startBotThinking()
+      } else if (isGroup && botParticipant) {
+        startBotThinking()
+      }
       return
     }
     setOptimisticState(tempId, 'failed')
-  }, [token, convId, entity, addOptimisticMessage, replaceOptimisticMessage, setOptimisticState])
+  }, [token, convId, entity, addOptimisticMessage, replaceOptimisticMessage, setOptimisticState, isDmWithBot, isGroup, botParticipant, startBotThinking])
 
   // Mark as read
   const handleMarkAsRead = useCallback(async (conversationId: number, messageId: number) => {
@@ -262,6 +337,12 @@ export default function ChatDetailScreen() {
     participants: [],
   }
 
+  useEffect(() => {
+    return () => {
+      if (botThinkingTimerRef.current) clearTimeout(botThinkingTimerRef.current)
+    }
+  }, [])
+
   return (
     <>
       <Stack.Screen options={{ headerShown: false }} />
@@ -275,7 +356,9 @@ export default function ChatDetailScreen() {
           loading={loading}
           hasMore={hasMore}
           wsConnected={wsConnected}
-          typingText={typingText}
+          typingInfo={typingInfo}
+          progress={progress}
+          thinkingEntity={botThinking ? botParticipant : undefined}
           readReceipts={convReadReceipts}
           onBack={() => router.back()}
           onSettings={() => setShowSettings(true)}

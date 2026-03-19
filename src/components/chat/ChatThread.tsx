@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { ArrowLeft, Users, Settings, Search } from 'lucide-react-native'
 import { MessageBubble } from './MessageBubble'
 import { StreamingBubble } from './StreamingBubble'
+import { ThinkingBubble } from './ThinkingBubble'
 import { MessageComposer, type UploadedAttachment } from './MessageComposer'
 import { SkeletonLoader } from '../ui/SkeletonLoader'
 import { EntityAvatar } from '../ui/EntityAvatar'
@@ -11,6 +12,7 @@ import { ConnectionStatusBar } from '../ui/ConnectionStatusBar'
 import { useThemeColors } from '../../lib/theme'
 import { storage } from '../../lib/storage'
 import type { Conversation, Message, ActiveStream, Entity, Participant } from '../../lib/types'
+import type { ProgressEntry } from '../../store/messages'
 
 // ─── Utility ─────────────────────────────────────────────────────
 
@@ -35,7 +37,9 @@ interface Props {
   hasMore?: boolean
   isOnline?: boolean
   wsConnected?: boolean
-  typingText?: string | null
+  typingInfo?: { text: string; isProcessing: boolean } | null
+  progress?: ProgressEntry
+  thinkingEntity?: Entity
   readReceipts?: Record<number, number>
   isArchived?: boolean
   onBack?: () => void
@@ -66,7 +70,9 @@ export function ChatThread({
   hasMore = true,
   isOnline = false,
   wsConnected = true,
-  typingText,
+  typingInfo,
+  progress,
+  thinkingEntity,
   readReceipts,
   isArchived,
   onBack,
@@ -250,16 +256,38 @@ export function ChatThread({
 
   // Render streaming bubbles at the top (bottom visually in inverted list)
   const renderHeader = useCallback(() => {
-    if (convStreams.length === 0 && !typingText) return null
+    const hasStreams = convStreams.length > 0
+    if (!hasStreams && !typingInfo && !progress && !thinkingEntity) return null
     return (
       <View style={itemStyles.headerContainer}>
-        {/* Typing indicator */}
-        {typingText && (
-          <View style={itemStyles.typingRow}>
-            <Text style={itemStyles.typingText}>{typingText}</Text>
+        {progress && !hasStreams && (
+          <View style={itemStyles.processingRow}>
+            <ActivityIndicator size="small" color={colors.accent} />
+            <Text style={itemStyles.processingText}>
+              {progress.status?.text || t('chat.processing')}
+            </Text>
           </View>
         )}
-        {/* Streaming bubbles */}
+
+        {thinkingEntity && !hasStreams && !progress && (
+          <ThinkingBubble entity={thinkingEntity} />
+        )}
+
+        {typingInfo && (
+          <View style={itemStyles.typingRow}>
+            {typingInfo.isProcessing ? (
+              <ActivityIndicator size="small" color={colors.accent} />
+            ) : null}
+            <Text
+              style={[
+                itemStyles.typingText,
+                typingInfo.isProcessing && itemStyles.processingTypingText,
+              ]}
+            >
+              {typingInfo.text}
+            </Text>
+          </View>
+        )}
         {convStreams.map((stream) => {
           const sender = conversation.participants?.find((p) => p.entity_id === stream.sender_id)?.entity
           return (
@@ -273,7 +301,7 @@ export function ChatThread({
         })}
       </View>
     )
-  }, [convStreams, typingText, conversation.participants, onCancelStream])
+  }, [convStreams, typingInfo, progress, thinkingEntity, conversation.participants, onCancelStream, colors.accent, t])
 
   // Render loading more indicator
   const renderFooter = useCallback(() => {
@@ -483,10 +511,27 @@ const itemStyles = StyleSheet.create({
   typingRow: {
     paddingHorizontal: 16,
     paddingVertical: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   typingText: {
     fontSize: 11,
     fontStyle: 'italic',
+    color: '#94a3b8',
+  },
+  processingTypingText: {
+    color: '#a78bfa',
+  },
+  processingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  processingText: {
+    fontSize: 13,
     color: '#94a3b8',
   },
   loadingMore: {
