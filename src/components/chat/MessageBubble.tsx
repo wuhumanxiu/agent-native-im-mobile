@@ -7,12 +7,12 @@ import * as Haptics from 'expo-haptics'
 import * as Clipboard from 'expo-clipboard'
 import {
   FileText, Download, Play, Pause, Ban, Clock, RotateCcw, CloudOff,
-  Check, CornerUpLeft, ChevronDown, ChevronUp, Brain,
+  Check, CornerUpLeft, ChevronDown, ChevronUp, Brain, Send, X, ArrowRight, Package, Bug, Eye, BarChart3,
 } from 'lucide-react-native'
 import { EntityAvatar } from '../ui/EntityAvatar'
 import { ActionSheet, type ActionSheetOption } from '../ui/ActionSheet'
 import { useThemeColors } from '../../lib/theme'
-import type { Message, Entity, Attachment } from '../../lib/types'
+import type { Message, Entity, Attachment, InteractionLayer } from '../../lib/types'
 
 // ─── Utility helpers ─────────────────────────────────────────────
 
@@ -34,6 +34,168 @@ function formatFileSize(bytes: number): string {
 
 function isBotOrService(entity?: Entity | null): boolean {
   return entity?.entity_type === 'bot' || entity?.entity_type === 'service'
+}
+
+interface HandoverData {
+  handover_type?: string
+  task_id?: number
+  deliverables?: { type: string; url?: string; value?: string }[]
+  context?: {
+    changes_summary?: string
+    known_issues?: string[]
+  }
+  assign_to?: number[]
+}
+
+const handoverIcons = {
+  task_completion: Package,
+  bug_report: Bug,
+  review_request: Eye,
+  status_report: BarChart3,
+} as const
+
+function InteractionCard({
+  interaction,
+  onReply,
+}: {
+  interaction: InteractionLayer
+  onReply?: (value: string, label: string) => void
+}) {
+  const { t } = useTranslation()
+  const [inputValue, setInputValue] = useState('')
+  const [responded, setResponded] = useState<string | null>(null)
+
+  const handleReply = (value: string, label: string) => {
+    setResponded(label)
+    onReply?.(value, label)
+  }
+
+  if (responded) {
+    return <Text style={cardStyles.respondedText}>{t('interaction.responded', { value: responded })}</Text>
+  }
+
+  if (interaction.type === 'choice') {
+    return (
+      <View style={cardStyles.cardSection}>
+        {interaction.prompt ? <Text style={cardStyles.cardPrompt}>{interaction.prompt}</Text> : null}
+        <View style={cardStyles.choiceRow}>
+          {interaction.options?.map((option) => (
+            <Pressable key={option.value} onPress={() => handleReply(option.value, option.label)} style={cardStyles.choiceButton}>
+              <Text style={cardStyles.choiceButtonText}>{option.label}</Text>
+            </Pressable>
+          ))}
+        </View>
+      </View>
+    )
+  }
+
+  if (interaction.type === 'confirm') {
+    return (
+      <View style={cardStyles.cardSection}>
+        {interaction.prompt ? <Text style={cardStyles.cardPrompt}>{interaction.prompt}</Text> : null}
+        <View style={cardStyles.choiceRow}>
+          <Pressable onPress={() => handleReply('confirmed', t('common.confirm'))} style={cardStyles.primaryAction}>
+            <Check size={12} color="#ffffff" />
+            <Text style={cardStyles.primaryActionText}>{t('common.confirm')}</Text>
+          </Pressable>
+          <Pressable onPress={() => handleReply('cancelled', t('common.cancel'))} style={cardStyles.secondaryAction}>
+            <X size={12} color="#64748b" />
+            <Text style={cardStyles.secondaryActionText}>{t('common.cancel')}</Text>
+          </Pressable>
+        </View>
+      </View>
+    )
+  }
+
+  if (interaction.type === 'form') {
+    return (
+      <View style={cardStyles.cardSection}>
+        {interaction.prompt ? <Text style={cardStyles.cardPrompt}>{interaction.prompt}</Text> : null}
+        <View style={cardStyles.formRow}>
+          <TextInput
+            value={inputValue}
+            onChangeText={setInputValue}
+            placeholder={t('interaction.inputPlaceholder')}
+            placeholderTextColor="#94a3b8"
+            style={cardStyles.formInput}
+          />
+          <Pressable
+            onPress={() => inputValue.trim() && handleReply(inputValue.trim(), inputValue.trim())}
+            style={[cardStyles.iconAction, !inputValue.trim() && cardStyles.iconActionDisabled]}
+            disabled={!inputValue.trim()}
+          >
+            <Send size={12} color="#ffffff" />
+          </Pressable>
+        </View>
+      </View>
+    )
+  }
+
+  return null
+}
+
+function HandoverCard({ message }: { message: Message }) {
+  const { t } = useTranslation()
+  const [expanded, setExpanded] = useState(false)
+  const data = (message.layers?.data || {}) as HandoverData
+  const handoverType = data.handover_type || 'task_completion'
+  const Icon = handoverIcons[handoverType as keyof typeof handoverIcons] || Package
+
+  return (
+    <View style={cardStyles.handoverCard}>
+      <View style={cardStyles.handoverHeader}>
+        <Icon size={14} color="#6366f1" />
+        <Text style={cardStyles.handoverTitle}>{t(`handover.${handoverType}`)}</Text>
+        {(data.assign_to || []).length > 0 && (
+          <>
+            <ArrowRight size={12} color="#94a3b8" />
+            <Text style={cardStyles.handoverMeta} numberOfLines={1}>
+              {(data.assign_to || []).map((id) => `#${id}`).join(', ')}
+            </Text>
+          </>
+        )}
+      </View>
+
+      <Text style={cardStyles.handoverSummary}>{message.layers?.summary || ''}</Text>
+
+      {(data.deliverables?.length || data.context) ? (
+        <Pressable onPress={() => setExpanded((prev) => !prev)} style={cardStyles.detailsToggle}>
+          {expanded ? <ChevronUp size={12} color="#94a3b8" /> : <ChevronDown size={12} color="#94a3b8" />}
+          <Text style={cardStyles.detailsToggleText}>{t('handover.details')}</Text>
+        </Pressable>
+      ) : null}
+
+      {expanded && (
+        <View style={cardStyles.detailsSection}>
+          {data.deliverables && data.deliverables.length > 0 && (
+            <View style={cardStyles.detailBlock}>
+              <Text style={cardStyles.detailLabel}>{t('handover.deliverables')}</Text>
+              {data.deliverables.map((deliverable, index) => (
+                <Text key={index} style={cardStyles.detailText}>
+                  {deliverable.type}: {deliverable.url || deliverable.value || '-'}
+                </Text>
+              ))}
+            </View>
+          )}
+          {data.context?.changes_summary ? (
+            <View style={cardStyles.detailBlock}>
+              <Text style={cardStyles.detailText}>{data.context.changes_summary}</Text>
+            </View>
+          ) : null}
+          {data.context?.known_issues && data.context.known_issues.length > 0 && (
+            <View style={cardStyles.detailBlock}>
+              <Text style={cardStyles.detailLabel}>{t('handover.knownIssues')}</Text>
+              {data.context.known_issues.map((issue, index) => (
+                <Text key={index} style={cardStyles.detailText}>• {issue}</Text>
+              ))}
+            </View>
+          )}
+        </View>
+      )}
+
+      {data.task_id ? <Text style={cardStyles.linkedTask}>{t('handover.linkedTask', { id: data.task_id })}</Text> : null}
+    </View>
+  )
 }
 
 // ─── Audio Player ────────────────────────────────────────────────
@@ -151,6 +313,7 @@ interface Props {
   onRevoke?: (msgId: number) => void
   onReply?: (msg: Message) => void
   onReact?: (msgId: number, emoji: string) => void
+  onRespondInteraction?: (msgId: number, value: string, label: string) => void
   onRetryOutbox?: (tempId: string) => void
   showSender?: boolean
   isRead?: boolean
@@ -166,6 +329,7 @@ export function MessageBubble({
   onRevoke,
   onReply,
   onReact,
+  onRespondInteraction,
   onRetryOutbox,
   showSender = true,
   isRead,
@@ -336,6 +500,9 @@ export function MessageBubble({
         )
       }
 
+      case 'task_handover':
+        return <HandoverCard message={message} />
+
       default: // text
         return (
           <View>
@@ -438,6 +605,13 @@ export function MessageBubble({
           >
             {renderContent()}
           </Pressable>
+
+          {layers.interaction && (
+            <InteractionCard
+              interaction={layers.interaction}
+              onReply={(value, label) => onRespondInteraction?.(message.id, value, label)}
+            />
+          )}
 
           {/* Reactions */}
           {(message.reactions?.length || 0) > 0 && (
@@ -747,6 +921,157 @@ const styles = StyleSheet.create({
   },
   systemText: {
     fontSize: 11,
+    color: '#94a3b8',
+  },
+})
+
+const cardStyles = StyleSheet.create({
+  cardSection: {
+    marginTop: 10,
+    gap: 8,
+  },
+  cardPrompt: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#475569',
+  },
+  choiceRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  choiceButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#818cf8',
+    backgroundColor: '#eef2ff',
+  },
+  choiceButtonText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#4f46e5',
+  },
+  primaryAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    backgroundColor: '#6366f1',
+  },
+  primaryActionText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#ffffff',
+  },
+  secondaryAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    backgroundColor: '#ffffff',
+  },
+  secondaryActionText: {
+    fontSize: 12,
+    color: '#64748b',
+  },
+  formRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  formInput: {
+    flex: 1,
+    height: 36,
+    paddingHorizontal: 10,
+    borderRadius: 10,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    fontSize: 12,
+    color: '#1e293b',
+  },
+  iconAction: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: '#6366f1',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  iconActionDisabled: {
+    opacity: 0.5,
+  },
+  respondedText: {
+    marginTop: 10,
+    fontSize: 11,
+    fontStyle: 'italic',
+    color: '#94a3b8',
+  },
+  handoverCard: {
+    minWidth: 220,
+  },
+  handoverHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingBottom: 8,
+    marginBottom: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#e2e8f0',
+  },
+  handoverTitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#4f46e5',
+  },
+  handoverMeta: {
+    flex: 1,
+    fontSize: 11,
+    color: '#64748b',
+  },
+  handoverSummary: {
+    fontSize: 13,
+    lineHeight: 20,
+    color: '#1e293b',
+  },
+  detailsToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 10,
+  },
+  detailsToggleText: {
+    fontSize: 11,
+    color: '#94a3b8',
+  },
+  detailsSection: {
+    marginTop: 10,
+    gap: 10,
+  },
+  detailBlock: {
+    gap: 4,
+  },
+  detailLabel: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#94a3b8',
+  },
+  detailText: {
+    fontSize: 11,
+    lineHeight: 18,
+    color: '#64748b',
+  },
+  linkedTask: {
+    marginTop: 10,
+    fontSize: 10,
     color: '#94a3b8',
   },
 })

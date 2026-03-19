@@ -147,13 +147,13 @@ export default function ChatDetailScreen() {
   }, [token, convId, messages, hasMore])
 
   // Send message - backend expects { conversation_id, layers: { summary }, mentions, reply_to }
-  const handleSend = useCallback(async (text: string, attachments?: any[], mentions?: number[]) => {
+  const handleSend = useCallback(async (text: string, attachments?: any[], mentions?: number[], replyToId?: number) => {
     if (!token || !convId) return
     const msg: Parameters<typeof api.sendMessage>[1] = {
       conversation_id: convId,
       layers: { summary: text },
       mentions: mentions || [],
-      reply_to: undefined,
+      reply_to: replyToId,
     }
     if (attachments && attachments.length > 0) {
       msg.attachments = attachments
@@ -162,7 +162,7 @@ export default function ChatDetailScreen() {
     if (res.ok && res.data) {
       addStoreMessage(res.data)
     }
-  }, [token, convId])
+  }, [token, convId, addStoreMessage])
 
   // Revoke message
   const handleRevoke = useCallback(async (msgId: number) => {
@@ -181,6 +181,22 @@ export default function ChatDetailScreen() {
       updateReactions(convId, msgId, res.data.reactions)
     }
   }, [token])
+
+  const handleRespondInteraction = useCallback(async (msgId: number, value: string, label: string) => {
+    if (!token) return
+    const res = await api.sendMessage(token, {
+      conversation_id: convId,
+      content_type: 'text',
+      layers: {
+        summary: label,
+        data: { interaction_reply: { reply_to: msgId, choice: value } },
+      },
+      reply_to: msgId,
+    })
+    if (res.ok && res.data) {
+      addStoreMessage(res.data)
+    }
+  }, [token, convId, addStoreMessage])
 
   // Mark as read
   const handleMarkAsRead = useCallback(async (conversationId: number, messageId: number) => {
@@ -243,6 +259,7 @@ export default function ChatDetailScreen() {
           onSend={handleSend}
           onRevoke={handleRevoke}
           onReact={handleReact}
+          onRespondInteraction={handleRespondInteraction}
           onMarkAsRead={handleMarkAsRead}
           onFileUpload={handleFileUpload}
           onTyping={handleTyping}

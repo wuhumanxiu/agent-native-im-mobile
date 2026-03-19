@@ -35,6 +35,17 @@ export interface PendingFile {
 
 export type UploadedAttachment = Required<Pick<Attachment, 'type' | 'url' | 'filename' | 'mime_type' | 'size'>>
 
+interface DraftReplyPreview {
+  id: number
+  senderName: string
+  summary: string
+}
+
+interface ComposerDraft {
+  text: string
+  replyTo?: DraftReplyPreview
+}
+
 // ─── Props ───────────────────────────────────────────────────────
 
 interface Props {
@@ -99,6 +110,26 @@ export function MessageComposer({
 
   // ─── Draft persistence ───────────────────────────────────────
   const draftKey = conversationId ? `aim_draft_${conversationId}` : null
+  const draftReplyTo = useMemo<DraftReplyPreview | undefined>(() => {
+    if (!replyTo) return undefined
+    return {
+      id: replyTo.id,
+      senderName: entityDisplayName(replyTo.sender),
+      summary: replyTo.layers?.summary || '',
+    }
+  }, [replyTo])
+
+  const saveDraft = useCallback((key: string, draftText: string, draftReply?: DraftReplyPreview) => {
+    const payload: ComposerDraft = {
+      text: draftText,
+      ...(draftReply ? { replyTo: draftReply } : {}),
+    }
+    if (draftText || draftReply) {
+      storage.set(key, JSON.stringify(payload))
+    } else {
+      storage.delete(key)
+    }
+  }, [])
 
   // Restore draft on mount / conversation switch
   const prevConvIdRef = useRef<number | undefined>(undefined)
@@ -107,38 +138,37 @@ export function MessageComposer({
       // Save previous draft before switching
       if (prevConvIdRef.current != null) {
         const prevKey = `aim_draft_${prevConvIdRef.current}`
-        const prevText = text.trim()
-        if (prevText) {
-          storage.set(prevKey, prevText)
-        } else {
-          storage.delete(prevKey)
-        }
+        saveDraft(prevKey, text.trim(), draftReplyTo)
       }
 
       // Load draft for new conversation
       const newDraftKey = conversationId ? `aim_draft_${conversationId}` : null
       const savedDraft = newDraftKey ? storage.getString(newDraftKey) : undefined
-      setText(savedDraft || '')
+      let nextText = ''
+      if (savedDraft) {
+        try {
+          const parsed = JSON.parse(savedDraft) as ComposerDraft
+          nextText = parsed.text || ''
+        } catch {
+          nextText = savedDraft
+        }
+      }
+      setText(nextText)
       setPendingFiles([])
       setMentionIds([])
       setMentionQuery(null)
       prevConvIdRef.current = conversationId
     }
-  }, [conversationId])
+  }, [conversationId, draftReplyTo, saveDraft, text])
 
   // Save draft on unmount
   useEffect(() => {
     return () => {
       if (draftKey) {
-        const trimmed = text.trim()
-        if (trimmed) {
-          storage.set(draftKey, trimmed)
-        } else {
-          storage.delete(draftKey)
-        }
+        saveDraft(draftKey, text.trim(), draftReplyTo)
       }
     }
-  }, [draftKey, text])
+  }, [draftKey, draftReplyTo, saveDraft, text])
 
   // Focus input when reply is set
   useEffect(() => {

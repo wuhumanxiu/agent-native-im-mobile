@@ -8,6 +8,7 @@ import { MessageComposer, type UploadedAttachment } from './MessageComposer'
 import { SkeletonLoader } from '../ui/SkeletonLoader'
 import { EntityAvatar } from '../ui/EntityAvatar'
 import { useThemeColors } from '../../lib/theme'
+import { storage } from '../../lib/storage'
 import type { Conversation, Message, ActiveStream, Entity, Participant } from '../../lib/types'
 
 // ─── Utility ─────────────────────────────────────────────────────
@@ -38,13 +39,14 @@ interface Props {
   onBack?: () => void
   onSettings?: () => void
   onLoadMore?: () => void
-  onSend: (text: string, attachments?: UploadedAttachment[], mentions?: number[]) => void
+  onSend: (text: string, attachments?: UploadedAttachment[], mentions?: number[], replyToId?: number) => void
   onAudioSend?: (blob: any, duration: number) => void
   onFileUpload?: (file: { uri: string; name: string; type: string; size: number }) => Promise<string | null>
   onTyping?: () => void
   onRevoke?: (msgId: number) => void
   onReply?: (msg: Message) => void
   onReact?: (msgId: number, emoji: string) => void
+  onRespondInteraction?: (msgId: number, value: string, label: string) => void
   onRetryOutbox?: (tempId: string) => void
   onCancelStream?: (streamId: string, conversationId: number) => void
   onMarkAsRead?: (conversationId: number, messageId: number) => void
@@ -74,6 +76,7 @@ export function ChatThread({
   onRevoke,
   onReply: onReplyProp,
   onReact,
+  onRespondInteraction,
   onRetryOutbox,
   onCancelStream,
   onMarkAsRead,
@@ -117,10 +120,27 @@ export function ChatThread({
     return () => clearTimeout(timer)
   }, [messages, conversation.id, onMarkAsRead])
 
-  // Reset reply on conversation switch
+  // Restore reply target from draft when possible; otherwise clear on conversation switch.
   useEffect(() => {
-    setReplyTo(null)
-  }, [conversation.id])
+    const draftKey = `aim_draft_${conversation.id}`
+    const raw = storage.getString(draftKey)
+    if (!raw) {
+      setReplyTo(null)
+      return
+    }
+
+    try {
+      const parsed = JSON.parse(raw) as { replyTo?: { id: number } }
+      const draftReplyId = parsed.replyTo?.id
+      if (!draftReplyId) {
+        setReplyTo(null)
+        return
+      }
+      setReplyTo(messageMap.get(draftReplyId) || null)
+    } catch {
+      setReplyTo(null)
+    }
+  }, [conversation.id, messageMap])
 
   // Handle reply
   const handleReply = useCallback((msg: Message) => {
@@ -131,9 +151,10 @@ export function ChatThread({
 
   // Handle send (wraps to clear reply)
   const handleSend = useCallback((text: string, attachments?: UploadedAttachment[], mentions?: number[]) => {
-    onSend(text, attachments, mentions)
+    const currentReplyToId = replyTo?.id
+    onSend(text, attachments, mentions, currentReplyToId)
     setReplyTo(null)
-  }, [onSend])
+  }, [onSend, replyTo])
 
   // Load more messages
   const handleEndReached = useCallback(() => {
@@ -201,11 +222,12 @@ export function ChatThread({
           onRevoke={isArchived ? undefined : onRevoke}
           onReply={isArchived ? undefined : handleReply}
           onReact={isArchived ? undefined : onReact}
+          onRespondInteraction={isArchived ? undefined : onRespondInteraction}
           onRetryOutbox={isArchived ? undefined : onRetryOutbox}
         />
       </View>
     )
-  }, [myEntityId, isGroup, shouldShowSender, invertedMessages, messageMap, isMessageRead, isArchived, onRevoke, handleReply, onReact, onRetryOutbox, colors, formatDateSeparator])
+  }, [myEntityId, isGroup, shouldShowSender, invertedMessages, messageMap, isMessageRead, isArchived, onRevoke, handleReply, onReact, onRespondInteraction, onRetryOutbox, colors, formatDateSeparator])
 
   // Render streaming bubbles at the top (bottom visually in inverted list)
   const renderHeader = useCallback(() => {
