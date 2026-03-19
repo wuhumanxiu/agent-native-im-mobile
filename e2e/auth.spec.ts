@@ -13,7 +13,7 @@ test.describe('Authentication', () => {
   test('shows app title and tagline', async ({ page }) => {
     await page.goto('/')
     await page.waitForTimeout(3000)
-    await expect(page.getByText('Agent-Native IM')).toBeVisible()
+    await expect(page.getByText('ANI')).toBeVisible()
   })
 
   test('login with valid credentials navigates away', async ({ page }) => {

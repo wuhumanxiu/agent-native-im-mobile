@@ -1,8 +1,8 @@
 {
   "app": {
-    "title": "Agent-Native IM",
+    "title": "ANI",
     "selectConversation": "选择一个会话或创建新会话",
-    "welcomeTitle": "欢迎使用 Agent-Native IM",
+    "welcomeTitle": "欢迎使用 ANI",
     "welcomeStep1": "第一步：创建你的 AI 助手",
     "welcomeStep1Action": "管理 Bot",
     "welcomeStep2": "第二步：开始一段对话",
@@ -29,7 +29,7 @@
     "enterUsername": "请输入用户名或邮箱",
     "emailPlaceholder": "邮箱（可选，可用于登录）",
     "enterPassword": "请输入密码",
-    "joinTagline": "加入 Agent-Native IM",
+    "joinTagline": "加入 ANI",
     "chooseUsername": "选择一个用户名",
     "displayNamePlaceholder": "显示名称（可选）",
     "passwordHint": "至少 6 个字符",

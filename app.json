@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Agent-Native IM",
+    "name": "ANI",
     "slug": "agent-native-im-mobile",
     "version": "1.6.0",
     "orientation": "portrait",
@@ -14,7 +14,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.flagify.ani",
+      "bundleIdentifier": "com.wuzhiai.ani",
       "infoPlist": {
         "NSMicrophoneUsageDescription": "Used for voice messages",
         "NSCameraUsageDescription": "Used to take photos for chat",
@@ -22,7 +22,7 @@
       }
     },
     "android": {
-      "package": "com.flagify.ani",
+      "package": "com.wuzhiai.ani",
       "adaptiveIcon": {
         "backgroundColor": "#6366f1",
         "foregroundImage": "./assets/android-icon-foreground.png",

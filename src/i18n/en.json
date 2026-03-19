@@ -1,8 +1,8 @@
 {
   "app": {
-    "title": "Agent-Native IM",
+    "title": "ANI",
     "selectConversation": "Select a conversation or start a new one",
-    "welcomeTitle": "Welcome to Agent-Native IM",
+    "welcomeTitle": "Welcome to ANI",
     "welcomeStep1": "Step 1: Create your AI assistant",
     "welcomeStep1Action": "Manage Bots",
     "welcomeStep2": "Step 2: Start a conversation",
@@ -29,7 +29,7 @@
     "enterUsername": "Enter username or email",
     "emailPlaceholder": "Your email (optional, for login)",
     "enterPassword": "Enter password",
-    "joinTagline": "Join Agent-Native IM",
+    "joinTagline": "Join ANI",
     "chooseUsername": "Choose a username",
     "displayNamePlaceholder": "Your display name (optional)",
     "passwordHint": "At least 6 characters",

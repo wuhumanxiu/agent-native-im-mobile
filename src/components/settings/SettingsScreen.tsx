@@ -526,7 +526,7 @@ export function SettingsScreen({ onBack }: Props) {
 
               <View style={[styles.aboutCard, { borderColor: colors.border, backgroundColor: colors.bg }]}>
                 {[
-                  { label: t('settings.appName'), value: 'Agent-Native IM' },
+                  { label: t('settings.appName'), value: 'ANI' },
                   { label: t('settings.version'), value: buildInfo.version, mono: true },
                   { label: t('settings.commit'), value: buildInfo.commit, mono: true },
                   { label: t('settings.buildTime'), value: new Date(buildInfo.buildTime).toLocaleString() },
@@ -548,7 +548,7 @@ export function SettingsScreen({ onBack }: Props) {
               <Pressable
                 onPress={async () => {
                   await Clipboard.setStringAsync([
-                    'app=Agent-Native IM',
+                    'app=ANI',
                     `version=${buildInfo.version}`,
                     `commit=${buildInfo.commit}`,
                     `build_time=${buildInfo.buildTime}`,

@@ -65,7 +65,7 @@ export default function LoginScreen() {
         <View style={styles.container}>
           {/* Brand */}
           <View style={styles.brand}>
-            <Text style={styles.brandTitle}>Agent-Native IM</Text>
+            <Text style={styles.brandTitle}>ANI</Text>
             <Text style={styles.brandTagline}>{t('auth.tagline')}</Text>
           </View>
 
