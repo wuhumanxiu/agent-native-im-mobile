@@ -27,7 +27,7 @@ export default function ChatDetailScreen() {
   const removeConversation = useConversationsStore((s) => s.removeConversation)
   const readReceipts = useConversationsStore((s) => s.readReceipts)
   const wsConnected = usePresenceStore((s) => s.wsConnected)
-  const presenceMap = usePresenceStore((s) => s.entities)
+  const onlineSet = usePresenceStore((s) => s.online)
 
   // WebSocket context — typing, streams, cancel
   const { typingMap, sendTyping, sendCancelStream } = useWSContext()
@@ -453,7 +453,7 @@ export default function ChatDetailScreen() {
           {selectedEntity ? (
             <EntityQuickSheet
               entity={selectedEntity}
-              isOnline={!!presenceMap[String(selectedEntity.id)]}
+              isOnline={onlineSet.has(selectedEntity.id)}
               canViewDetails={
                 (selectedEntity.entity_type === 'bot' || selectedEntity.entity_type === 'service') &&
                 selectedEntity.owner_id === entity?.id
