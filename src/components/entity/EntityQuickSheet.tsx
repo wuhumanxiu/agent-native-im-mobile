@@ -1,9 +1,11 @@
-import React, { useMemo } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { View, Text, Pressable, ScrollView, StyleSheet } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { ArrowLeft, Bot, ExternalLink, MessageSquare, User, Wifi, WifiOff } from 'lucide-react-native'
 import { EntityAvatar } from '../ui/EntityAvatar'
 import { useThemeColors } from '../../lib/theme'
+import { useAuthStore } from '../../store/auth'
+import * as api from '../../lib/api'
 import type { Entity } from '../../lib/types'
 
 interface Props {
@@ -34,7 +36,9 @@ export function EntityQuickSheet({
 }: Props) {
   const { t } = useTranslation()
   const colors = useThemeColors()
+  const token = useAuthStore((s) => s.token)
   const isBot = isBotOrService(entity)
+  const [resolvedOnline, setResolvedOnline] = useState(isOnline)
   const description = useMemo(() => {
     const raw = entity.metadata?.description
     return typeof raw === 'string' ? raw.trim() : ''
@@ -54,6 +58,22 @@ export function EntityQuickSheet({
       ? t('entityPopover.pending')
       : t('entityPopover.active')
 
+  useEffect(() => {
+    setResolvedOnline(isOnline)
+  }, [isOnline, entity.id])
+
+  useEffect(() => {
+    if (!token || !entity.id) return
+    let cancelled = false
+    api.batchPresence(token, [entity.id]).then((res) => {
+      if (cancelled) return
+      if (res.ok && res.data?.presence) {
+        setResolvedOnline(!!res.data.presence[String(entity.id)])
+      }
+    }).catch(() => {})
+    return () => { cancelled = true }
+  }, [token, entity.id])
+
   return (
     <View style={[styles.container, { backgroundColor: colors.bgSecondary }]}>
       <View style={[styles.header, { backgroundColor: colors.bg, borderBottomColor: colors.border }]}>
@@ -68,7 +88,7 @@ export function EntityQuickSheet({
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={[styles.heroCard, { backgroundColor: colors.bg, borderColor: colors.border }]}>
-          <EntityAvatar entity={entity} size="lg" showStatus isOnline={isOnline} />
+          <EntityAvatar entity={entity} size="lg" showStatus isOnline={resolvedOnline} />
           <View style={styles.heroText}>
             <View style={styles.titleRow}>
               <Text style={[styles.name, { color: colors.text }]} numberOfLines={2}>
@@ -83,8 +103,8 @@ export function EntityQuickSheet({
             </View>
             <Text style={[styles.handle, { color: colors.textMuted }]}>@{entity.name}</Text>
             <View style={styles.statusRow}>
-              {isOnline ? <Wifi size={12} color="#16a34a" /> : <WifiOff size={12} color={colors.textMuted} />}
-              <Text style={[styles.statusText, { color: isOnline ? '#16a34a' : colors.textMuted }]}>
+              {resolvedOnline ? <Wifi size={12} color="#16a34a" /> : <WifiOff size={12} color={colors.textMuted} />}
+              <Text style={[styles.statusText, { color: resolvedOnline ? '#16a34a' : colors.textMuted }]}>
                 {statusLabel}
               </Text>
             </View>
