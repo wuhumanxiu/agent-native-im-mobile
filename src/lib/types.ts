@@ -218,15 +218,6 @@ export interface GlobalSearchResponse {
   query: string
 }
 
-// ─── Admin ──────────────────────────────────────────────────────
-export interface AdminStats {
-  user_count: number
-  bot_count: number
-  conversation_count: number
-  message_count: number
-  ws_connections: number
-}
-
 // ─── Task ────────────────────────────────────────────────────────
 export type TaskStatus = 'pending' | 'in_progress' | 'done' | 'cancelled' | 'handed_over'
 export type TaskPriority = 'low' | 'medium' | 'high'

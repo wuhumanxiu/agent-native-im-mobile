@@ -45,7 +45,6 @@
   "sidebar": {
     "messages": "消息",
     "agents": "Bot 管理",
-    "admin": "管理面板",
     "signOut": "退出登录"
   },
   "conversation": {
@@ -208,16 +207,6 @@
     "stopGenerating": "停止生成",
     "react": "表态",
     "addReaction": "添加表情"
-  },
-  "admin": {
-    "dashboard": "仪表盘",
-    "users": "用户",
-    "conversations": "会话",
-    "back": "返回",
-    "totalUsers": "总用户数",
-    "totalConversations": "总会话数",
-    "onlineNow": "当前在线",
-    "messagesTotal": "消息总量"
   },
   "bot": {
     "agents": "Bot",

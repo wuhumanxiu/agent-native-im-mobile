@@ -18,7 +18,8 @@
       "infoPlist": {
         "NSMicrophoneUsageDescription": "Used for voice messages",
         "NSCameraUsageDescription": "Used to take photos for chat",
-        "NSPhotoLibraryUsageDescription": "Used to attach photos to messages"
+        "NSPhotoLibraryUsageDescription": "Used to attach photos to messages",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {

@@ -45,7 +45,6 @@
   "sidebar": {
     "messages": "Messages",
     "agents": "Manage Bots",
-    "admin": "Admin Panel",
     "signOut": "Sign out"
   },
   "conversation": {
@@ -208,16 +207,6 @@
     "stopGenerating": "Stop generating",
     "react": "React",
     "addReaction": "Add reaction"
-  },
-  "admin": {
-    "dashboard": "Dashboard",
-    "users": "Users",
-    "conversations": "Conversations",
-    "back": "Back",
-    "totalUsers": "Total Users",
-    "totalConversations": "Total Conversations",
-    "onlineNow": "Online Now",
-    "messagesTotal": "Messages Total"
   },
   "bot": {
     "agents": "Bots",

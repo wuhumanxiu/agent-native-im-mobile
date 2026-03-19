@@ -1,6 +1,6 @@
 import type {
   APIResponse, LoginResponse, Entity, Conversation,
-  MessagesResponse, SearchResponse, GlobalSearchResponse, Message, AdminStats,
+  MessagesResponse, SearchResponse, GlobalSearchResponse, Message,
   Task, ConversationMemory, ChangeRequest, EntitySelfCheck, EntityDiagnostics,
 } from './types'
 import { getSessionHooks } from './auth-session'
@@ -239,25 +239,6 @@ export const batchPresence = (token: string, entityIds: number[]) =>
 
 export const updateProfile = (token: string, data: { display_name?: string; avatar_url?: string; email?: string }) =>
   request<Entity>('PUT', '/api/v1/me', token, data)
-
-// Admin
-export const createUser = (token: string, username: string, password: string) =>
-  request<Entity>('POST', '/api/v1/admin/users', token, { username, password })
-
-export const adminListUsers = (token: string, limit = 50, offset = 0) =>
-  request<{ entities: (Entity & { online: boolean })[]; total: number }>('GET', `/api/v1/admin/users?limit=${limit}&offset=${offset}`, token)
-
-export const adminUpdateUser = (token: string, id: number, data: { display_name?: string; status?: string }) =>
-  request<Entity>('PUT', `/api/v1/admin/users/${id}`, token, data)
-
-export const adminDeleteUser = (token: string, id: number) =>
-  request('DELETE', `/api/v1/admin/users/${id}`, token)
-
-export const adminGetStats = (token: string) =>
-  requestQuiet<AdminStats>('GET', '/api/v1/admin/stats', token)
-
-export const adminListConversations = (token: string, limit = 50, offset = 0) =>
-  request<{ conversations: Conversation[]; total: number }>('GET', `/api/v1/admin/conversations?limit=${limit}&offset=${offset}`, token)
 
 // Files
 export async function uploadFile(token: string, uri: string, filename: string, mimeType: string): Promise<APIResponse<{ url: string }>> {
