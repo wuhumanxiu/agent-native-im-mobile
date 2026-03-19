@@ -11,6 +11,7 @@ import { ChatThread } from '../../src/components/chat/ChatThread'
 import { ConversationSettings } from '../../src/components/conversation/ConversationSettings'
 import { TaskPanel } from '../../src/components/task/TaskPanel'
 import { useWSContext } from '../../src/hooks/WebSocketContext'
+import { usePresenceStore } from '../../src/store/presence'
 
 export default function ChatDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>()
@@ -22,6 +23,7 @@ export default function ChatDetailScreen() {
   const updateConversation = useConversationsStore((s) => s.updateConversation)
   const removeConversation = useConversationsStore((s) => s.removeConversation)
   const readReceipts = useConversationsStore((s) => s.readReceipts)
+  const wsConnected = usePresenceStore((s) => s.wsConnected)
 
   // WebSocket context — typing, streams, cancel
   const { typingMap, sendTyping, sendCancelStream } = useWSContext()
@@ -36,6 +38,9 @@ export default function ChatDetailScreen() {
   const setStoreMessages = useMessagesStore((s) => s.setMessages)
   const prependStoreMessages = useMessagesStore((s) => s.prependMessages)
   const addStoreMessage = useMessagesStore((s) => s.addMessage)
+  const addOptimisticMessage = useMessagesStore((s) => s.addOptimisticMessage)
+  const replaceOptimisticMessage = useMessagesStore((s) => s.replaceOptimisticMessage)
+  const setOptimisticState = useMessagesStore((s) => s.setOptimisticState)
   const revokeStoreMessage = useMessagesStore((s) => s.revokeMessage)
   const updateReactions = useMessagesStore((s) => s.updateMessageReactions)
   const [loading, setLoading] = useState(true)
@@ -184,6 +189,22 @@ export default function ChatDetailScreen() {
 
   const handleRespondInteraction = useCallback(async (msgId: number, value: string, label: string) => {
     if (!token) return
+    const tempId = `interaction-${convId}-${msgId}-${Date.now()}`
+    const optimisticId = -Date.now()
+    addOptimisticMessage(tempId, {
+      id: optimisticId,
+      conversation_id: convId,
+      sender_id: entity?.id || 0,
+      sender: entity || undefined,
+      content_type: 'text',
+      layers: {
+        summary: label,
+        data: { interaction_reply: { reply_to: msgId, choice: value } },
+      },
+      reply_to: msgId,
+      created_at: new Date().toISOString(),
+    })
+
     const res = await api.sendMessage(token, {
       conversation_id: convId,
       content_type: 'text',
@@ -194,9 +215,11 @@ export default function ChatDetailScreen() {
       reply_to: msgId,
     })
     if (res.ok && res.data) {
-      addStoreMessage(res.data)
+      replaceOptimisticMessage(tempId, res.data)
+      return
     }
-  }, [token, convId, addStoreMessage])
+    setOptimisticState(tempId, 'failed')
+  }, [token, convId, entity, addOptimisticMessage, replaceOptimisticMessage, setOptimisticState])
 
   // Mark as read
   const handleMarkAsRead = useCallback(async (conversationId: number, messageId: number) => {
@@ -251,6 +274,7 @@ export default function ChatDetailScreen() {
           myEntity={entity || { id: 0, entity_type: 'user', name: 'me', display_name: 'Me', status: 'active', metadata: {}, created_at: '', updated_at: '' }}
           loading={loading}
           hasMore={hasMore}
+          wsConnected={wsConnected}
           typingText={typingText}
           readReceipts={convReadReceipts}
           onBack={() => router.back()}

@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef } from 'react'
-import { View, Text, Pressable, Image, StyleSheet, Linking, Modal } from 'react-native'
+import { View, Text, Pressable, Image, StyleSheet, Linking, Modal, TextInput } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import Markdown from 'react-native-markdown-display'
 import { ArtifactRenderer } from './ArtifactRenderer'
@@ -57,9 +57,11 @@ const handoverIcons = {
 function InteractionCard({
   interaction,
   onReply,
+  disabled = false,
 }: {
   interaction: InteractionLayer
   onReply?: (value: string, label: string) => void
+  disabled?: boolean
 }) {
   const { t } = useTranslation()
   const [inputValue, setInputValue] = useState('')
@@ -80,7 +82,12 @@ function InteractionCard({
         {interaction.prompt ? <Text style={cardStyles.cardPrompt}>{interaction.prompt}</Text> : null}
         <View style={cardStyles.choiceRow}>
           {interaction.options?.map((option) => (
-            <Pressable key={option.value} onPress={() => handleReply(option.value, option.label)} style={cardStyles.choiceButton}>
+              <Pressable
+                key={option.value}
+                onPress={() => handleReply(option.value, option.label)}
+                style={[cardStyles.choiceButton, disabled && cardStyles.choiceButtonDisabled]}
+                disabled={disabled}
+              >
               <Text style={cardStyles.choiceButtonText}>{option.label}</Text>
             </Pressable>
           ))}
@@ -94,11 +101,19 @@ function InteractionCard({
       <View style={cardStyles.cardSection}>
         {interaction.prompt ? <Text style={cardStyles.cardPrompt}>{interaction.prompt}</Text> : null}
         <View style={cardStyles.choiceRow}>
-          <Pressable onPress={() => handleReply('confirmed', t('common.confirm'))} style={cardStyles.primaryAction}>
+          <Pressable
+            onPress={() => handleReply('confirmed', t('common.confirm'))}
+            style={[cardStyles.primaryAction, disabled && cardStyles.actionDisabled]}
+            disabled={disabled}
+          >
             <Check size={12} color="#ffffff" />
             <Text style={cardStyles.primaryActionText}>{t('common.confirm')}</Text>
           </Pressable>
-          <Pressable onPress={() => handleReply('cancelled', t('common.cancel'))} style={cardStyles.secondaryAction}>
+          <Pressable
+            onPress={() => handleReply('cancelled', t('common.cancel'))}
+            style={[cardStyles.secondaryAction, disabled && cardStyles.actionDisabled]}
+            disabled={disabled}
+          >
             <X size={12} color="#64748b" />
             <Text style={cardStyles.secondaryActionText}>{t('common.cancel')}</Text>
           </Pressable>
@@ -118,11 +133,12 @@ function InteractionCard({
             placeholder={t('interaction.inputPlaceholder')}
             placeholderTextColor="#94a3b8"
             style={cardStyles.formInput}
+            editable={!disabled}
           />
           <Pressable
             onPress={() => inputValue.trim() && handleReply(inputValue.trim(), inputValue.trim())}
-            style={[cardStyles.iconAction, !inputValue.trim() && cardStyles.iconActionDisabled]}
-            disabled={!inputValue.trim()}
+            style={[cardStyles.iconAction, (!inputValue.trim() || disabled) && cardStyles.iconActionDisabled]}
+            disabled={!inputValue.trim() || disabled}
           >
             <Send size={12} color="#ffffff" />
           </Pressable>
@@ -134,23 +150,24 @@ function InteractionCard({
   return null
 }
 
-function HandoverCard({ message }: { message: Message }) {
+function HandoverCard({ message, participants }: { message: Message; participants?: Map<number, Entity> }) {
   const { t } = useTranslation()
   const [expanded, setExpanded] = useState(false)
   const data = (message.layers?.data || {}) as HandoverData
   const handoverType = data.handover_type || 'task_completion'
   const Icon = handoverIcons[handoverType as keyof typeof handoverIcons] || Package
+  const assignees = (data.assign_to || []).map((id) => participants?.get(id)?.display_name || participants?.get(id)?.name || `#${id}`)
 
   return (
     <View style={cardStyles.handoverCard}>
       <View style={cardStyles.handoverHeader}>
         <Icon size={14} color="#6366f1" />
         <Text style={cardStyles.handoverTitle}>{t(`handover.${handoverType}`)}</Text>
-        {(data.assign_to || []).length > 0 && (
+        {assignees.length > 0 && (
           <>
             <ArrowRight size={12} color="#94a3b8" />
             <Text style={cardStyles.handoverMeta} numberOfLines={1}>
-              {(data.assign_to || []).map((id) => `#${id}`).join(', ')}
+              {assignees.join(', ')}
             </Text>
           </>
         )}
@@ -309,6 +326,7 @@ interface Props {
   message: Message
   isSelf: boolean
   myEntityId?: number
+  participantsMap?: Map<number, Entity>
   replyMessage?: Message
   onRevoke?: (msgId: number) => void
   onReply?: (msg: Message) => void
@@ -325,6 +343,7 @@ export function MessageBubble({
   message,
   isSelf,
   myEntityId,
+  participantsMap,
   replyMessage,
   onRevoke,
   onReply,
@@ -501,7 +520,7 @@ export function MessageBubble({
       }
 
       case 'task_handover':
-        return <HandoverCard message={message} />
+        return <HandoverCard message={message} participants={participantsMap} />
 
       default: // text
         return (
@@ -610,6 +629,7 @@ export function MessageBubble({
             <InteractionCard
               interaction={layers.interaction}
               onReply={(value, label) => onRespondInteraction?.(message.id, value, label)}
+              disabled={!onRespondInteraction}
             />
           )}
 
@@ -953,6 +973,9 @@ const cardStyles = StyleSheet.create({
     fontWeight: '500',
     color: '#4f46e5',
   },
+  choiceButtonDisabled: {
+    opacity: 0.45,
+  },
   primaryAction: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -981,6 +1004,9 @@ const cardStyles = StyleSheet.create({
   secondaryActionText: {
     fontSize: 12,
     color: '#64748b',
+  },
+  actionDisabled: {
+    opacity: 0.45,
   },
   formRow: {
     flexDirection: 'row',

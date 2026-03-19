@@ -7,6 +7,7 @@ import { StreamingBubble } from './StreamingBubble'
 import { MessageComposer, type UploadedAttachment } from './MessageComposer'
 import { SkeletonLoader } from '../ui/SkeletonLoader'
 import { EntityAvatar } from '../ui/EntityAvatar'
+import { ConnectionStatusBar } from '../ui/ConnectionStatusBar'
 import { useThemeColors } from '../../lib/theme'
 import { storage } from '../../lib/storage'
 import type { Conversation, Message, ActiveStream, Entity, Participant } from '../../lib/types'
@@ -33,6 +34,7 @@ interface Props {
   loading?: boolean
   hasMore?: boolean
   isOnline?: boolean
+  wsConnected?: boolean
   typingText?: string | null
   readReceipts?: Record<number, number>
   isArchived?: boolean
@@ -63,6 +65,7 @@ export function ChatThread({
   loading = false,
   hasMore = true,
   isOnline = false,
+  wsConnected = true,
   typingText,
   readReceipts,
   isArchived,
@@ -90,6 +93,21 @@ export function ChatThread({
   const otherParticipant = (conversation?.participants || []).find((p) => p.entity_id !== myEntityId)?.entity
   const myParticipant = (conversation?.participants || []).find((p) => p.entity_id === myEntityId)
   const isObserver = myParticipant?.role === 'observer'
+  const participantMap = useMemo(() => {
+    const map = new Map<number, Entity>()
+    for (const participant of conversation.participants || []) {
+      if (participant.entity) map.set(participant.entity_id, participant.entity)
+    }
+    return map
+  }, [conversation.participants])
+  const outboxCount = useMemo(
+    () => messages.filter((msg) => msg.temp_id && (msg.client_state === 'queued' || msg.client_state === 'failed')).length,
+    [messages],
+  )
+  const outboxFailedCount = useMemo(
+    () => messages.filter((msg) => msg.temp_id && msg.client_state === 'failed').length,
+    [messages],
+  )
 
   // Active streams for this conversation
   const convStreams = useMemo<ActiveStream[]>(
@@ -216,6 +234,7 @@ export function ChatThread({
           message={item}
           isSelf={isSelf}
           myEntityId={myEntityId}
+          participantsMap={participantMap}
           replyMessage={replyMessage}
           showSender={showSender}
           isRead={isSelf ? isMessageRead(item.id) : undefined}
@@ -227,7 +246,7 @@ export function ChatThread({
         />
       </View>
     )
-  }, [myEntityId, isGroup, shouldShowSender, invertedMessages, messageMap, isMessageRead, isArchived, onRevoke, handleReply, onReact, onRespondInteraction, onRetryOutbox, colors, formatDateSeparator])
+  }, [myEntityId, isGroup, shouldShowSender, invertedMessages, messageMap, participantMap, isMessageRead, isArchived, onRevoke, handleReply, onReact, onRespondInteraction, onRetryOutbox, colors, formatDateSeparator])
 
   // Render streaming bubbles at the top (bottom visually in inverted list)
   const renderHeader = useCallback(() => {
@@ -320,6 +339,12 @@ export function ChatThread({
           </Pressable>
         )}
       </View>
+
+      <ConnectionStatusBar
+        connected={wsConnected}
+        outboxCount={outboxCount}
+        outboxFailedCount={outboxFailedCount}
+      />
 
       {/* Messages */}
       {loading && messages.length === 0 ? (
