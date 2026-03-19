@@ -12,6 +12,7 @@ import {
 import { useAuthStore } from '../../store/auth'
 import { useSettingsStore } from '../../store/settings'
 import * as api from '../../lib/api'
+import { buildInfo } from '../../lib/build-info'
 import { EntityAvatar } from '../ui/EntityAvatar'
 import { useThemeColors } from '../../lib/theme'
 
@@ -407,18 +408,34 @@ export function SettingsScreen({ onBack }: Props) {
             <View style={styles.sectionContent}>
               <Text style={styles.sectionDesc}>{t('settings.aboutDesc')}</Text>
 
-              <View style={styles.aboutRow}>
-                <Text style={styles.aboutLabel}>{t('settings.appName')}</Text>
-                <Text style={styles.aboutValue}>Agent-Native IM</Text>
-              </View>
-              <View style={styles.aboutRow}>
-                <Text style={styles.aboutLabel}>{t('settings.version')}</Text>
-                <Text style={styles.aboutValue}>1.0.0</Text>
+              <View style={styles.aboutCard}>
+                {[
+                  { label: t('settings.appName'), value: 'Agent-Native IM' },
+                  { label: t('settings.version'), value: buildInfo.version, mono: true },
+                  { label: t('settings.commit'), value: buildInfo.commit, mono: true },
+                  { label: t('settings.buildTime'), value: new Date(buildInfo.buildTime).toLocaleString() },
+                ].map(({ label, value, mono }, index) => (
+                  <View
+                    key={label}
+                    style={[
+                      styles.aboutRow,
+                      index > 0 && styles.aboutRowBorder,
+                    ]}
+                  >
+                    <Text style={styles.aboutLabel}>{label}</Text>
+                    <Text style={[styles.aboutValue, mono && styles.aboutValueMono]}>{value}</Text>
+                  </View>
+                ))}
               </View>
 
               <Pressable
                 onPress={async () => {
-                  await Clipboard.setStringAsync('Agent-Native IM v1.0.0 (Mobile)')
+                  await Clipboard.setStringAsync([
+                    'app=Agent-Native IM',
+                    `version=${buildInfo.version}`,
+                    `commit=${buildInfo.commit}`,
+                    `build_time=${buildInfo.buildTime}`,
+                  ].join('\n'))
                   setAboutCopied(true)
                   setTimeout(() => setAboutCopied(false), 2000)
                 }}
@@ -779,7 +796,12 @@ const styles = StyleSheet.create({
   aboutRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingVertical: 8,
+    paddingVertical: 12,
+    gap: 16,
+  },
+  aboutRowBorder: {
+    borderTopWidth: 1,
+    borderTopColor: '#e2e8f0',
   },
   aboutLabel: {
     fontSize: 13,
@@ -789,6 +811,18 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#1e293b',
     fontWeight: '500',
+    flexShrink: 1,
+    textAlign: 'right',
+  },
+  aboutValueMono: {
+    fontFamily: 'monospace',
+  },
+  aboutCard: {
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    backgroundColor: '#ffffff',
+    overflow: 'hidden',
   },
   copyBtn: {
     alignSelf: 'flex-start',

@@ -14,10 +14,6 @@ function entityDisplayName(entity?: Entity | null): string {
   return entity.display_name || entity.name
 }
 
-function isBotOrService(entity?: { entity_type?: string } | null): boolean {
-  return entity?.entity_type === 'bot' || entity?.entity_type === 'service'
-}
-
 function truncate(str: string, max: number): string {
   if (str.length <= max) return str
   return str.slice(0, max) + '...'
@@ -152,16 +148,9 @@ export function ConversationItem({
             <View style={[styles.groupAvatar, { backgroundColor: colors.accentDim }]}>
               <Users size={18} color={colors.accent} />
             </View>
-            {conv.participants?.some((p) => isBotOrService(p.entity)) && (
-              <View style={styles.botBadge}>
-                <Text style={styles.botBadgeText}>
-                  {conv.participants!.filter((p) => isBotOrService(p.entity)).length}
-                </Text>
-              </View>
-            )}
           </View>
         ) : (
-          <EntityAvatar entity={otherParticipant} size="md" showStatus />
+          <EntityAvatar entity={otherParticipant} size="md" />
         )}
 
         {/* Content */}
@@ -255,24 +244,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#eef2ff',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  botBadge: {
-    position: 'absolute',
-    bottom: -2,
-    right: -2,
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    backgroundColor: '#a78bfa',
-    borderWidth: 2,
-    borderColor: '#ffffff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  botBadgeText: {
-    fontSize: 7,
-    color: '#ffffff',
-    fontWeight: '700',
   },
   content: {
     flex: 1,
