@@ -32,8 +32,8 @@ function isBotOrService(entity?: Entity | null): boolean {
 
 export function NewConversation({ visible, onClose, onCreated, preselectedEntityId }: Props) {
   const { t } = useTranslation()
-  const token = useAuthStore((s) => s.token)!
-  const myEntity = useAuthStore((s) => s.entity)!
+  const token = useAuthStore((s) => s.token)
+  const myEntity = useAuthStore((s) => s.entity)
   const [entities, setEntities] = useState<Entity[]>([])
   const [loading, setLoading] = useState(false)
   const [step, setStep] = useState<Step>(preselectedEntityId ? 'create-group' : 'choose')
@@ -43,7 +43,7 @@ export function NewConversation({ visible, onClose, onCreated, preselectedEntity
   const [creating, setCreating] = useState(false)
 
   useEffect(() => {
-    if (!visible) return
+    if (!visible || !token || !myEntity) return
     setLoading(true)
     api.listEntities(token).then((res) => {
       if (res.ok && res.data) {
@@ -52,7 +52,7 @@ export function NewConversation({ visible, onClose, onCreated, preselectedEntity
       }
       setLoading(false)
     }).catch(() => setLoading(false))
-  }, [visible, token, myEntity.id])
+  }, [visible, token, myEntity?.id])
 
   useEffect(() => {
     if (!visible) {
