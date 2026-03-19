@@ -32,12 +32,23 @@ function formatRelativeLastSeen(lastSeen: string, locale?: string): string {
 
   const diffMs = date.getTime() - Date.now()
   const absMs = Math.abs(diffMs)
-  const rtf = new Intl.RelativeTimeFormat(locale, { numeric: 'auto' })
+  const IntlWithRTF = Intl as typeof Intl & {
+    RelativeTimeFormat?: new (locale?: string | string[], options?: Intl.RelativeTimeFormatOptions) => Intl.RelativeTimeFormat
+  }
+  const rtf = IntlWithRTF.RelativeTimeFormat
+    ? new IntlWithRTF.RelativeTimeFormat(locale, { numeric: 'auto' })
+    : null
 
-  if (absMs < 60_000) return rtf.format(Math.round(diffMs / 1_000), 'second')
-  if (absMs < 3_600_000) return rtf.format(Math.round(diffMs / 60_000), 'minute')
-  if (absMs < 86_400_000) return rtf.format(Math.round(diffMs / 3_600_000), 'hour')
-  return rtf.format(Math.round(diffMs / 86_400_000), 'day')
+  const fallback = (value: number, unit: 'second' | 'minute' | 'hour' | 'day') => {
+    const absValue = Math.abs(value)
+    const plural = absValue === 1 ? unit : `${unit}s`
+    return value < 0 ? `${absValue} ${plural} ago` : `in ${absValue} ${plural}`
+  }
+
+  if (absMs < 60_000) return rtf ? rtf.format(Math.round(diffMs / 1_000), 'second') : fallback(Math.round(diffMs / 1_000), 'second')
+  if (absMs < 3_600_000) return rtf ? rtf.format(Math.round(diffMs / 60_000), 'minute') : fallback(Math.round(diffMs / 60_000), 'minute')
+  if (absMs < 86_400_000) return rtf ? rtf.format(Math.round(diffMs / 3_600_000), 'hour') : fallback(Math.round(diffMs / 3_600_000), 'hour')
+  return rtf ? rtf.format(Math.round(diffMs / 86_400_000), 'day') : fallback(Math.round(diffMs / 86_400_000), 'day')
 }
 
 export function EntityQuickSheet({

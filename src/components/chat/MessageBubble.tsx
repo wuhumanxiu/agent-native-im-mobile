@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react'
+import React, { useState, useCallback, useRef, useMemo } from 'react'
 import { View, Text, Pressable, Image, StyleSheet, Linking, Modal, TextInput } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import Markdown from 'react-native-markdown-display'
@@ -56,14 +56,17 @@ const handoverIcons = {
 
 function InteractionCard({
   interaction,
+  colors,
   onReply,
   disabled = false,
 }: {
   interaction: InteractionLayer
+  colors: ReturnType<typeof useThemeColors>
   onReply?: (value: string, label: string) => void
   disabled?: boolean
 }) {
   const { t } = useTranslation()
+  const themedCardStyles = useMemo(() => createCardStyles(colors), [colors])
   const [inputValue, setInputValue] = useState('')
   const [responded, setResponded] = useState<string | null>(null)
 
@@ -73,22 +76,22 @@ function InteractionCard({
   }
 
   if (responded) {
-    return <Text style={cardStyles.respondedText}>{t('interaction.responded', { value: responded })}</Text>
+    return <Text style={themedCardStyles.respondedText}>{t('interaction.responded', { value: responded })}</Text>
   }
 
   if (interaction.type === 'choice') {
     return (
       <View style={cardStyles.cardSection}>
-        {interaction.prompt ? <Text style={cardStyles.cardPrompt}>{interaction.prompt}</Text> : null}
+        {interaction.prompt ? <Text style={themedCardStyles.cardPrompt}>{interaction.prompt}</Text> : null}
         <View style={cardStyles.choiceRow}>
           {interaction.options?.map((option) => (
               <Pressable
                 key={option.value}
                 onPress={() => handleReply(option.value, option.label)}
-                style={[cardStyles.choiceButton, disabled && cardStyles.choiceButtonDisabled]}
+                style={[themedCardStyles.choiceButton, disabled && cardStyles.choiceButtonDisabled]}
                 disabled={disabled}
               >
-              <Text style={cardStyles.choiceButtonText}>{option.label}</Text>
+              <Text style={themedCardStyles.choiceButtonText}>{option.label}</Text>
             </Pressable>
           ))}
         </View>
@@ -99,11 +102,11 @@ function InteractionCard({
   if (interaction.type === 'confirm') {
     return (
       <View style={cardStyles.cardSection}>
-        {interaction.prompt ? <Text style={cardStyles.cardPrompt}>{interaction.prompt}</Text> : null}
+        {interaction.prompt ? <Text style={themedCardStyles.cardPrompt}>{interaction.prompt}</Text> : null}
         <View style={cardStyles.choiceRow}>
           <Pressable
             onPress={() => handleReply('confirmed', t('common.confirm'))}
-            style={[cardStyles.primaryAction, disabled && cardStyles.actionDisabled]}
+            style={[themedCardStyles.primaryAction, disabled && cardStyles.actionDisabled]}
             disabled={disabled}
           >
             <Check size={12} color="#ffffff" />
@@ -111,11 +114,11 @@ function InteractionCard({
           </Pressable>
           <Pressable
             onPress={() => handleReply('cancelled', t('common.cancel'))}
-            style={[cardStyles.secondaryAction, disabled && cardStyles.actionDisabled]}
+            style={[themedCardStyles.secondaryAction, disabled && cardStyles.actionDisabled]}
             disabled={disabled}
           >
-            <X size={12} color="#64748b" />
-            <Text style={cardStyles.secondaryActionText}>{t('common.cancel')}</Text>
+            <X size={12} color={colors.textSecondary} />
+            <Text style={themedCardStyles.secondaryActionText}>{t('common.cancel')}</Text>
           </Pressable>
         </View>
       </View>
@@ -125,19 +128,19 @@ function InteractionCard({
   if (interaction.type === 'form') {
     return (
       <View style={cardStyles.cardSection}>
-        {interaction.prompt ? <Text style={cardStyles.cardPrompt}>{interaction.prompt}</Text> : null}
+        {interaction.prompt ? <Text style={themedCardStyles.cardPrompt}>{interaction.prompt}</Text> : null}
         <View style={cardStyles.formRow}>
           <TextInput
             value={inputValue}
             onChangeText={setInputValue}
             placeholder={t('interaction.inputPlaceholder')}
-            placeholderTextColor="#94a3b8"
-            style={cardStyles.formInput}
+            placeholderTextColor={colors.textMuted}
+            style={themedCardStyles.formInput}
             editable={!disabled}
           />
           <Pressable
             onPress={() => inputValue.trim() && handleReply(inputValue.trim(), inputValue.trim())}
-            style={[cardStyles.iconAction, (!inputValue.trim() || disabled) && cardStyles.iconActionDisabled]}
+            style={[themedCardStyles.iconAction, (!inputValue.trim() || disabled) && cardStyles.iconActionDisabled]}
             disabled={!inputValue.trim() || disabled}
           >
             <Send size={12} color="#ffffff" />
@@ -150,8 +153,9 @@ function InteractionCard({
   return null
 }
 
-function HandoverCard({ message, participants }: { message: Message; participants?: Map<number, Entity> }) {
+function HandoverCard({ message, participants, colors }: { message: Message; participants?: Map<number, Entity>; colors: ReturnType<typeof useThemeColors> }) {
   const { t } = useTranslation()
+  const themedCardStyles = useMemo(() => createCardStyles(colors), [colors])
   const [expanded, setExpanded] = useState(false)
   const data = (message.layers?.data || {}) as HandoverData
   const handoverType = data.handover_type || 'task_completion'
@@ -160,25 +164,25 @@ function HandoverCard({ message, participants }: { message: Message; participant
 
   return (
     <View style={cardStyles.handoverCard}>
-      <View style={cardStyles.handoverHeader}>
-        <Icon size={14} color="#6366f1" />
-        <Text style={cardStyles.handoverTitle}>{t(`handover.${handoverType}`)}</Text>
+      <View style={themedCardStyles.handoverHeader}>
+        <Icon size={14} color={colors.accent} />
+        <Text style={themedCardStyles.handoverTitle}>{t(`handover.${handoverType}`)}</Text>
         {assignees.length > 0 && (
           <>
-            <ArrowRight size={12} color="#94a3b8" />
-            <Text style={cardStyles.handoverMeta} numberOfLines={1}>
+            <ArrowRight size={12} color={colors.textMuted} />
+            <Text style={themedCardStyles.handoverMeta} numberOfLines={1}>
               {assignees.join(', ')}
             </Text>
           </>
         )}
       </View>
 
-      <Text style={cardStyles.handoverSummary}>{message.layers?.summary || ''}</Text>
+      <Text style={themedCardStyles.handoverSummary}>{message.layers?.summary || ''}</Text>
 
       {(data.deliverables?.length || data.context) ? (
         <Pressable onPress={() => setExpanded((prev) => !prev)} style={cardStyles.detailsToggle}>
-          {expanded ? <ChevronUp size={12} color="#94a3b8" /> : <ChevronDown size={12} color="#94a3b8" />}
-          <Text style={cardStyles.detailsToggleText}>{t('handover.details')}</Text>
+          {expanded ? <ChevronUp size={12} color={colors.textMuted} /> : <ChevronDown size={12} color={colors.textMuted} />}
+          <Text style={themedCardStyles.detailsToggleText}>{t('handover.details')}</Text>
         </Pressable>
       ) : null}
 
@@ -186,9 +190,9 @@ function HandoverCard({ message, participants }: { message: Message; participant
         <View style={cardStyles.detailsSection}>
           {data.deliverables && data.deliverables.length > 0 && (
             <View style={cardStyles.detailBlock}>
-              <Text style={cardStyles.detailLabel}>{t('handover.deliverables')}</Text>
+              <Text style={themedCardStyles.detailLabel}>{t('handover.deliverables')}</Text>
               {data.deliverables.map((deliverable, index) => (
-                <Text key={index} style={cardStyles.detailText}>
+                <Text key={index} style={themedCardStyles.detailText}>
                   {deliverable.type}: {deliverable.url || deliverable.value || '-'}
                 </Text>
               ))}
@@ -196,21 +200,21 @@ function HandoverCard({ message, participants }: { message: Message; participant
           )}
           {data.context?.changes_summary ? (
             <View style={cardStyles.detailBlock}>
-              <Text style={cardStyles.detailText}>{data.context.changes_summary}</Text>
+              <Text style={themedCardStyles.detailText}>{data.context.changes_summary}</Text>
             </View>
           ) : null}
           {data.context?.known_issues && data.context.known_issues.length > 0 && (
             <View style={cardStyles.detailBlock}>
-              <Text style={cardStyles.detailLabel}>{t('handover.knownIssues')}</Text>
+              <Text style={themedCardStyles.detailLabel}>{t('handover.knownIssues')}</Text>
               {data.context.known_issues.map((issue, index) => (
-                <Text key={index} style={cardStyles.detailText}>• {issue}</Text>
+                <Text key={index} style={themedCardStyles.detailText}>• {issue}</Text>
               ))}
             </View>
           )}
         </View>
       )}
 
-      {data.task_id ? <Text style={cardStyles.linkedTask}>{t('handover.linkedTask', { id: data.task_id })}</Text> : null}
+      {data.task_id ? <Text style={themedCardStyles.linkedTask}>{t('handover.linkedTask', { id: data.task_id })}</Text> : null}
     </View>
   )
 }
@@ -357,6 +361,8 @@ export function MessageBubble({
 }: Props) {
   const { t } = useTranslation()
   const colors = useThemeColors()
+  const themedContentStyles = useMemo(() => createContentStyles(colors), [colors])
+  const themedMarkdownStyles = useMemo(() => createMarkdownStyles(colors), [colors])
   const [showThinking, setShowThinking] = useState(false)
   const [lightboxUri, setLightboxUri] = useState<string | null>(null)
   const [showActionSheet, setShowActionSheet] = useState(false)
@@ -443,17 +449,17 @@ export function MessageBubble({
     switch (effectiveType) {
       case 'markdown':
         return body ? (
-          <Markdown style={markdownStyles}>
+          <Markdown style={themedMarkdownStyles}>
             {body}
           </Markdown>
         ) : (
-          <Text style={contentStyles.bodyText}> </Text>
+          <Text style={themedContentStyles.bodyText}> </Text>
         )
 
       case 'image':
         return (
           <View style={contentStyles.imageContainer}>
-            {body ? <Text style={contentStyles.bodyText}>{body}</Text> : null}
+            {body ? <Text style={themedContentStyles.bodyText}>{body}</Text> : null}
             <View style={contentStyles.imageGrid}>
               {message.attachments?.map((att, i) => {
                 if (!att.url) return null
@@ -481,23 +487,23 @@ export function MessageBubble({
       case 'file':
         return (
           <View style={contentStyles.fileContainer}>
-            {body ? <Text style={contentStyles.bodyText}>{body}</Text> : null}
+            {body ? <Text style={themedContentStyles.bodyText}>{body}</Text> : null}
             {message.attachments?.map((att, i) => (
               <Pressable
                 key={i}
-                style={contentStyles.fileCard}
+                style={[themedContentStyles.fileCard, { borderColor: colors.border }]}
                 onPress={() => { if (att.url) Linking.openURL(att.url) }}
               >
-                <View style={contentStyles.fileIcon}>
-                  <FileText size={16} color="#6366f1" />
+                <View style={[themedContentStyles.fileIcon, { backgroundColor: colors.accentDim }]}>
+                  <FileText size={16} color={colors.accent} />
                 </View>
                 <View style={contentStyles.fileInfo}>
-                  <Text style={contentStyles.fileName} numberOfLines={1}>{att.filename || 'file'}</Text>
+                  <Text style={themedContentStyles.fileName} numberOfLines={1}>{att.filename || 'file'}</Text>
                   {att.size != null && (
-                    <Text style={contentStyles.fileSize}>{formatFileSize(att.size)}</Text>
+                    <Text style={themedContentStyles.fileSize}>{formatFileSize(att.size)}</Text>
                   )}
                 </View>
-                <Download size={14} color="#94a3b8" />
+                <Download size={14} color={colors.textMuted} />
               </Pressable>
             ))}
           </View>
@@ -510,7 +516,7 @@ export function MessageBubble({
         const artifactLang = (layers?.data?.language as string) || ''
         return (
           <View>
-            {body && artifactSource !== body ? <Text style={contentStyles.bodyText}>{body}</Text> : null}
+            {body && artifactSource !== body ? <Text style={themedContentStyles.bodyText}>{body}</Text> : null}
             <ArtifactRenderer
               artifactType={artifactType}
               source={artifactSource}
@@ -522,12 +528,12 @@ export function MessageBubble({
       }
 
       case 'task_handover':
-        return <HandoverCard message={message} participants={participantsMap} />
+        return <HandoverCard message={message} participants={participantsMap} colors={colors} />
 
       default: // text
         return (
           <View>
-            <Text style={contentStyles.bodyText}>{body}</Text>
+            <Text style={themedContentStyles.bodyText}>{body}</Text>
             {message.attachments && message.attachments.length > 0 && (
               <View style={{ marginTop: 6, gap: 6 }}>
                 {message.attachments.filter((att) => att.type === 'image').map((att, i) => (
@@ -540,19 +546,19 @@ export function MessageBubble({
                 {message.attachments.filter((att) => att.type !== 'image').map((att, i) => (
                   <Pressable
                     key={`file-${i}`}
-                    style={contentStyles.fileCard}
+                    style={[themedContentStyles.fileCard, { borderColor: colors.border }]}
                     onPress={() => { if (att.url) Linking.openURL(att.url) }}
                   >
-                    <View style={contentStyles.fileIcon}>
-                      <FileText size={16} color="#6366f1" />
+                    <View style={[themedContentStyles.fileIcon, { backgroundColor: colors.accentDim }]}>
+                      <FileText size={16} color={colors.accent} />
                     </View>
                     <View style={contentStyles.fileInfo}>
-                      <Text style={contentStyles.fileName} numberOfLines={1}>{att.filename || 'file'}</Text>
+                      <Text style={themedContentStyles.fileName} numberOfLines={1}>{att.filename || 'file'}</Text>
                       {att.size != null && (
-                        <Text style={contentStyles.fileSize}>{formatFileSize(att.size)}</Text>
+                        <Text style={themedContentStyles.fileSize}>{formatFileSize(att.size)}</Text>
                       )}
                     </View>
-                    <Download size={14} color="#94a3b8" />
+                    <Download size={14} color={colors.textMuted} />
                   </Pressable>
                 ))}
               </View>
@@ -585,7 +591,7 @@ export function MessageBubble({
           {showSender && (
             <View style={[styles.metaRow, isSelf && styles.metaRowSelf]}>
               {!isSelf && (
-                <Text style={[styles.senderName, { color: colors.textSecondary }, isBot && styles.senderBot]}>
+                <Text style={[styles.senderName, { color: isBot ? colors.accent : colors.textSecondary }]}>
                   {entityDisplayName(message.sender)}
                 </Text>
               )}
@@ -596,18 +602,18 @@ export function MessageBubble({
           {/* Reply reference */}
           {message.reply_to && (
             <View style={[styles.replyRef, isSelf && styles.replyRefSelf]}>
-              <CornerUpLeft size={12} color="#94a3b8" />
+              <CornerUpLeft size={12} color={colors.textMuted} />
               {replyMessage ? (
-                <View style={styles.replyCard}>
-                  <Text style={styles.replyAuthor} numberOfLines={1}>
+                <View style={[styles.replyCard, { backgroundColor: colors.bgHover, borderLeftColor: colors.accent }]}>
+                  <Text style={[styles.replyAuthor, { color: colors.accent }]} numberOfLines={1}>
                     {entityDisplayName(replyMessage.sender)}
                   </Text>
-                  <Text style={styles.replyPreview} numberOfLines={1}>
+                  <Text style={[styles.replyPreview, { color: colors.textMuted }]} numberOfLines={1}>
                     {(replyMessage.layers?.summary || '').slice(0, 50)}
                   </Text>
                 </View>
               ) : (
-                <Text style={styles.replyFallback}>
+                <Text style={[styles.replyFallback, { color: colors.textMuted }]}>
                   {t('message.replyTo', { id: message.reply_to })}
                 </Text>
               )}
@@ -634,6 +640,7 @@ export function MessageBubble({
           {layers.interaction && (
             <InteractionCard
               interaction={layers.interaction}
+              colors={colors}
               onReply={(value, label) => onRespondInteraction?.(message.id, value, label)}
               disabled={!onRespondInteraction}
             />
@@ -646,12 +653,16 @@ export function MessageBubble({
                 const isMine = myEntityId != null && r.entity_ids.includes(myEntityId)
                 return (
                   <Pressable
-                    key={i}
-                    style={[styles.reactionChip, isMine && styles.reactionChipActive]}
+                  key={i}
+                    style={[
+                      styles.reactionChip,
+                      { backgroundColor: colors.bgHover, borderColor: colors.border },
+                      isMine && { borderColor: `${colors.accent}80`, backgroundColor: colors.accentDim },
+                    ]}
                     onPress={() => onReact?.(message.id, r.emoji)}
                   >
                     <Text style={styles.reactionEmoji}>{r.emoji}</Text>
-                    <Text style={[styles.reactionCount, isMine && styles.reactionCountActive]}>
+                    <Text style={[styles.reactionCount, { color: isMine ? colors.accent : colors.textMuted }]}>
                       {r.count}
                     </Text>
                   </Pressable>
@@ -665,28 +676,28 @@ export function MessageBubble({
             <View style={[styles.statusRow, styles.statusRowSelf]}>
               {message.client_state === 'sending' && (
                 <>
-                  <Clock size={12} color="#94a3b8" />
-                  <Text style={styles.statusText}>{t('message.sending')}</Text>
+                  <Clock size={12} color={colors.textMuted} />
+                  <Text style={[styles.statusText, { color: colors.textMuted }]}>{t('message.sending')}</Text>
                 </>
               )}
               {message.client_state === 'queued' && (
                 <>
-                  <CloudOff size={12} color="#94a3b8" />
-                  <Text style={styles.statusText}>{t('message.queuedOffline')}</Text>
+                  <CloudOff size={12} color={colors.textMuted} />
+                  <Text style={[styles.statusText, { color: colors.textMuted }]}>{t('message.queuedOffline')}</Text>
                   {canRetryOutbox && (
                     <Pressable onPress={() => onRetryOutbox!(message.temp_id!)}>
-                      <Text style={styles.retryLink}>{t('message.retryNow')}</Text>
+                      <Text style={[styles.retryLink, { color: colors.accent }]}>{t('message.retryNow')}</Text>
                     </Pressable>
                   )}
                 </>
               )}
               {message.client_state === 'failed' && (
                 <>
-                  <RotateCcw size={12} color="#ef4444" />
-                  <Text style={[styles.statusText, { color: '#ef4444' }]}>{t('message.deliveryFailed')}</Text>
+                  <RotateCcw size={12} color={colors.error} />
+                  <Text style={[styles.statusText, { color: colors.error }]}>{t('message.deliveryFailed')}</Text>
                   {canRetryOutbox && (
                     <Pressable onPress={() => onRetryOutbox!(message.temp_id!)}>
-                      <Text style={[styles.retryLink, { color: '#ef4444' }]}>{t('message.tapToRetry')}</Text>
+                      <Text style={[styles.retryLink, { color: colors.error }]}>{t('message.tapToRetry')}</Text>
                     </Pressable>
                   )}
                 </>
@@ -697,8 +708,8 @@ export function MessageBubble({
           {/* Read receipt */}
           {isSelf && isRead && !message.temp_id && (
             <View style={[styles.statusRow, styles.statusRowSelf]}>
-              <Check size={12} color="#6366f1" />
-              <Text style={styles.statusText}>{t('message.read')}</Text>
+              <Check size={12} color={colors.accent} />
+              <Text style={[styles.statusText, { color: colors.textMuted }]}>{t('message.read')}</Text>
             </View>
           )}
 
@@ -709,16 +720,16 @@ export function MessageBubble({
                 style={styles.thinkingToggle}
                 onPress={() => setShowThinking(!showThinking)}
               >
-                <Brain size={12} color="#94a3b8" />
-                <Text style={styles.thinkingLabel}>{t('message.thinking')}</Text>
+                <Brain size={12} color={colors.textMuted} />
+                <Text style={[styles.thinkingLabel, { color: colors.textMuted }]}>{t('message.thinking')}</Text>
                 {showThinking
-                  ? <ChevronUp size={12} color="#94a3b8" />
-                  : <ChevronDown size={12} color="#94a3b8" />
+                  ? <ChevronUp size={12} color={colors.textMuted} />
+                  : <ChevronDown size={12} color={colors.textMuted} />
                 }
               </Pressable>
               {showThinking && (
-                <View style={styles.thinkingContent}>
-                  <Text style={styles.thinkingText}>{layers.thinking}</Text>
+                <View style={[styles.thinkingContent, { backgroundColor: colors.bgHover }]}>
+                  <Text style={[styles.thinkingText, { color: colors.textSecondary }]}>{layers.thinking}</Text>
                 </View>
               )}
             </View>
@@ -1165,72 +1176,176 @@ const contentStyles = StyleSheet.create({
   },
 })
 
-const markdownStyles = StyleSheet.create({
-  body: {
-    fontSize: 14,
-    lineHeight: 20,
-    color: '#1e293b',
-  },
-  heading1: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#0f172a',
-    marginTop: 8,
-    marginBottom: 4,
-  },
-  heading2: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1e293b',
-    marginTop: 6,
-    marginBottom: 4,
-  },
-  heading3: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#1e293b',
-    marginTop: 4,
-    marginBottom: 2,
-  },
-  code_inline: {
-    backgroundColor: '#f1f5f9',
-    color: '#6366f1',
-    paddingHorizontal: 4,
-    paddingVertical: 1,
-    borderRadius: 4,
-    fontSize: 13,
-    fontFamily: 'Courier',
-  },
-  fence: {
-    backgroundColor: '#f8fafc',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 12,
-    fontFamily: 'Courier',
-    color: '#334155',
-    marginVertical: 4,
-  },
-  blockquote: {
-    borderLeftWidth: 3,
-    borderLeftColor: '#6366f140',
-    paddingLeft: 12,
-    marginVertical: 4,
-    backgroundColor: '#f8fafc',
-    paddingVertical: 4,
-    borderRadius: 4,
-  },
-  link: {
-    color: '#6366f1',
-    textDecorationLine: 'underline',
-  },
-  list_item: {
-    marginVertical: 2,
-  },
-  strong: {
-    fontWeight: '600',
-    color: '#0f172a',
-  },
-  em: {
-    fontStyle: 'italic',
-  },
-} as Record<string, any>)
+function createContentStyles(colors: ReturnType<typeof useThemeColors>) {
+  return StyleSheet.create({
+    bodyText: {
+      fontSize: 14,
+      lineHeight: 20,
+      color: colors.text,
+    },
+    fileCard: {
+      ...contentStyles.fileCard,
+      backgroundColor: colors.bgSecondary,
+    },
+    fileIcon: {
+      ...contentStyles.fileIcon,
+    },
+    fileName: {
+      ...contentStyles.fileName,
+      color: colors.text,
+    },
+    fileSize: {
+      ...contentStyles.fileSize,
+      color: colors.textMuted,
+    },
+  })
+}
+
+function createCardStyles(colors: ReturnType<typeof useThemeColors>) {
+  return StyleSheet.create({
+    cardPrompt: {
+      ...cardStyles.cardPrompt,
+      color: colors.textSecondary,
+    },
+    choiceButton: {
+      ...cardStyles.choiceButton,
+      borderColor: colors.accent,
+      backgroundColor: colors.accentDim,
+    },
+    choiceButtonText: {
+      ...cardStyles.choiceButtonText,
+      color: colors.accent,
+    },
+    secondaryAction: {
+      ...cardStyles.secondaryAction,
+      borderColor: colors.border,
+      backgroundColor: colors.bgSecondary,
+    },
+    secondaryActionText: {
+      ...cardStyles.secondaryActionText,
+      color: colors.textSecondary,
+    },
+    formInput: {
+      ...cardStyles.formInput,
+      backgroundColor: colors.bgSecondary,
+      borderColor: colors.border,
+      color: colors.text,
+    },
+    iconAction: {
+      ...cardStyles.iconAction,
+      backgroundColor: colors.accent,
+    },
+    respondedText: {
+      ...cardStyles.respondedText,
+      color: colors.textMuted,
+    },
+    handoverHeader: {
+      ...cardStyles.handoverHeader,
+      borderBottomColor: colors.border,
+    },
+    handoverTitle: {
+      ...cardStyles.handoverTitle,
+      color: colors.accent,
+    },
+    handoverMeta: {
+      ...cardStyles.handoverMeta,
+      color: colors.textSecondary,
+    },
+    handoverSummary: {
+      ...cardStyles.handoverSummary,
+      color: colors.text,
+    },
+    detailsToggleText: {
+      ...cardStyles.detailsToggleText,
+      color: colors.textMuted,
+    },
+    detailLabel: {
+      ...cardStyles.detailLabel,
+      color: colors.textMuted,
+    },
+    detailText: {
+      ...cardStyles.detailText,
+      color: colors.textSecondary,
+    },
+    linkedTask: {
+      ...cardStyles.linkedTask,
+      color: colors.textMuted,
+    },
+    primaryAction: {
+      ...cardStyles.primaryAction,
+      backgroundColor: colors.accent,
+    },
+  })
+}
+
+function createMarkdownStyles(colors: ReturnType<typeof useThemeColors>) {
+  return StyleSheet.create({
+    body: {
+      fontSize: 14,
+      lineHeight: 20,
+      color: colors.text,
+    },
+    heading1: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: colors.text,
+      marginTop: 8,
+      marginBottom: 4,
+    },
+    heading2: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: colors.text,
+      marginTop: 6,
+      marginBottom: 4,
+    },
+    heading3: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.text,
+      marginTop: 4,
+      marginBottom: 2,
+    },
+    code_inline: {
+      backgroundColor: colors.bgHover,
+      color: colors.accent,
+      paddingHorizontal: 4,
+      paddingVertical: 1,
+      borderRadius: 4,
+      fontSize: 13,
+      fontFamily: 'Courier',
+    },
+    fence: {
+      backgroundColor: colors.bgHover,
+      borderRadius: 8,
+      padding: 12,
+      fontSize: 12,
+      fontFamily: 'Courier',
+      color: colors.textSecondary,
+      marginVertical: 4,
+    },
+    blockquote: {
+      borderLeftWidth: 3,
+      borderLeftColor: `${colors.accent}66`,
+      paddingLeft: 12,
+      marginVertical: 4,
+      backgroundColor: colors.bgHover,
+      paddingVertical: 4,
+      borderRadius: 4,
+    },
+    link: {
+      color: colors.accent,
+      textDecorationLine: 'underline',
+    },
+    list_item: {
+      marginVertical: 2,
+    },
+    strong: {
+      fontWeight: '600',
+      color: colors.text,
+    },
+    em: {
+      fontStyle: 'italic',
+    },
+  } as Record<string, any>)
+}
