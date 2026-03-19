@@ -306,8 +306,9 @@ export default function ChatDetailScreen() {
   // Mark as read
   const handleMarkAsRead = useCallback(async (conversationId: number, messageId: number) => {
     if (!token) return
+    updateConversation(conversationId, { unread_count: 0 })
     api.markAsRead(token, conversationId, messageId).catch(() => {})
-  }, [token])
+  }, [token, updateConversation])
 
   // File upload handler
   const handleFileUpload = useCallback(async (file: { uri: string; name: string; type: string; size: number }): Promise<string | null> => {
