@@ -68,7 +68,10 @@ function resolveAvatarUrl(url?: string): string | null {
   if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:image/')) {
     return url
   }
-  // Relative path like /files/xxx.jpg — prepend API base URL
+  // Stable public avatar path backed by the server avatar endpoint.
+  if (url.startsWith('/files/')) {
+    return `${API_BASE_URL}/avatars/${url.slice('/files/'.length)}`
+  }
   if (url.startsWith('/')) {
     return API_BASE_URL + url
   }
