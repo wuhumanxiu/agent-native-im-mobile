@@ -14,7 +14,7 @@ import { useSettingsStore } from '../../store/settings'
 import * as api from '../../lib/api'
 import { buildInfo } from '../../lib/build-info'
 import { EntityAvatar } from '../ui/EntityAvatar'
-import { useThemeColors } from '../../lib/theme'
+import { resolveThemeColors, themePreviews, useThemeColors } from '../../lib/theme'
 
 type Section = 'profile' | 'security' | 'devices' | 'theme' | 'language' | 'about' | null
 
@@ -55,6 +55,7 @@ export function SettingsScreen({ onBack }: Props) {
   // Theme — read/write from Zustand store so it persists and triggers re-renders
   const selectedTheme = useSettingsStore((s) => s.theme)
   const setSelectedTheme = useSettingsStore((s) => s.setTheme)
+  const effectiveTheme = useSettingsStore((s) => s.effectiveTheme)
 
   // Language
   const [selectedLocale, setSelectedLocale] = useState(i18n.language || 'en')
@@ -176,19 +177,34 @@ export function SettingsScreen({ onBack }: Props) {
     { id: 'about', icon: Info, label: t('settings.about') },
   ]
 
-  const themeOptions: { id: Theme; label: string; color: string }[] = [
-    { id: 'light', label: t('settings.themeLight'), color: '#f8fafc' },
-    { id: 'light-rose', label: t('settings.themeLightRose'), color: '#fdf2f8' },
-    { id: 'light-ocean', label: t('settings.themeLightOcean'), color: '#f0f9ff' },
-    { id: 'light-green', label: t('settings.themeLightGreen'), color: '#f0fdf4' },
-    { id: 'dark', label: t('settings.themeDark'), color: '#1e293b' },
-    { id: 'midnight', label: t('settings.themeMidnight'), color: '#0f172a' },
-    { id: 'green', label: t('settings.themeGreen'), color: '#064e3b' },
-    { id: 'rose', label: t('settings.themeRose'), color: '#4c0519' },
-    { id: 'ocean', label: t('settings.themeOcean'), color: '#0c4a6e' },
-    { id: 'amber', label: t('settings.themeAmber'), color: '#451a03' },
-    { id: 'violet', label: t('settings.themeViolet'), color: '#2e1065' },
+  const systemPreview = resolveThemeColors('system')
+  const themeOptions: { id: Theme; label: string; group: 'light' | 'dark' | 'system'; preview: { bg: string; sidebar: string; bubble: string; bubbleSelf: string; text: string } }[] = [
+    {
+      id: 'system',
+      label: t('settings.themeSystem'),
+      group: 'system',
+      preview: {
+        bg: systemPreview.bgSecondary,
+        sidebar: systemPreview.bgTertiary,
+        bubble: systemPreview.bubbleOther,
+        bubbleSelf: systemPreview.accent,
+        text: systemPreview.text,
+      },
+    },
+    { id: 'light', label: t('settings.themeLight'), group: 'light', preview: themePreviews.light },
+    { id: 'light-rose', label: t('settings.themeLightRose'), group: 'light', preview: themePreviews['light-rose'] },
+    { id: 'light-ocean', label: t('settings.themeLightOcean'), group: 'light', preview: themePreviews['light-ocean'] },
+    { id: 'light-green', label: t('settings.themeLightGreen'), group: 'light', preview: themePreviews['light-green'] },
+    { id: 'dark', label: t('settings.themeDark'), group: 'dark', preview: themePreviews.dark },
+    { id: 'midnight', label: t('settings.themeMidnight'), group: 'dark', preview: themePreviews.midnight },
+    { id: 'green', label: t('settings.themeGreen'), group: 'dark', preview: themePreviews.green },
+    { id: 'rose', label: t('settings.themeRose'), group: 'dark', preview: themePreviews.rose },
+    { id: 'ocean', label: t('settings.themeOcean'), group: 'dark', preview: themePreviews.ocean },
+    { id: 'amber', label: t('settings.themeAmber'), group: 'dark', preview: themePreviews.amber },
+    { id: 'violet', label: t('settings.themeViolet'), group: 'dark', preview: themePreviews.violet },
   ]
+  const lightThemeOptions = themeOptions.filter((option) => option.group === 'light')
+  const darkThemeOptions = themeOptions.filter((option) => option.group === 'dark')
 
   // Section detail views
   if (section) {
@@ -212,41 +228,50 @@ export function SettingsScreen({ onBack }: Props) {
               <View style={styles.profileAvatarRow}>
                 <EntityAvatar entity={entity} size="lg" />
                 <View style={styles.profileInfo}>
-                  <Text style={styles.profileName}>{entityDisplayName(entity)}</Text>
-                  <Text style={styles.profileHandle}>@{entity?.name}</Text>
+                  <Text style={[styles.profileName, { color: colors.text }]}>{entityDisplayName(entity)}</Text>
+                  <Text style={[styles.profileHandle, { color: colors.textMuted }]}>@{entity?.name}</Text>
                 </View>
               </View>
 
               <View style={styles.field}>
-                <Text style={styles.fieldLabel}>{t('settings.displayName')}</Text>
+                <Text style={[styles.fieldLabel, { color: colors.textMuted }]}>{t('settings.displayName')}</Text>
                 <TextInput
                   value={editName}
                   onChangeText={setEditName}
-                  style={styles.input}
+                  placeholderTextColor={colors.textMuted}
+                  style={[styles.input, {
+                    backgroundColor: colors.bgTertiary,
+                    borderColor: colors.border,
+                    color: colors.text,
+                  }]}
                 />
               </View>
 
               <View style={styles.field}>
-                <Text style={styles.fieldLabel}>{t('settings.email')}</Text>
+                <Text style={[styles.fieldLabel, { color: colors.textMuted }]}>{t('settings.email')}</Text>
                 <TextInput
                   value={editEmail}
                   onChangeText={setEditEmail}
                   placeholder={t('settings.emailPlaceholder')}
-                  placeholderTextColor="#94a3b8"
+                  placeholderTextColor={colors.textMuted}
                   keyboardType="email-address"
                   autoCapitalize="none"
-                  style={styles.input}
+                  style={[styles.input, {
+                    backgroundColor: colors.bgTertiary,
+                    borderColor: colors.border,
+                    color: colors.text,
+                  }]}
                 />
               </View>
 
               {saveMsg ? (
-                <Text style={styles.successText}>{saveMsg}</Text>
+                <Text style={[styles.successText, { color: colors.success }]}>{saveMsg}</Text>
               ) : null}
 
               <Pressable
                 onPress={handleSaveProfile}
                 disabled={saving}
-                style={[styles.primaryBtn, saving && styles.btnDisabled]}
+                style={[styles.primaryBtn, { backgroundColor: colors.accent }, saving && styles.btnDisabled]}
               >
                 {saving ? (
                   <ActivityIndicator size="small" color="#ffffff" />
@@ -260,55 +285,70 @@ export function SettingsScreen({ onBack }: Props) {
           {/* Security */}
           {section === 'security' && (
             <View style={styles.sectionContent}>
-              <Text style={styles.sectionDesc}>{t('settings.changePasswordDesc')}</Text>
+              <Text style={[styles.sectionDesc, { color: colors.textMuted }]}>{t('settings.changePasswordDesc')}</Text>
 
               <View style={styles.field}>
-                <Text style={styles.fieldLabel}>{t('settings.currentPassword')}</Text>
+                <Text style={[styles.fieldLabel, { color: colors.textMuted }]}>{t('settings.currentPassword')}</Text>
                 <View style={styles.passwordRow}>
                   <TextInput
                     value={oldPass}
                     onChangeText={setOldPass}
                     secureTextEntry={!showOld}
-                    style={[styles.input, styles.passwordInput]}
+                    placeholderTextColor={colors.textMuted}
+                    style={[styles.input, styles.passwordInput, {
+                      backgroundColor: colors.bgTertiary,
+                      borderColor: colors.border,
+                      color: colors.text,
+                    }]}
                   />
                   <Pressable onPress={() => setShowOld(!showOld)} style={styles.eyeBtn}>
-                    {showOld ? <EyeOff size={16} color="#94a3b8" /> : <Eye size={16} color="#94a3b8" />}
+                    {showOld ? <EyeOff size={16} color={colors.textMuted} /> : <Eye size={16} color={colors.textMuted} />}
                   </Pressable>
                 </View>
               </View>
 
               <View style={styles.field}>
-                <Text style={styles.fieldLabel}>{t('settings.newPassword')}</Text>
+                <Text style={[styles.fieldLabel, { color: colors.textMuted }]}>{t('settings.newPassword')}</Text>
                 <View style={styles.passwordRow}>
                   <TextInput
                     value={newPass}
                     onChangeText={setNewPass}
                     secureTextEntry={!showNew}
-                    style={[styles.input, styles.passwordInput]}
+                    placeholderTextColor={colors.textMuted}
+                    style={[styles.input, styles.passwordInput, {
+                      backgroundColor: colors.bgTertiary,
+                      borderColor: colors.border,
+                      color: colors.text,
+                    }]}
                   />
                   <Pressable onPress={() => setShowNew(!showNew)} style={styles.eyeBtn}>
-                    {showNew ? <EyeOff size={16} color="#94a3b8" /> : <Eye size={16} color="#94a3b8" />}
+                    {showNew ? <EyeOff size={16} color={colors.textMuted} /> : <Eye size={16} color={colors.textMuted} />}
                   </Pressable>
                 </View>
               </View>
 
               <View style={styles.field}>
-                <Text style={styles.fieldLabel}>{t('settings.confirmPassword')}</Text>
+                <Text style={[styles.fieldLabel, { color: colors.textMuted }]}>{t('settings.confirmPassword')}</Text>
                 <TextInput
                   value={confirmPass}
                   onChangeText={setConfirmPass}
                   secureTextEntry
-                  style={styles.input}
+                  placeholderTextColor={colors.textMuted}
+                  style={[styles.input, {
+                    backgroundColor: colors.bgTertiary,
+                    borderColor: colors.border,
+                    color: colors.text,
+                  }]}
                 />
               </View>
 
-              {passError ? <Text style={styles.errorText}>{passError}</Text> : null}
-              {passSuccess ? <Text style={styles.successText}>{passSuccess}</Text> : null}
+              {passError ? <Text style={[styles.errorText, { color: colors.error }]}>{passError}</Text> : null}
+              {passSuccess ? <Text style={[styles.successText, { color: colors.success }]}>{passSuccess}</Text> : null}
 
               <Pressable
                 onPress={handleChangePassword}
                 disabled={saving}
-                style={[styles.primaryBtn, saving && styles.btnDisabled]}
+                style={[styles.primaryBtn, { backgroundColor: colors.accent }, saving && styles.btnDisabled]}
               >
                 <Text style={styles.primaryBtnText}>{t('settings.changePassword')}</Text>
               </Pressable>
@@ -318,32 +358,32 @@ export function SettingsScreen({ onBack }: Props) {
           {/* Devices */}
           {section === 'devices' && (
             <View style={styles.sectionContent}>
-              <Text style={styles.sectionDesc}>{t('settings.devicesDesc')}</Text>
+              <Text style={[styles.sectionDesc, { color: colors.textMuted }]}>{t('settings.devicesDesc')}</Text>
 
               {deviceMsg ? (
-                <Text style={styles.successText}>{deviceMsg}</Text>
+                <Text style={[styles.successText, { color: colors.success }]}>{deviceMsg}</Text>
               ) : null}
 
               {devicesLoading ? (
-                <ActivityIndicator size="small" color="#6366f1" style={{ marginTop: 20 }} />
+                <ActivityIndicator size="small" color={colors.accent} style={{ marginTop: 20 }} />
               ) : devices.length === 0 ? (
-                <Text style={styles.emptyText}>{t('settings.noDevices')}</Text>
+                <Text style={[styles.emptyText, { color: colors.textMuted }]}>{t('settings.noDevices')}</Text>
               ) : (
                 <View style={styles.deviceList}>
                   {devices.map((d) => (
-                    <View key={d.device_id} style={styles.deviceItem}>
-                      <Smartphone size={16} color="#94a3b8" />
+                    <View key={d.device_id} style={[styles.deviceItem, { backgroundColor: colors.bgTertiary, borderColor: colors.border }]}>
+                      <Smartphone size={16} color={colors.textMuted} />
                       <View style={styles.deviceInfo}>
-                        <Text style={styles.deviceName} numberOfLines={1}>
+                        <Text style={[styles.deviceName, { color: colors.text }]} numberOfLines={1}>
                           {d.device_info?.slice(0, 50) || t('settings.unknownDevice')}
                         </Text>
-                        <Text style={styles.deviceId}>{d.device_id.slice(0, 12)}...</Text>
+                        <Text style={[styles.deviceId, { color: colors.textMuted }]}>{d.device_id.slice(0, 12)}...</Text>
                       </View>
                       <Pressable
                         onPress={() => handleKickDevice(d.device_id)}
-                        style={styles.disconnectBtn}
+                        style={[styles.disconnectBtn, { backgroundColor: `${colors.error}20` }]}
                       >
-                        <Text style={styles.disconnectBtnText}>{t('settings.disconnectDevice')}</Text>
+                        <Text style={[styles.disconnectBtnText, { color: colors.error }]}>{t('settings.disconnectDevice')}</Text>
                       </Pressable>
                     </View>
                   ))}
@@ -355,24 +395,93 @@ export function SettingsScreen({ onBack }: Props) {
           {/* Theme */}
           {section === 'theme' && (
             <View style={styles.sectionContent}>
-              <View style={styles.themeGrid}>
-                {themeOptions.map((theme) => (
-                  <Pressable
-                    key={theme.id}
-                    onPress={() => setSelectedTheme(theme.id)}
-                    style={[
-                      styles.themeItem,
-                      selectedTheme === theme.id && styles.themeItemActive,
-                    ]}
-                  >
-                    <View style={[styles.themePreview, { backgroundColor: theme.color }]}>
-                      {selectedTheme === theme.id && (
-                        <Check size={16} color={theme.color === '#f8fafc' || theme.color.startsWith('#f') ? '#6366f1' : '#ffffff'} />
-                      )}
-                    </View>
-                    <Text style={styles.themeLabel}>{theme.label}</Text>
-                  </Pressable>
-                ))}
+              <Pressable
+                onPress={() => setSelectedTheme('system')}
+                style={[
+                  styles.systemThemeCard,
+                  {
+                    borderColor: selectedTheme === 'system' ? colors.accent : colors.border,
+                    backgroundColor: selectedTheme === 'system' ? colors.accentDim : colors.bg,
+                  },
+                ]}
+              >
+                <View>
+                  <Text style={[styles.systemThemeTitle, { color: colors.text }]}>{t('settings.themeSystem')}</Text>
+                  <Text style={[styles.systemThemeDesc, { color: colors.textMuted }]}>
+                    {t('settings.themeSystemDesc')} · {effectiveTheme() === 'dark' ? t('settings.themeDark') : t('settings.themeLight')}
+                  </Text>
+                </View>
+                {selectedTheme === 'system' ? <Check size={16} color={colors.accent} /> : null}
+              </Pressable>
+
+              <View style={styles.themeSection}>
+                <Text style={[styles.themeGroupTitle, { color: colors.textMuted }]}>{t('settings.themeGroupLight')}</Text>
+                <View style={styles.themeGrid}>
+                  {lightThemeOptions.map((theme) => (
+                    <Pressable
+                      key={theme.id}
+                      onPress={() => setSelectedTheme(theme.id)}
+                      style={[
+                        styles.themeCard,
+                        {
+                          borderColor: selectedTheme === theme.id ? colors.accent : colors.border,
+                          backgroundColor: colors.bg,
+                        },
+                      ]}
+                    >
+                      <View style={[styles.themePreviewCard, { backgroundColor: theme.preview.bg }]}>
+                        <View style={[styles.themePreviewSidebar, { backgroundColor: theme.preview.sidebar }]}>
+                          <View style={[styles.themePreviewDot, { backgroundColor: theme.preview.bubbleSelf }]} />
+                          <View style={[styles.themePreviewMiniDot, { backgroundColor: theme.preview.bubble }]} />
+                        </View>
+                        <View style={styles.themePreviewMain}>
+                          <View style={[styles.themePreviewBubble, { backgroundColor: theme.preview.bubble, width: '64%' }]} />
+                          <View style={[styles.themePreviewBubble, styles.themePreviewBubbleSelf, { backgroundColor: theme.preview.bubbleSelf, width: '44%' }]} />
+                          <View style={[styles.themePreviewBubble, { backgroundColor: theme.preview.bubble, width: '54%' }]} />
+                        </View>
+                      </View>
+                      <View style={styles.themeCardFooter}>
+                        <Text style={[styles.themeLabel, { color: colors.textSecondary }]}>{theme.label}</Text>
+                        {selectedTheme === theme.id ? <Check size={14} color={colors.accent} /> : null}
+                      </View>
+                    </Pressable>
+                  ))}
+                </View>
+              </View>
+
+              <View style={styles.themeSection}>
+                <Text style={[styles.themeGroupTitle, { color: colors.textMuted }]}>{t('settings.themeGroupDark')}</Text>
+                <View style={styles.themeGrid}>
+                  {darkThemeOptions.map((theme) => (
+                    <Pressable
+                      key={theme.id}
+                      onPress={() => setSelectedTheme(theme.id)}
+                      style={[
+                        styles.themeCard,
+                        {
+                          borderColor: selectedTheme === theme.id ? colors.accent : colors.border,
+                          backgroundColor: colors.bg,
+                        },
+                      ]}
+                    >
+                      <View style={[styles.themePreviewCard, { backgroundColor: theme.preview.bg }]}>
+                        <View style={[styles.themePreviewSidebar, { backgroundColor: theme.preview.sidebar }]}>
+                          <View style={[styles.themePreviewDot, { backgroundColor: theme.preview.bubbleSelf }]} />
+                          <View style={[styles.themePreviewMiniDot, { backgroundColor: theme.preview.bubble }]} />
+                        </View>
+                        <View style={styles.themePreviewMain}>
+                          <View style={[styles.themePreviewBubble, { backgroundColor: theme.preview.bubble, width: '64%' }]} />
+                          <View style={[styles.themePreviewBubble, styles.themePreviewBubbleSelf, { backgroundColor: theme.preview.bubbleSelf, width: '44%' }]} />
+                          <View style={[styles.themePreviewBubble, { backgroundColor: theme.preview.bubble, width: '54%' }]} />
+                        </View>
+                      </View>
+                      <View style={styles.themeCardFooter}>
+                        <Text style={[styles.themeLabel, { color: colors.textSecondary }]}>{theme.label}</Text>
+                        {selectedTheme === theme.id ? <Check size={14} color={colors.accent} /> : null}
+                      </View>
+                    </Pressable>
+                  ))}
+                </View>
               </View>
             </View>
           )}
@@ -387,15 +496,22 @@ export function SettingsScreen({ onBack }: Props) {
                 <Pressable
                   key={lang.id}
                   onPress={() => handleLanguageChange(lang.id)}
-                  style={[styles.langItem, selectedLocale === lang.id && styles.langItemActive]}
+                  style={[
+                    styles.langItem,
+                    {
+                      borderColor: selectedLocale === lang.id ? colors.accent : colors.border,
+                      backgroundColor: selectedLocale === lang.id ? colors.accentDim : colors.bg,
+                    },
+                  ]}
                 >
                   <Text style={[
                     styles.langText,
+                    { color: selectedLocale === lang.id ? colors.accent : colors.text },
                     selectedLocale === lang.id && styles.langTextActive,
                   ]}>
                     {lang.label}
                   </Text>
-                  {selectedLocale === lang.id && <Check size={16} color="#6366f1" />}
+                  {selectedLocale === lang.id && <Check size={16} color={colors.accent} />}
                 </Pressable>
               ))}
             </View>
@@ -406,9 +522,9 @@ export function SettingsScreen({ onBack }: Props) {
           {/* About */}
           {section === 'about' && (
             <View style={styles.sectionContent}>
-              <Text style={styles.sectionDesc}>{t('settings.aboutDesc')}</Text>
+              <Text style={[styles.sectionDesc, { color: colors.textMuted }]}>{t('settings.aboutDesc')}</Text>
 
-              <View style={styles.aboutCard}>
+              <View style={[styles.aboutCard, { borderColor: colors.border, backgroundColor: colors.bg }]}>
                 {[
                   { label: t('settings.appName'), value: 'Agent-Native IM' },
                   { label: t('settings.version'), value: buildInfo.version, mono: true },
@@ -420,10 +536,11 @@ export function SettingsScreen({ onBack }: Props) {
                     style={[
                       styles.aboutRow,
                       index > 0 && styles.aboutRowBorder,
+                      index > 0 && { borderTopColor: colors.border },
                     ]}
                   >
-                    <Text style={styles.aboutLabel}>{label}</Text>
-                    <Text style={[styles.aboutValue, mono && styles.aboutValueMono]}>{value}</Text>
+                    <Text style={[styles.aboutLabel, { color: colors.textMuted }]}>{label}</Text>
+                    <Text style={[styles.aboutValue, { color: colors.text }, mono && styles.aboutValueMono]}>{value}</Text>
                   </View>
                 ))}
               </View>
@@ -439,9 +556,9 @@ export function SettingsScreen({ onBack }: Props) {
                   setAboutCopied(true)
                   setTimeout(() => setAboutCopied(false), 2000)
                 }}
-                style={styles.copyBtn}
+                style={[styles.copyBtn, { backgroundColor: aboutCopied ? colors.success : colors.accent }]}
               >
-                {aboutCopied ? <Check size={14} color="#dcfce7" /> : <Copy size={14} color="#ffffff" />}
+                {aboutCopied ? <Check size={14} color="#ecfdf5" /> : <Copy size={14} color="#ffffff" />}
                 <Text style={[styles.copyBtnText, aboutCopied && styles.copyBtnTextSuccess]}>
                   {aboutCopied ? t('common.copied') : t('settings.copyVersionInfo')}
                 </Text>
@@ -518,9 +635,9 @@ export function SettingsScreen({ onBack }: Props) {
         </View>
 
         {/* Sign out */}
-        <Pressable onPress={handleSignOut} style={styles.signOutBtn}>
-          <LogOut size={18} color="#dc2626" />
-          <Text style={styles.signOutText}>{t('sidebar.signOut')}</Text>
+        <Pressable onPress={handleSignOut} style={[styles.signOutBtn, { backgroundColor: `${colors.error}18` }]}>
+          <LogOut size={18} color={colors.error} />
+          <Text style={[styles.signOutText, { color: colors.error }]}>{t('sidebar.signOut')}</Text>
         </Pressable>
       </ScrollView>
     </View>
@@ -731,7 +848,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 12,
     borderRadius: 8,
-    backgroundColor: '#f8fafc',
+    borderWidth: 1,
   },
   deviceInfo: {
     flex: 1,
@@ -762,25 +879,86 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 12,
   },
-  themeItem: {
-    alignItems: 'center',
-    gap: 6,
-    width: 72,
+  themeSection: {
+    gap: 12,
   },
-  themeItemActive: {},
-  themePreview: {
-    width: 56,
-    height: 56,
-    borderRadius: 12,
+  themeGroupTitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+  },
+  systemThemeCard: {
+    borderWidth: 1,
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  systemThemeTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  systemThemeDesc: {
+    fontSize: 12,
+    marginTop: 3,
+    lineHeight: 18,
+  },
+  themeCard: {
+    width: 104,
+    gap: 8,
+    padding: 8,
+    borderRadius: 16,
+    borderWidth: 1.5,
+  },
+  themePreviewCard: {
+    width: '100%',
+    height: 86,
+    borderRadius: 12,
+    overflow: 'hidden',
+    flexDirection: 'row',
+  },
+  themePreviewSidebar: {
+    width: 16,
+    alignItems: 'center',
+    paddingTop: 10,
+    gap: 5,
+  },
+  themePreviewDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 2,
+  },
+  themePreviewMiniDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 999,
+  },
+  themePreviewMain: {
+    flex: 1,
     justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: 'transparent',
+    gap: 7,
+    paddingHorizontal: 8,
+  },
+  themePreviewBubble: {
+    height: 8,
+    borderRadius: 999,
+  },
+  themePreviewBubbleSelf: {
+    alignSelf: 'flex-end',
+  },
+  themeCardFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 6,
   },
   themeLabel: {
-    fontSize: 10,
-    color: '#64748b',
-    textAlign: 'center',
+    fontSize: 11,
+    fontWeight: '600',
+    flex: 1,
   },
   langItem: {
     flexDirection: 'row',
