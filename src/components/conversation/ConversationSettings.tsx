@@ -9,7 +9,7 @@ import Constants from 'expo-constants'
 import {
   X, UserMinus, UserPlus, Bell, BellOff, Crown, Shield, Eye,
   Pencil, Check, LogOut, Archive, VolumeX, Volume2, ArrowLeft, Search,
-  Terminal, Link2, Plus, Trash2, Loader2,
+  Terminal, Link2, Plus, Trash2, Loader2, Copy, ChevronRight,
 } from 'lucide-react-native'
 import { useAuthStore } from '../../store/auth'
 import * as api from '../../lib/api'
@@ -46,6 +46,8 @@ function buildInviteUrl(code: string): string {
   return `${rawBase.replace(/\/+$/, '')}/join/${code}`
 }
 
+type SettingsSection = 'main' | 'prompt' | 'memories' | 'invites'
+
 export function ConversationSettings({ conversation, onClose, onLeave, onUpdated, isArchived }: Props) {
   const { t } = useTranslation()
   const token = useAuthStore((s) => s.token)!
@@ -79,6 +81,7 @@ export function ConversationSettings({ conversation, onClose, onLeave, onUpdated
   const [loadingInvites, setLoadingInvites] = useState(false)
   const [creatingInvite, setCreatingInvite] = useState(false)
   const [copiedInviteId, setCopiedInviteId] = useState<number | null>(null)
+  const [currentSection, setCurrentSection] = useState<SettingsSection>('main')
 
   const participants = conversation?.participants || []
   const myParticipant = participants.find((p) => p.entity_id === myEntity?.id)
@@ -86,6 +89,13 @@ export function ConversationSettings({ conversation, onClose, onLeave, onUpdated
   const isGroup = conversation?.conv_type === 'group' || conversation?.conv_type === 'channel'
   const displayConversationId = conversation?.public_id || String(conversation?.id || 0)
   const contextMessages = conversation.last_message ? 1 : 0
+  const promptPreview = prompt || t('agentConfig.noPrompt')
+  const memorySummary = memories.length === 0
+    ? t('memory.noPrompt')
+    : t('memory.memories', { count: memories.length })
+  const inviteSummary = inviteLinks.length === 0
+    ? t('invite.noLinks')
+    : t('invite.uses', { count: inviteLinks.reduce((sum, link) => sum + link.use_count, 0), max: inviteLinks.length })
 
   React.useEffect(() => {
     setSubscriptionMode(myParticipant?.subscription_mode)
@@ -318,21 +328,37 @@ export function ConversationSettings({ conversation, onClose, onLeave, onUpdated
     return null
   }
 
+  const headerTitle =
+    currentSection === 'prompt' ? t('agentConfig.prompt') :
+    currentSection === 'memories' ? t('memory.memories') :
+    currentSection === 'invites' ? t('invite.title') :
+    t('settings.title')
+
+  const handleBack = () => {
+    if (currentSection === 'main') {
+      onClose()
+      return
+    }
+    setCurrentSection('main')
+  }
+
   return (
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Pressable onPress={onClose} style={styles.backBtn}>
+        <Pressable onPress={handleBack} style={styles.backBtn}>
           <ArrowLeft size={16} color="#64748b" />
         </Pressable>
         <Text style={styles.headerTitle}>
-          {t('settings.title')}
-          {isArchived && <Text style={styles.archivedLabel}> ({t('common.archived')})</Text>}
+          {headerTitle}
+          {currentSection === 'main' && isArchived && <Text style={styles.archivedLabel}> ({t('common.archived')})</Text>}
         </Text>
         <View style={{ width: 32 }} />
       </View>
 
       <ScrollView style={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        {currentSection === 'main' && (
+          <>
         {/* Title */}
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>{t('settings.name')}</Text>
@@ -377,7 +403,7 @@ export function ConversationSettings({ conversation, onClose, onLeave, onUpdated
               }}
               style={styles.iconBtn}
             >
-              {idCopied ? <Check size={12} color="#16a34a" /> : <Pencil size={12} color="#94a3b8" />}
+              {idCopied ? <Check size={12} color="#16a34a" /> : <Copy size={12} color="#94a3b8" />}
             </Pressable>
             {idCopied && <Text style={styles.copiedText}>{t('settings.idCopied')}</Text>}
           </View>
@@ -471,165 +497,46 @@ export function ConversationSettings({ conversation, onClose, onLeave, onUpdated
           </View>
         )}
 
-        {/* Conversation instructions */}
         <View style={styles.section}>
-          <View style={styles.inlineSectionHeader}>
-            <View style={styles.sectionTitleRow}>
-              <Terminal size={12} color="#94a3b8" />
-              <Text style={styles.sectionLabelInline}>{t('agentConfig.prompt')}</Text>
-            </View>
-            {canManage && !isArchived && !loadingPrompt && (
-              <Pressable onPress={() => { setPromptValue(prompt); setEditingPrompt((prev) => !prev) }} style={styles.iconBtn}>
-                <Pencil size={12} color="#94a3b8" />
-              </Pressable>
-            )}
-          </View>
-          {loadingPrompt ? (
-            <ActivityIndicator size="small" color="#94a3b8" style={styles.inlineLoader} />
-          ) : editingPrompt ? (
-            <View style={styles.editColumn}>
-              <TextInput
-                value={promptValue}
-                onChangeText={setPromptValue}
-                style={[styles.input, styles.textarea]}
-                multiline
-                numberOfLines={3}
-                autoFocus
-              />
-              <View style={styles.editActions}>
-                <Pressable onPress={handleSavePrompt} disabled={saving} style={styles.smallBtn}>
-                  <Text style={styles.smallBtnText}>{t('common.save')}</Text>
-                </Pressable>
-                <Pressable onPress={() => { setPromptValue(prompt); setEditingPrompt(false) }}>
-                  <Text style={styles.cancelText}>{t('common.cancel')}</Text>
-                </Pressable>
+          <Pressable style={styles.linkRow} onPress={() => setCurrentSection('prompt')}>
+            <View style={styles.linkRowContent}>
+              <Terminal size={14} color="#94a3b8" />
+              <View style={styles.linkRowText}>
+                <Text style={styles.linkRowTitle}>{t('agentConfig.prompt')}</Text>
+                <Text style={styles.linkRowSubtitle} numberOfLines={2}>{promptPreview}</Text>
               </View>
             </View>
-          ) : (
-            <Text style={styles.bodyText}>{prompt || t('agentConfig.noPrompt')}</Text>
-          )}
+            <ChevronRight size={16} color="#94a3b8" />
+          </Pressable>
         </View>
 
-        {/* Memories */}
         <View style={styles.section}>
-          <View style={styles.memoryStats}>
-            <Text style={styles.memoryStatsText}>
-              {t('context.messages')}: {contextMessages} | {t('memory.memories')}: {memories.length}
-            </Text>
-          </View>
-          <View style={styles.inlineSectionHeader}>
-            <Text style={styles.sectionLabelInline}>{t('memory.memories')} ({memories.length})</Text>
-            {canManage && !isArchived && (
-              <Pressable onPress={() => setShowMemoryForm((prev) => !prev)} style={styles.iconBtn}>
-                <Plus size={12} color="#6366f1" />
-              </Pressable>
-            )}
-          </View>
-          {loadingMemories ? (
-            <ActivityIndicator size="small" color="#94a3b8" style={styles.inlineLoader} />
-          ) : (
-            <>
-              {showMemoryForm && canManage && !isArchived && (
-                <View style={styles.memoryForm}>
-                  <TextInput
-                    value={memoryKey}
-                    onChangeText={setMemoryKey}
-                    placeholder={t('memory.keyPlaceholder')}
-                    placeholderTextColor="#94a3b8"
-                    style={styles.input}
-                  />
-                  <TextInput
-                    value={memoryContent}
-                    onChangeText={setMemoryContent}
-                    placeholder={t('memory.contentPlaceholder')}
-                    placeholderTextColor="#94a3b8"
-                    style={[styles.input, styles.textarea]}
-                    multiline
-                    numberOfLines={2}
-                  />
-                  <View style={styles.editActions}>
-                    <Pressable onPress={handleSaveMemory} disabled={memorySaving} style={styles.smallBtn}>
-                      {memorySaving
-                        ? <Loader2 size={12} color="#ffffff" />
-                        : <Text style={styles.smallBtnText}>{t('common.save')}</Text>}
-                    </Pressable>
-                    <Pressable onPress={() => setShowMemoryForm(false)}>
-                      <Text style={styles.cancelText}>{t('common.cancel')}</Text>
-                    </Pressable>
-                  </View>
-                </View>
-              )}
-              <View style={styles.memoryList}>
-                {memories.length === 0 ? (
-                  <Text style={styles.emptyText}>{t('memory.noPrompt')}</Text>
-                ) : (
-                  memories.map((memory) => (
-                    <View key={memory.id} style={styles.memoryItem}>
-                      <View style={styles.memoryContent}>
-                        <Text style={styles.memoryKey}>{memory.key}</Text>
-                        <Text style={styles.memoryValue}>{memory.content}</Text>
-                      </View>
-                      {canManage && !isArchived && (
-                        <Pressable onPress={() => handleDeleteMemory(memory.id)} style={styles.iconBtn}>
-                          <Trash2 size={12} color="#94a3b8" />
-                        </Pressable>
-                      )}
-                    </View>
-                  ))
-                )}
+          <Pressable style={styles.linkRow} onPress={() => setCurrentSection('memories')}>
+            <View style={styles.linkRowContent}>
+              <Terminal size={14} color="#94a3b8" />
+              <View style={styles.linkRowText}>
+                <Text style={styles.linkRowTitle}>{t('memory.memories')}</Text>
+                <Text style={styles.linkRowSubtitle}>
+                  {t('context.messages')}: {contextMessages} · {memorySummary}
+                </Text>
               </View>
-              {canManage && !isArchived && memories.length > 0 && (
-                <Pressable onPress={handleClearMemories} disabled={memoryClearing} style={styles.clearButton}>
-                  {memoryClearing
-                    ? <ActivityIndicator size="small" color="#dc2626" />
-                    : <Text style={styles.clearButtonText}>{t('context.clearMemory')}</Text>}
-                </Pressable>
-              )}
-            </>
-          )}
+            </View>
+            <ChevronRight size={16} color="#94a3b8" />
+          </Pressable>
         </View>
 
-        {/* Invite links */}
         {canManage && isGroup && !isArchived && (
           <View style={styles.section}>
-            <View style={styles.inlineSectionHeader}>
-              <View style={styles.sectionTitleRow}>
-                <Link2 size={12} color="#94a3b8" />
-                <Text style={styles.sectionLabelInline}>{t('invite.title')}</Text>
+            <Pressable style={styles.linkRow} onPress={() => setCurrentSection('invites')}>
+              <View style={styles.linkRowContent}>
+                <Link2 size={14} color="#94a3b8" />
+                <View style={styles.linkRowText}>
+                  <Text style={styles.linkRowTitle}>{t('invite.title')}</Text>
+                  <Text style={styles.linkRowSubtitle}>{inviteSummary}</Text>
+                </View>
               </View>
-              <Pressable onPress={handleCreateInvite} disabled={creatingInvite} style={styles.iconBtn}>
-                {creatingInvite
-                  ? <Loader2 size={12} color="#6366f1" />
-                  : <Plus size={12} color="#6366f1" />}
-              </Pressable>
-            </View>
-            {loadingInvites ? (
-              <ActivityIndicator size="small" color="#94a3b8" style={styles.inlineLoader} />
-            ) : inviteLinks.length === 0 ? (
-              <Text style={styles.emptyText}>{t('invite.noLinks')}</Text>
-            ) : (
-              <View style={styles.inviteList}>
-                {inviteLinks.map((link) => (
-                  <View key={link.id} style={styles.inviteItem}>
-                    <View style={styles.inviteContent}>
-                      <Text style={styles.inviteCode} numberOfLines={1}>{link.code}</Text>
-                      <Text style={styles.inviteMeta}>
-                        {t('invite.uses', { count: link.use_count, max: link.max_uses || '∞' })}
-                        {link.expires_at ? ` · ${t('invite.expires', { date: new Date(link.expires_at).toLocaleDateString() })}` : ''}
-                      </Text>
-                    </View>
-                    <Pressable onPress={() => handleCopyInvite(link)} style={styles.iconBtn}>
-                      {copiedInviteId === link.id
-                        ? <Check size={12} color="#16a34a" />
-                        : <Pencil size={12} color="#94a3b8" />}
-                    </Pressable>
-                    <Pressable onPress={() => handleDeleteInvite(link.id)} style={styles.iconBtn}>
-                      <Trash2 size={12} color="#94a3b8" />
-                    </Pressable>
-                  </View>
-                ))}
-              </View>
-            )}
+              <ChevronRight size={16} color="#94a3b8" />
+            </Pressable>
           </View>
         )}
 
@@ -738,6 +645,171 @@ export function ConversationSettings({ conversation, onClose, onLeave, onUpdated
             </Pressable>
           )}
         </View>
+          </>
+        )}
+
+        {currentSection === 'prompt' && (
+          <View style={styles.section}>
+            <View style={styles.inlineSectionHeader}>
+              <View style={styles.sectionTitleRow}>
+                <Terminal size={12} color="#94a3b8" />
+                <Text style={styles.sectionLabelInline}>{t('agentConfig.prompt')}</Text>
+              </View>
+              {canManage && !isArchived && !loadingPrompt && (
+                <Pressable onPress={() => { setPromptValue(prompt); setEditingPrompt((prev) => !prev) }} style={styles.iconBtn}>
+                  <Pencil size={12} color="#94a3b8" />
+                </Pressable>
+              )}
+            </View>
+            {loadingPrompt ? (
+              <ActivityIndicator size="small" color="#94a3b8" style={styles.inlineLoader} />
+            ) : editingPrompt ? (
+              <View style={styles.editColumn}>
+                <TextInput
+                  value={promptValue}
+                  onChangeText={setPromptValue}
+                  style={[styles.input, styles.textarea]}
+                  multiline
+                  numberOfLines={3}
+                  autoFocus
+                />
+                <View style={styles.editActions}>
+                  <Pressable onPress={handleSavePrompt} disabled={saving} style={styles.smallBtn}>
+                    <Text style={styles.smallBtnText}>{t('common.save')}</Text>
+                  </Pressable>
+                  <Pressable onPress={() => { setPromptValue(prompt); setEditingPrompt(false) }}>
+                    <Text style={styles.cancelText}>{t('common.cancel')}</Text>
+                  </Pressable>
+                </View>
+              </View>
+            ) : (
+              <Text style={styles.bodyText}>{promptPreview}</Text>
+            )}
+          </View>
+        )}
+
+        {currentSection === 'memories' && (
+          <View style={styles.section}>
+            <View style={styles.memoryStats}>
+              <Text style={styles.memoryStatsText}>
+                {t('context.messages')}: {contextMessages} | {t('memory.memories')}: {memories.length}
+              </Text>
+            </View>
+            <View style={styles.inlineSectionHeader}>
+              <Text style={styles.sectionLabelInline}>{t('memory.memories')} ({memories.length})</Text>
+              {canManage && !isArchived && (
+                <Pressable onPress={() => setShowMemoryForm((prev) => !prev)} style={styles.iconBtn}>
+                  <Plus size={12} color="#6366f1" />
+                </Pressable>
+              )}
+            </View>
+            {loadingMemories ? (
+              <ActivityIndicator size="small" color="#94a3b8" style={styles.inlineLoader} />
+            ) : (
+              <>
+                {showMemoryForm && canManage && !isArchived && (
+                  <View style={styles.memoryForm}>
+                    <TextInput
+                      value={memoryKey}
+                      onChangeText={setMemoryKey}
+                      placeholder={t('memory.keyPlaceholder')}
+                      placeholderTextColor="#94a3b8"
+                      style={styles.input}
+                    />
+                    <TextInput
+                      value={memoryContent}
+                      onChangeText={setMemoryContent}
+                      placeholder={t('memory.contentPlaceholder')}
+                      placeholderTextColor="#94a3b8"
+                      style={[styles.input, styles.textarea]}
+                      multiline
+                      numberOfLines={2}
+                    />
+                    <View style={styles.editActions}>
+                      <Pressable onPress={handleSaveMemory} disabled={memorySaving} style={styles.smallBtn}>
+                        {memorySaving
+                          ? <Loader2 size={12} color="#ffffff" />
+                          : <Text style={styles.smallBtnText}>{t('common.save')}</Text>}
+                      </Pressable>
+                      <Pressable onPress={() => setShowMemoryForm(false)}>
+                        <Text style={styles.cancelText}>{t('common.cancel')}</Text>
+                      </Pressable>
+                    </View>
+                  </View>
+                )}
+                <View style={styles.memoryList}>
+                  {memories.length === 0 ? (
+                    <Text style={styles.emptyText}>{t('memory.noPrompt')}</Text>
+                  ) : (
+                    memories.map((memory) => (
+                      <View key={memory.id} style={styles.memoryItem}>
+                        <View style={styles.memoryContent}>
+                          <Text style={styles.memoryKey}>{memory.key}</Text>
+                          <Text style={styles.memoryValue}>{memory.content}</Text>
+                        </View>
+                        {canManage && !isArchived && (
+                          <Pressable onPress={() => handleDeleteMemory(memory.id)} style={styles.iconBtn}>
+                            <Trash2 size={12} color="#94a3b8" />
+                          </Pressable>
+                        )}
+                      </View>
+                    ))
+                  )}
+                </View>
+                {canManage && !isArchived && memories.length > 0 && (
+                  <Pressable onPress={handleClearMemories} disabled={memoryClearing} style={styles.clearButton}>
+                    {memoryClearing
+                      ? <ActivityIndicator size="small" color="#dc2626" />
+                      : <Text style={styles.clearButtonText}>{t('context.clearMemory')}</Text>}
+                  </Pressable>
+                )}
+              </>
+            )}
+          </View>
+        )}
+
+        {currentSection === 'invites' && canManage && isGroup && !isArchived && (
+          <View style={styles.section}>
+            <View style={styles.inlineSectionHeader}>
+              <View style={styles.sectionTitleRow}>
+                <Link2 size={12} color="#94a3b8" />
+                <Text style={styles.sectionLabelInline}>{t('invite.title')}</Text>
+              </View>
+              <Pressable onPress={handleCreateInvite} disabled={creatingInvite} style={styles.iconBtn}>
+                {creatingInvite
+                  ? <Loader2 size={12} color="#6366f1" />
+                  : <Plus size={12} color="#6366f1" />}
+              </Pressable>
+            </View>
+            {loadingInvites ? (
+              <ActivityIndicator size="small" color="#94a3b8" style={styles.inlineLoader} />
+            ) : inviteLinks.length === 0 ? (
+              <Text style={styles.emptyText}>{t('invite.noLinks')}</Text>
+            ) : (
+              <View style={styles.inviteList}>
+                {inviteLinks.map((link) => (
+                  <View key={link.id} style={styles.inviteItem}>
+                    <View style={styles.inviteContent}>
+                      <Text style={styles.inviteCode} numberOfLines={1}>{link.code}</Text>
+                      <Text style={styles.inviteMeta}>
+                        {t('invite.uses', { count: link.use_count, max: link.max_uses || '∞' })}
+                        {link.expires_at ? ` · ${t('invite.expires', { date: new Date(link.expires_at).toLocaleDateString() })}` : ''}
+                      </Text>
+                    </View>
+                    <Pressable onPress={() => handleCopyInvite(link)} style={styles.iconBtn}>
+                      {copiedInviteId === link.id
+                        ? <Check size={12} color="#16a34a" />
+                        : <Copy size={12} color="#94a3b8" />}
+                    </Pressable>
+                    <Pressable onPress={() => handleDeleteInvite(link.id)} style={styles.iconBtn}>
+                      <Trash2 size={12} color="#94a3b8" />
+                    </Pressable>
+                  </View>
+                ))}
+              </View>
+            )}
+          </View>
+        )}
       </ScrollView>
     </View>
   )
@@ -932,6 +1004,32 @@ const styles = StyleSheet.create({
     color: '#94a3b8',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
+  },
+  linkRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  linkRowContent: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+  },
+  linkRowText: {
+    flex: 1,
+    gap: 2,
+  },
+  linkRowTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#1e293b',
+  },
+  linkRowSubtitle: {
+    fontSize: 11,
+    color: '#64748b',
+    lineHeight: 18,
   },
   bodyText: {
     fontSize: 12,
