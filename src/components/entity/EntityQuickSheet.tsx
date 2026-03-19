@@ -26,6 +26,20 @@ function isBotOrService(entity?: Entity | null): boolean {
   return entity?.entity_type === 'bot' || entity?.entity_type === 'service'
 }
 
+function formatRelativeLastSeen(lastSeen: string, locale?: string): string {
+  const date = new Date(lastSeen)
+  if (Number.isNaN(date.getTime())) return lastSeen
+
+  const diffMs = date.getTime() - Date.now()
+  const absMs = Math.abs(diffMs)
+  const rtf = new Intl.RelativeTimeFormat(locale, { numeric: 'auto' })
+
+  if (absMs < 60_000) return rtf.format(Math.round(diffMs / 1_000), 'second')
+  if (absMs < 3_600_000) return rtf.format(Math.round(diffMs / 60_000), 'minute')
+  if (absMs < 86_400_000) return rtf.format(Math.round(diffMs / 3_600_000), 'hour')
+  return rtf.format(Math.round(diffMs / 86_400_000), 'day')
+}
+
 export function EntityQuickSheet({
   entity,
   isOnline,
@@ -34,9 +48,10 @@ export function EntityQuickSheet({
   onStartChat,
   onViewDetails,
 }: Props) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const colors = useThemeColors()
   const token = useAuthStore((s) => s.token)
+  const myEntity = useAuthStore((s) => s.entity)
   const isBot = isBotOrService(entity)
   const [resolvedOnline, setResolvedOnline] = useState(isOnline)
   const [lastSeen, setLastSeen] = useState<string | null>(null)
@@ -58,22 +73,28 @@ export function EntityQuickSheet({
     : entity.status === 'pending'
       ? t('entityPopover.pending')
       : t('entityPopover.active')
+  const ownerLabel = useMemo(() => {
+    if (!isBot) return null
+    if (entity.owner_id && entity.owner_id === myEntity?.id) {
+      return entityDisplayName(myEntity)
+    }
+    const metadataOwnerName = entity.metadata?.owner_name
+    if (typeof metadataOwnerName === 'string' && metadataOwnerName.trim().length > 0) {
+      return metadataOwnerName.trim()
+    }
+    return entity.owner_id ? `#${entity.owner_id}` : '--'
+  }, [entity.metadata, entity.owner_id, isBot, myEntity])
+  const lastSeenLabel = useMemo(() => {
+    if (!lastSeen) return null
+    const relative = formatRelativeLastSeen(lastSeen, i18n.language)
+    const absolute = new Date(lastSeen).toLocaleString(i18n.language)
+    return `${relative} · ${absolute}`
+  }, [i18n.language, lastSeen])
 
   useEffect(() => {
     setResolvedOnline(isOnline)
+    setLastSeen(null)
   }, [isOnline, entity.id])
-
-  useEffect(() => {
-    if (!token || !entity.id) return
-    let cancelled = false
-    api.batchPresence(token, [entity.id]).then((res) => {
-      if (cancelled) return
-      if (res.ok && res.data?.presence) {
-        setResolvedOnline(!!res.data.presence[String(entity.id)])
-      }
-    }).catch(() => {})
-    return () => { cancelled = true }
-  }, [token, entity.id])
 
   useEffect(() => {
     if (!token || !entity.id) return
@@ -131,12 +152,12 @@ export function EntityQuickSheet({
 
         <View style={[styles.section, { backgroundColor: colors.bg, borderColor: colors.border }]}>
           <InfoRow label={t('entityPopover.type')} value={typeLabel} colors={colors} />
-          <InfoRow label={t('bot.owner')} value={entity.owner_id ? `#${entity.owner_id}` : '--'} colors={colors} />
+          {ownerLabel ? <InfoRow label={t('bot.owner')} value={ownerLabel} colors={colors} /> : null}
           <InfoRow label="ID" value={`#${entity.id}`} colors={colors} />
-          {!resolvedOnline && lastSeen ? (
+          {!resolvedOnline && lastSeenLabel ? (
             <InfoRow
               label={t('bot.lastSeen')}
-              value={new Date(lastSeen).toLocaleString()}
+              value={lastSeenLabel}
               colors={colors}
               icon={<Clock size={14} color={colors.textMuted} />}
             />
