@@ -122,28 +122,40 @@ export function BotList({ selectedId, onSelect, onCreatePress, refreshTrigger }:
             </Text>
             <View style={[
               styles.statusBadge,
-              isDisabled ? styles.statusWarning : isOnline ? styles.statusOnline : styles.statusOffline,
+              {
+                backgroundColor: isDisabled
+                  ? `${colors.warning}20`
+                  : isOnline
+                    ? `${colors.success}20`
+                    : colors.bgHover,
+              },
             ]}>
               <Text style={[
                 styles.statusText,
-                isDisabled ? styles.statusTextWarning : isOnline ? styles.statusTextOnline : styles.statusTextOffline,
+                {
+                  color: isDisabled
+                    ? colors.warning
+                    : isOnline
+                      ? colors.success
+                      : colors.textSecondary,
+                },
               ]}>
                 {isDisabled ? t('bot.disabled') : isOnline ? t('common.online') : t('common.offline')}
               </Text>
             </View>
           </View>
           {description ? (
-            <Text style={styles.botDescription} numberOfLines={1}>{description}</Text>
+            <Text style={[styles.botDescription, { color: colors.textMuted }]} numberOfLines={1}>{description}</Text>
           ) : null}
           {tags.length > 0 && (
             <View style={styles.tagsRow}>
               {tags.slice(0, 3).map((tag, i) => (
-                <View key={i} style={styles.tag}>
-                  <Text style={styles.tagText}>{tag}</Text>
+                <View key={i} style={[styles.tag, { backgroundColor: colors.accentDim }]}>
+                  <Text style={[styles.tagText, { color: colors.accent }]}>{tag}</Text>
                 </View>
               ))}
               {tags.length > 3 && (
-                <Text style={styles.tagMore}>+{tags.length - 3}</Text>
+                <Text style={[styles.tagMore, { color: colors.textMuted }]}>+{tags.length - 3}</Text>
               )}
             </View>
           )}
@@ -207,12 +219,12 @@ export function BotList({ selectedId, onSelect, onCreatePress, refreshTrigger }:
       {/* Bot list */}
       {loading ? (
         <View style={styles.centered}>
-          <ActivityIndicator size="small" color="#6366f1" />
+          <ActivityIndicator size="small" color={colors.accent} />
         </View>
       ) : allBots.length === 0 ? (
         <View style={styles.centered}>
-          <Bot size={32} color="#94a3b8" />
-          <Text style={styles.emptyText}>
+          <Bot size={32} color={colors.textMuted} />
+          <Text style={[styles.emptyText, { color: colors.textMuted }]}>
             {search ? t('common.noMatches') : (error || t('bot.noAgents'))}
           </Text>
         </View>

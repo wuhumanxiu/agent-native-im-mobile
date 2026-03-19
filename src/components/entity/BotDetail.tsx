@@ -480,7 +480,7 @@ export function BotDetail({
   )
 }
 
-function InfoRow({ icon: Icon, label, children }: {
+function InfoRow({ icon: Icon, label, children, colors }: {
   icon: React.ComponentType<{ size: number; color: string }>
   label: string
   children: React.ReactNode
