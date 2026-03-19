@@ -209,32 +209,32 @@ export function BotDetail({
       <ScrollView style={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {/* Credential banner */}
         {isOwner && showFullCreds && createdCredentials && (
-          <View style={styles.credBanner}>
+          <View style={[styles.credBanner, { backgroundColor: `${colors.warning}12`, borderBottomColor: colors.border }]}>
             <View style={styles.credHeader}>
               <View style={styles.credHeaderLeft}>
-                <Key size={16} color="#d97706" />
-                <Text style={styles.credTitle}>
+                <Key size={16} color={colors.warning} />
+                <Text style={[styles.credTitle, { color: colors.warning }]}>
                   {t('bot.apiKey')} -- {t('bot.saveKeyWarning')}
                 </Text>
               </View>
               <Pressable onPress={onDismissCredentials}>
-                <Text style={styles.dismissText}>{t('common.dismiss')}</Text>
+                <Text style={[styles.dismissText, { color: colors.textMuted }]}>{t('common.dismiss')}</Text>
               </Pressable>
             </View>
             <Pressable
               onPress={() => handleCopy(createdCredentials.key, 'bootstrap')}
               style={styles.credKeyRow}
             >
-              <Text style={styles.credKeyLabel}>Key</Text>
-              <Text style={styles.credKeyValue} numberOfLines={1}>
+              <Text style={[styles.credKeyLabel, { color: colors.warning }]}>Key</Text>
+              <Text style={[styles.credKeyValue, { color: colors.text, backgroundColor: colors.bg }]} numberOfLines={1}>
                 {copied === 'bootstrap'
                   ? createdCredentials.key
                   : `${createdCredentials.key.slice(0, 8)}${'*'.repeat(24)}${createdCredentials.key.slice(-4)}`
                 }
               </Text>
               {copied === 'bootstrap'
-                ? <Check size={12} color="#16a34a" />
-                : <Copy size={12} color="#94a3b8" />
+                ? <Check size={12} color={colors.success} />
+                : <Copy size={12} color={colors.textMuted} />
               }
             </Pressable>
           </View>
@@ -242,19 +242,19 @@ export function BotDetail({
 
         {/* Status overview (owner only) */}
         {isOwner && (selfCheck || diagnostics) && (
-          <View style={styles.section}>
+          <View style={[styles.section, { borderBottomColor: colors.border }]}>
             <View style={styles.sectionHeader}>
               <View style={styles.sectionHeaderLeft}>
-                <Activity size={16} color="#6366f1" />
-                <Text style={styles.sectionTitle}>{t('bot.statusSection')}</Text>
+                <Activity size={16} color={colors.accent} />
+                <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('bot.statusSection')}</Text>
               </View>
               <View style={[
                 styles.readyBadge,
-                selfCheck?.ready ? styles.readyGreen : styles.readyWarning,
+                { backgroundColor: selfCheck?.ready ? `${colors.success}16` : `${colors.warning}16` },
               ]}>
                 <Text style={[
                   styles.readyText,
-                  selfCheck?.ready ? { color: '#16a34a' } : { color: '#d97706' },
+                  { color: selfCheck?.ready ? colors.success : colors.warning },
                 ]}>
                   {selfCheck?.ready ? t('bot.statusReady') : t('bot.statusActionNeeded')}
                 </Text>
@@ -263,37 +263,37 @@ export function BotDetail({
 
             <View style={styles.metricsRow}>
               <View style={styles.metric}>
-                <Text style={styles.metricLabel}>{t('bot.apiKey')}</Text>
-                <Text style={styles.metricValue}>
+                <Text style={[styles.metricLabel, { color: colors.textMuted }]}>{t('bot.apiKey')}</Text>
+                <Text style={[styles.metricValue, { color: colors.text }]}>
                   {selfCheck?.has_api_key ? t('bot.apiKeyConfigured') : t('bot.apiKeyMissing')}
                 </Text>
               </View>
               <View style={styles.metric}>
-                <Text style={styles.metricLabel}>{t('bot.connections')}</Text>
-                <Text style={styles.metricValue}>{diagnostics?.connections ?? 0}</Text>
+                <Text style={[styles.metricLabel, { color: colors.textMuted }]}>{t('bot.connections')}</Text>
+                <Text style={[styles.metricValue, { color: colors.text }]}>{diagnostics?.connections ?? 0}</Text>
               </View>
               <View style={styles.metric}>
-                <Text style={styles.metricLabel}>{t('bot.hubWs')}</Text>
-                <Text style={styles.metricValue}>{diagnostics?.hub?.total_ws_connections ?? 0}</Text>
+                <Text style={[styles.metricLabel, { color: colors.textMuted }]}>{t('bot.hubWs')}</Text>
+                <Text style={[styles.metricValue, { color: colors.text }]}>{diagnostics?.hub?.total_ws_connections ?? 0}</Text>
               </View>
             </View>
 
             {(selfCheck?.recommendation || []).length > 0 && (
-              <View style={styles.recBox}>
+              <View style={[styles.recBox, { backgroundColor: `${colors.warning}14` }]}>
                 {(selfCheck?.recommendation || []).map((item, i) => (
-                  <Text key={i} style={styles.recText}>- {item}</Text>
+                  <Text key={i} style={[styles.recText, { color: colors.textSecondary }]}>- {item}</Text>
                 ))}
               </View>
             )}
 
             {opError && (
-              <View style={styles.errorBox}>
-                <Text style={styles.errorBoxText}>{opError}</Text>
+              <View style={[styles.errorBox, { backgroundColor: `${colors.error}14` }]}>
+                <Text style={[styles.errorBoxText, { color: colors.error }]}>{opError}</Text>
               </View>
             )}
             {opInfo && (
-              <View style={styles.successBox}>
-                <Text style={styles.successBoxText}>{opInfo}</Text>
+              <View style={[styles.successBox, { backgroundColor: `${colors.success}14` }]}>
+                <Text style={[styles.successBoxText, { color: colors.success }]}>{opInfo}</Text>
               </View>
             )}
 
@@ -301,46 +301,46 @@ export function BotDetail({
               <Pressable
                 onPress={handleRegenerateToken}
                 disabled={rotatingToken || isDisabled}
-                style={[styles.actionBtn, (rotatingToken || isDisabled) && styles.actionBtnDisabled]}
+                style={[styles.actionBtn, { backgroundColor: colors.accentDim }, (rotatingToken || isDisabled) && styles.actionBtnDisabled]}
               >
-                {rotatingToken ? <RefreshCw size={12} color="#6366f1" /> : <Key size={12} color="#6366f1" />}
-                <Text style={styles.actionBtnAccent}>{t('bot.regenerateToken')}</Text>
+                {rotatingToken ? <RefreshCw size={12} color={colors.accent} /> : <Key size={12} color={colors.accent} />}
+                <Text style={[styles.actionBtnAccent, { color: colors.accent }]}>{t('bot.regenerateToken')}</Text>
               </Pressable>
             </View>
           </View>
         )}
 
         {/* Bot info */}
-        <View style={styles.section}>
+        <View style={[styles.section, { borderBottomColor: colors.border }]}>
           {description ? (
-            <Text style={styles.descriptionText}>{description}</Text>
+            <Text style={[styles.descriptionText, { color: colors.textSecondary }]}>{description}</Text>
           ) : null}
 
           <View style={styles.infoRows}>
-            <InfoRow icon={User} label={t('bot.owner')}>
+            <InfoRow icon={User} label={t('bot.owner')} colors={colors}>
               {ownerEntity ? (
                 <View style={styles.ownerRow}>
                   <EntityAvatar entity={ownerEntity} size="xs" />
-                  <Text style={styles.infoValue}>{entityDisplayName(ownerEntity)}</Text>
+                  <Text style={[styles.infoValue, { color: colors.text }]}>{entityDisplayName(ownerEntity)}</Text>
                 </View>
               ) : (
-                <Text style={styles.infoValueMuted}>#{bot.owner_id || '--'}</Text>
+                <Text style={[styles.infoValueMuted, { color: colors.textMuted }]}>#{bot.owner_id || '--'}</Text>
               )}
             </InfoRow>
-            <InfoRow icon={Tag} label={t('bot.type')}>
-              <Text style={styles.infoValue}>{bot.entity_type}</Text>
+            <InfoRow icon={Tag} label={t('bot.type')} colors={colors}>
+              <Text style={[styles.infoValue, { color: colors.text }]}>{bot.entity_type}</Text>
             </InfoRow>
-            <InfoRow icon={Hash} label="ID">
-              <Text style={[styles.infoValue, styles.mono]}>{bot.id}</Text>
+            <InfoRow icon={Hash} label="ID" colors={colors}>
+              <Text style={[styles.infoValue, styles.mono, { color: colors.text }]}>{bot.id}</Text>
             </InfoRow>
-            <InfoRow icon={Calendar} label={t('bot.createdAt')}>
-              <Text style={styles.infoValue}>
+            <InfoRow icon={Calendar} label={t('bot.createdAt')} colors={colors}>
+              <Text style={[styles.infoValue, { color: colors.text }]}>
                 {bot.created_at ? new Date(bot.created_at).toLocaleDateString() : '--'}
               </Text>
             </InfoRow>
             {lastSeen && (
-              <InfoRow icon={Clock} label={t('bot.lastSeen')}>
-                <Text style={styles.infoValue}>
+              <InfoRow icon={Clock} label={t('bot.lastSeen')} colors={colors}>
+                <Text style={[styles.infoValue, { color: colors.text }]}>
                   {new Date(lastSeen).toLocaleString()}
                 </Text>
               </InfoRow>
@@ -350,8 +350,8 @@ export function BotDetail({
           {tags.length > 0 && (
             <View style={styles.tagsRow}>
               {tags.map((tag, i) => (
-                <View key={i} style={styles.tag}>
-                  <Text style={styles.tagText}>{tag}</Text>
+                <View key={i} style={[styles.tag, { backgroundColor: colors.accentDim }]}>
+                  <Text style={[styles.tagText, { color: colors.accent }]}>{tag}</Text>
                 </View>
               ))}
             </View>
@@ -360,16 +360,16 @@ export function BotDetail({
           {/* Actions */}
           <View style={styles.actionRow}>
             {isOwner && isDisabled ? (
-              <Pressable onPress={() => onReactivate(bot.id)} style={styles.reactivateBtn}>
-                <RotateCcw size={14} color="#16a34a" />
-                <Text style={styles.reactivateBtnText}>{t('bot.reactivate')}</Text>
+              <Pressable onPress={() => onReactivate(bot.id)} style={[styles.reactivateBtn, { backgroundColor: `${colors.success}16` }]}>
+                <RotateCcw size={14} color={colors.success} />
+                <Text style={[styles.reactivateBtnText, { color: colors.success }]}>{t('bot.reactivate')}</Text>
               </Pressable>
             ) : (
               <>
                 {!isDisabled && (
-                  <Pressable onPress={() => onStartChat(bot.id)} style={styles.chatBtn}>
-                    <MessageSquare size={14} color="#6366f1" />
-                    <Text style={styles.chatBtnText}>{t('conversation.newChat')}</Text>
+                  <Pressable onPress={() => onStartChat(bot.id)} style={[styles.chatBtn, { backgroundColor: colors.accentDim }]}>
+                    <MessageSquare size={14} color={colors.accent} />
+                    <Text style={[styles.chatBtnText, { color: colors.accent }]}>{t('conversation.newChat')}</Text>
                   </Pressable>
                 )}
                 {isOwner && !isDisabled && (
@@ -386,8 +386,8 @@ export function BotDetail({
                     }}
                     style={styles.disableBtn}
                   >
-                    <PowerOff size={14} color="#94a3b8" />
-                    <Text style={styles.disableBtnText}>{t('bot.disableAgent')}</Text>
+                    <PowerOff size={14} color={colors.textMuted} />
+                    <Text style={[styles.disableBtnText, { color: colors.textMuted }]}>{t('bot.disableAgent')}</Text>
                   </Pressable>
                 )}
               </>
@@ -396,43 +396,43 @@ export function BotDetail({
         </View>
 
         {/* Conversations */}
-        <View style={styles.section}>
+        <View style={[styles.section, { borderBottomColor: colors.border }]}>
           <Pressable
             onPress={() => setConvsCollapsed(!convsCollapsed)}
             style={styles.convToggle}
           >
             {convsCollapsed
-              ? <ChevronRight size={16} color="#94a3b8" />
-              : <ChevronDown size={16} color="#94a3b8" />
+              ? <ChevronRight size={16} color={colors.textMuted} />
+              : <ChevronDown size={16} color={colors.textMuted} />
             }
-            <Text style={styles.sectionTitle}>{t('bot.conversations')}</Text>
-            <Text style={styles.convCount}>({conversations.length})</Text>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('bot.conversations')}</Text>
+            <Text style={[styles.convCount, { color: colors.textMuted }]}>({conversations.length})</Text>
           </Pressable>
 
           {!convsCollapsed && (
             <>
-              <View style={styles.tabRow}>
+              <View style={[styles.tabRow, { backgroundColor: colors.bgHover }]}>
                 <Pressable
                   onPress={() => setActiveTab('direct')}
-                  style={[styles.tabBtn, activeTab === 'direct' && styles.tabBtnActive]}
+                  style={[styles.tabBtn, activeTab === 'direct' && [styles.tabBtnActive, { backgroundColor: colors.bg }]]}
                 >
-                  <MessageSquare size={14} color={activeTab === 'direct' ? '#1e293b' : '#94a3b8'} />
-                  <Text style={[styles.tabText, activeTab === 'direct' && styles.tabTextActive]}>
+                  <MessageSquare size={14} color={activeTab === 'direct' ? colors.text : colors.textMuted} />
+                  <Text style={[styles.tabText, { color: activeTab === 'direct' ? colors.text : colors.textMuted }, activeTab === 'direct' && styles.tabTextActive]}>
                     {t('conversation.direct')}
                   </Text>
-                  <View style={styles.tabCount}>
+                  <View style={[styles.tabCount, { backgroundColor: colors.bgHover }]}>
                     <Text style={styles.tabCountText}>{directConvs.length}</Text>
                   </View>
                 </Pressable>
                 <Pressable
                   onPress={() => setActiveTab('groups')}
-                  style={[styles.tabBtn, activeTab === 'groups' && styles.tabBtnActive]}
+                  style={[styles.tabBtn, activeTab === 'groups' && [styles.tabBtnActive, { backgroundColor: colors.bg }]]}
                 >
-                  <Users size={14} color={activeTab === 'groups' ? '#1e293b' : '#94a3b8'} />
-                  <Text style={[styles.tabText, activeTab === 'groups' && styles.tabTextActive]}>
+                  <Users size={14} color={activeTab === 'groups' ? colors.text : colors.textMuted} />
+                  <Text style={[styles.tabText, { color: activeTab === 'groups' ? colors.text : colors.textMuted }, activeTab === 'groups' && styles.tabTextActive]}>
                     {t('conversation.group')}
                   </Text>
-                  <View style={styles.tabCount}>
+                  <View style={[styles.tabCount, { backgroundColor: colors.bgHover }]}>
                     <Text style={styles.tabCountText}>{groupConvs.length}</Text>
                   </View>
                 </Pressable>
@@ -440,35 +440,35 @@ export function BotDetail({
 
               {loadingConvs ? (
                 <View style={styles.convLoading}>
-                  <ActivityIndicator size="small" color="#94a3b8" />
+                  <ActivityIndicator size="small" color={colors.textMuted} />
                 </View>
               ) : tabConvs.length === 0 ? (
-                <Text style={styles.noConvs}>{t('bot.noConversations')}</Text>
+                <Text style={[styles.noConvs, { color: colors.textMuted }]}>{t('bot.noConversations')}</Text>
               ) : (
                 tabConvs.map((conv) => (
                   <Pressable
                     key={conv.id}
                     onPress={() => onOpenConversation(conv.id)}
-                    style={({ pressed }) => [styles.convItem, pressed && { backgroundColor: '#f1f5f9' }]}
+                    style={({ pressed }) => [styles.convItem, { backgroundColor: colors.bg }, pressed && { backgroundColor: colors.bgHover }]}
                   >
                     <View style={[
                       styles.convIcon,
-                      { backgroundColor: conv.conv_type === 'direct' ? '#eef2ff' : '#f0fdf4' },
+                      { backgroundColor: conv.conv_type === 'direct' ? colors.accentDim : `${colors.success}16` },
                     ]}>
                       {conv.conv_type === 'direct'
-                        ? <MessageSquare size={16} color="#6366f1" />
-                        : <Users size={16} color="#16a34a" />
+                        ? <MessageSquare size={16} color={colors.accent} />
+                        : <Users size={16} color={colors.success} />
                       }
                     </View>
                     <View style={styles.convInfo}>
-                      <Text style={styles.convTitle} numberOfLines={1}>
+                      <Text style={[styles.convTitle, { color: colors.text }]} numberOfLines={1}>
                         {conv.title || t('conversation.unnamed')}
                       </Text>
-                      <Text style={styles.convDate}>
+                      <Text style={[styles.convDate, { color: colors.textMuted }]}>
                         {new Date(conv.updated_at).toLocaleDateString()}
                       </Text>
                     </View>
-                    <ChevronRight size={16} color="#94a3b8" />
+                    <ChevronRight size={16} color={colors.textMuted} />
                   </Pressable>
                 ))
               )}
@@ -484,12 +484,13 @@ function InfoRow({ icon: Icon, label, children }: {
   icon: React.ComponentType<{ size: number; color: string }>
   label: string
   children: React.ReactNode
+  colors: ReturnType<typeof useThemeColors>
 }) {
   return (
     <View style={infoStyles.row}>
       <View style={infoStyles.label}>
-        <Icon size={14} color="#94a3b8" />
-        <Text style={infoStyles.labelText}>{label}</Text>
+        <Icon size={14} color={colors.textMuted} />
+        <Text style={[infoStyles.labelText, { color: colors.textMuted }]}>{label}</Text>
       </View>
       {children}
     </View>

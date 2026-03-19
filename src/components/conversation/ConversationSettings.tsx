@@ -16,6 +16,7 @@ import * as api from '../../lib/api'
 import { API_BASE_URL } from '../../lib/constants'
 import type { Conversation, Entity, ConversationMemory, SubscriptionMode } from '../../lib/types'
 import { EntityAvatar } from '../ui/EntityAvatar'
+import { useThemeColors } from '../../lib/theme'
 
 interface Props {
   conversation: Conversation
@@ -50,6 +51,7 @@ type SettingsSection = 'main' | 'prompt' | 'memories' | 'invites'
 
 export function ConversationSettings({ conversation, onClose, onLeave, onUpdated, isArchived }: Props) {
   const { t } = useTranslation()
+  const colors = useThemeColors()
   const token = useAuthStore((s) => s.token)!
   const myEntity = useAuthStore((s) => s.entity)!
 
@@ -343,15 +345,15 @@ export function ConversationSettings({ conversation, onClose, onLeave, onUpdated
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.bgSecondary }]}>
       {/* Header */}
-      <View style={styles.header}>
-        <Pressable onPress={handleBack} style={styles.backBtn}>
-          <ArrowLeft size={16} color="#64748b" />
+      <View style={[styles.header, { backgroundColor: colors.bg, borderBottomColor: colors.border }]}>
+        <Pressable onPress={handleBack} style={[styles.backBtn, { backgroundColor: colors.bgHover }]}>
+          <ArrowLeft size={16} color={colors.textSecondary} />
         </Pressable>
-        <Text style={styles.headerTitle}>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>
           {headerTitle}
-          {currentSection === 'main' && isArchived && <Text style={styles.archivedLabel}> ({t('common.archived')})</Text>}
+          {currentSection === 'main' && isArchived && <Text style={[styles.archivedLabel, { color: colors.textMuted }]}> ({t('common.archived')})</Text>}
         </Text>
         <View style={{ width: 32 }} />
       </View>
@@ -360,30 +362,30 @@ export function ConversationSettings({ conversation, onClose, onLeave, onUpdated
         {currentSection === 'main' && (
           <>
         {/* Title */}
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>{t('settings.name')}</Text>
+        <View style={[styles.section, { borderBottomColor: colors.border }]}>
+          <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>{t('settings.name')}</Text>
           {editingTitle ? (
             <View style={styles.editRow}>
               <TextInput
                 value={titleValue}
                 onChangeText={setTitleValue}
-                style={[styles.input, { flex: 1 }]}
+                style={[styles.input, { flex: 1, backgroundColor: colors.bg, borderColor: colors.border, color: colors.text }]}
                 autoFocus
                 onSubmitEditing={handleSaveTitle}
               />
               <Pressable onPress={handleSaveTitle} disabled={saving} style={styles.iconBtn}>
-                <Check size={14} color="#16a34a" />
+                <Check size={14} color={colors.success} />
               </Pressable>
               <Pressable onPress={() => setEditingTitle(false)} style={styles.iconBtn}>
-                <X size={14} color="#dc2626" />
+                <X size={14} color={colors.error} />
               </Pressable>
             </View>
           ) : (
             <View style={styles.valueRow}>
-              <Text style={styles.valueText}>{conversation.title || 'Untitled'}</Text>
+              <Text style={[styles.valueText, { color: colors.text }]}>{conversation.title || 'Untitled'}</Text>
               {canManage && !isArchived && (
                 <Pressable onPress={() => { setTitleValue(conversation.title || ''); setEditingTitle(true) }} style={styles.iconBtn}>
-                  <Pencil size={12} color="#94a3b8" />
+                  <Pencil size={12} color={colors.textMuted} />
                 </Pressable>
               )}
             </View>
@@ -391,10 +393,10 @@ export function ConversationSettings({ conversation, onClose, onLeave, onUpdated
         </View>
 
         {/* Conversation ID */}
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>{t('settings.conversationId')}</Text>
+        <View style={[styles.section, { borderBottomColor: colors.border }]}>
+          <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>{t('settings.conversationId')}</Text>
           <View style={styles.valueRow}>
-            <Text style={[styles.valueText, styles.mono]}>{displayConversationId}</Text>
+            <Text style={[styles.valueText, styles.mono, { color: colors.text, backgroundColor: colors.bgHover }]}>{displayConversationId}</Text>
             <Pressable
               onPress={async () => {
                 await Clipboard.setStringAsync(displayConversationId)
@@ -403,22 +405,22 @@ export function ConversationSettings({ conversation, onClose, onLeave, onUpdated
               }}
               style={styles.iconBtn}
             >
-              {idCopied ? <Check size={12} color="#16a34a" /> : <Copy size={12} color="#94a3b8" />}
+              {idCopied ? <Check size={12} color={colors.success} /> : <Copy size={12} color={colors.textMuted} />}
             </Pressable>
-            {idCopied && <Text style={styles.copiedText}>{t('settings.idCopied')}</Text>}
+            {idCopied && <Text style={[styles.copiedText, { color: colors.success }]}>{t('settings.idCopied')}</Text>}
           </View>
         </View>
 
         {/* Description */}
         {isGroup && (
-          <View style={styles.section}>
-            <Text style={styles.sectionLabel}>{t('settings.description')}</Text>
+          <View style={[styles.section, { borderBottomColor: colors.border }]}>
+            <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>{t('settings.description')}</Text>
             {editingDesc ? (
               <View style={styles.editColumn}>
                 <TextInput
                   value={descValue}
                   onChangeText={setDescValue}
-                  style={[styles.input, styles.textarea]}
+                  style={[styles.input, styles.textarea, { backgroundColor: colors.bg, borderColor: colors.border, color: colors.text }]}
                   multiline
                   numberOfLines={3}
                   autoFocus
@@ -428,18 +430,18 @@ export function ConversationSettings({ conversation, onClose, onLeave, onUpdated
                     <Text style={styles.smallBtnText}>{t('common.save')}</Text>
                   </Pressable>
                   <Pressable onPress={() => setEditingDesc(false)}>
-                    <Text style={styles.cancelText}>{t('common.cancel')}</Text>
+                    <Text style={[styles.cancelText, { color: colors.textMuted }]}>{t('common.cancel')}</Text>
                   </Pressable>
                 </View>
               </View>
             ) : (
               <View style={styles.valueRow}>
-                <Text style={styles.descText}>
+                <Text style={[styles.descText, { color: colors.textSecondary }]}>
                   {conversation.description || t('settings.noDescription')}
                 </Text>
                 {canManage && !isArchived && (
                   <Pressable onPress={() => { setDescValue(conversation.description || ''); setEditingDesc(true) }} style={styles.iconBtn}>
-                    <Pencil size={12} color="#94a3b8" />
+                    <Pencil size={12} color={colors.textMuted} />
                   </Pressable>
                 )}
               </View>
@@ -449,27 +451,27 @@ export function ConversationSettings({ conversation, onClose, onLeave, onUpdated
 
         {/* Notification settings */}
         {myParticipant && (
-          <View style={styles.section}>
-            <Text style={styles.sectionLabel}>{t('settings.notifications')}</Text>
+          <View style={[styles.section, { borderBottomColor: colors.border }]}>
+            <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>{t('settings.notifications')}</Text>
             <View style={styles.toggleRow}>
               <View style={styles.toggleLabel}>
-                {muted ? <VolumeX size={14} color="#94a3b8" /> : <Volume2 size={14} color="#64748b" />}
-                <Text style={styles.toggleText}>{t('settings.mute')}</Text>
+                {muted ? <VolumeX size={14} color={colors.textMuted} /> : <Volume2 size={14} color={colors.textSecondary} />}
+                <Text style={[styles.toggleText, { color: colors.textSecondary }]}>{t('settings.mute')}</Text>
               </View>
               <Switch
                 value={muted}
                 onValueChange={setMuted}
                 disabled={isArchived}
-                trackColor={{ false: '#e2e8f0', true: '#6366f1' }}
+                trackColor={{ false: colors.border, true: colors.accent }}
                 thumbColor="#ffffff"
               />
             </View>
             <View style={styles.modeSection}>
               <View style={styles.toggleLabel}>
                 {subscriptionMode === 'subscribe_all' || subscriptionMode === 'mention_with_context'
-                  ? <Bell size={14} color="#64748b" />
-                  : <BellOff size={14} color="#94a3b8" />}
-                <Text style={styles.toggleText}>{t('settings.mode')}</Text>
+                  ? <Bell size={14} color={colors.textSecondary} />
+                  : <BellOff size={14} color={colors.textMuted} />}
+                <Text style={[styles.toggleText, { color: colors.textSecondary }]}>{t('settings.mode')}</Text>
               </View>
               <View style={styles.modeOptions}>
                 {(['mention_only', 'subscribe_all', 'mention_with_context', 'subscribe_digest'] as SubscriptionMode[]).map((mode) => {
@@ -484,9 +486,14 @@ export function ConversationSettings({ conversation, onClose, onLeave, onUpdated
                       key={mode}
                       onPress={() => handleSubscriptionChange(mode, !isArchived)}
                       disabled={isArchived}
-                      style={[styles.modeChip, selected && styles.modeChipActive, isArchived && styles.disabledChip]}
+                      style={[
+                        styles.modeChip,
+                        { backgroundColor: colors.bg, borderColor: colors.border },
+                        selected && { backgroundColor: colors.accentDim, borderColor: colors.accent },
+                        isArchived && styles.disabledChip,
+                      ]}
                     >
-                      <Text style={[styles.modeChipText, selected && styles.modeChipTextActive]}>
+                      <Text style={[styles.modeChipText, { color: selected ? colors.accent : colors.textSecondary }, selected && styles.modeChipTextActive]}>
                         {t(`settings.${labelKey}`)}
                       </Text>
                     </Pressable>
@@ -497,52 +504,52 @@ export function ConversationSettings({ conversation, onClose, onLeave, onUpdated
           </View>
         )}
 
-        <View style={styles.section}>
+        <View style={[styles.section, { borderBottomColor: colors.border }]}>
           <Pressable style={styles.linkRow} onPress={() => setCurrentSection('prompt')}>
             <View style={styles.linkRowContent}>
-              <Terminal size={14} color="#94a3b8" />
+              <Terminal size={14} color={colors.textMuted} />
               <View style={styles.linkRowText}>
-                <Text style={styles.linkRowTitle}>{t('agentConfig.prompt')}</Text>
-                <Text style={styles.linkRowSubtitle} numberOfLines={2}>{promptPreview}</Text>
+                <Text style={[styles.linkRowTitle, { color: colors.text }]}>{t('agentConfig.prompt')}</Text>
+                <Text style={[styles.linkRowSubtitle, { color: colors.textSecondary }]} numberOfLines={2}>{promptPreview}</Text>
               </View>
             </View>
-            <ChevronRight size={16} color="#94a3b8" />
+            <ChevronRight size={16} color={colors.textMuted} />
           </Pressable>
         </View>
 
-        <View style={styles.section}>
+        <View style={[styles.section, { borderBottomColor: colors.border }]}>
           <Pressable style={styles.linkRow} onPress={() => setCurrentSection('memories')}>
             <View style={styles.linkRowContent}>
-              <Terminal size={14} color="#94a3b8" />
+              <Terminal size={14} color={colors.textMuted} />
               <View style={styles.linkRowText}>
-                <Text style={styles.linkRowTitle}>{t('memory.memories')}</Text>
-                <Text style={styles.linkRowSubtitle}>
+                <Text style={[styles.linkRowTitle, { color: colors.text }]}>{t('memory.memories')}</Text>
+                <Text style={[styles.linkRowSubtitle, { color: colors.textSecondary }]}>
                   {t('context.messages')}: {contextMessages} · {memorySummary}
                 </Text>
               </View>
             </View>
-            <ChevronRight size={16} color="#94a3b8" />
+            <ChevronRight size={16} color={colors.textMuted} />
           </Pressable>
         </View>
 
         {canManage && isGroup && !isArchived && (
-          <View style={styles.section}>
+          <View style={[styles.section, { borderBottomColor: colors.border }]}>
             <Pressable style={styles.linkRow} onPress={() => setCurrentSection('invites')}>
               <View style={styles.linkRowContent}>
-                <Link2 size={14} color="#94a3b8" />
+                <Link2 size={14} color={colors.textMuted} />
                 <View style={styles.linkRowText}>
-                  <Text style={styles.linkRowTitle}>{t('invite.title')}</Text>
-                  <Text style={styles.linkRowSubtitle}>{inviteSummary}</Text>
+                  <Text style={[styles.linkRowTitle, { color: colors.text }]}>{t('invite.title')}</Text>
+                  <Text style={[styles.linkRowSubtitle, { color: colors.textSecondary }]}>{inviteSummary}</Text>
                 </View>
               </View>
-              <ChevronRight size={16} color="#94a3b8" />
+              <ChevronRight size={16} color={colors.textMuted} />
             </Pressable>
           </View>
         )}
 
         {/* Members */}
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>
+        <View style={[styles.section, { borderBottomColor: colors.border }]}>
+          <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>
             {t('settings.members')} ({participants.length})
           </Text>
           <View style={styles.memberList}>
@@ -552,11 +559,11 @@ export function ConversationSettings({ conversation, onClose, onLeave, onUpdated
                 <View style={styles.memberInfo}>
                   <View style={styles.memberNameRow}>
                     {roleIcon(p.role)}
-                    <Text style={styles.memberName} numberOfLines={1}>
+                    <Text style={[styles.memberName, { color: colors.text }]} numberOfLines={1}>
                       {entityDisplayName(p.entity)}
                     </Text>
                     {p.entity_id === myEntity.id && (
-                      <Text style={styles.youLabel}>{t('common.you')}</Text>
+                      <Text style={[styles.youLabel, { color: colors.textMuted }]}>{t('common.you')}</Text>
                     )}
                   </View>
                 </View>
@@ -565,7 +572,7 @@ export function ConversationSettings({ conversation, onClose, onLeave, onUpdated
                     onPress={() => handleRemoveMember(p.entity_id, entityDisplayName(p.entity))}
                     style={styles.removeMemberBtn}
                   >
-                    <UserMinus size={12} color="#94a3b8" />
+                    <UserMinus size={12} color={colors.textMuted} />
                   </Pressable>
                 )}
               </View>
@@ -576,19 +583,19 @@ export function ConversationSettings({ conversation, onClose, onLeave, onUpdated
           {canManage && isGroup && !isArchived && (
             showAddMember ? (
               <View style={styles.addMemberPanel}>
-                <View style={styles.addSearchRow}>
-                  <Search size={14} color="#94a3b8" />
+                <View style={[styles.addSearchRow, { backgroundColor: colors.bg, borderColor: colors.border }]}>
+                  <Search size={14} color={colors.textMuted} />
                   <TextInput
                     value={addMemberSearch}
                     onChangeText={setAddMemberSearch}
                     placeholder={t('conversation.search')}
-                    placeholderTextColor="#94a3b8"
-                    style={styles.addSearchInput}
+                    placeholderTextColor={colors.textMuted}
+                    style={[styles.addSearchInput, { color: colors.text }]}
                     autoFocus
                   />
                 </View>
                 {addMemberLoading ? (
-                  <ActivityIndicator size="small" color="#94a3b8" style={{ marginVertical: 8 }} />
+                  <ActivityIndicator size="small" color={colors.textMuted} style={{ marginVertical: 8 }} />
                 ) : (
                   <View style={styles.addMemberList}>
                     {addableEntities
@@ -601,47 +608,47 @@ export function ConversationSettings({ conversation, onClose, onLeave, onUpdated
                         <Pressable
                           key={e.id}
                           onPress={() => handleAddMember(e.id)}
-                          style={({ pressed }) => [styles.addMemberItem, pressed && { backgroundColor: '#f1f5f9' }]}
+                          style={({ pressed }) => [styles.addMemberItem, pressed && { backgroundColor: colors.bgHover }]}
                         >
                           <EntityAvatar entity={e} size="xs" />
-                          <Text style={styles.addMemberName} numberOfLines={1}>{entityDisplayName(e)}</Text>
-                          <Text style={styles.addMemberType}>{e.entity_type}</Text>
+                          <Text style={[styles.addMemberName, { color: colors.text }]} numberOfLines={1}>{entityDisplayName(e)}</Text>
+                          <Text style={[styles.addMemberType, { color: colors.textMuted }]}>{e.entity_type}</Text>
                         </Pressable>
                       ))
                     }
                     {addableEntities.length === 0 && (
-                      <Text style={styles.emptyText}>{t('common.noEntities')}</Text>
+                      <Text style={[styles.emptyText, { color: colors.textMuted }]}>{t('common.noEntities')}</Text>
                     )}
                   </View>
                 )}
                 <Pressable onPress={() => { setShowAddMember(false); setAddMemberSearch('') }}>
-                  <Text style={styles.cancelText}>{t('common.cancel')}</Text>
+                  <Text style={[styles.cancelText, { color: colors.textMuted }]}>{t('common.cancel')}</Text>
                 </Pressable>
               </View>
             ) : (
-              <Pressable onPress={handleOpenAddMember} style={styles.addMemberBtn}>
-                <UserPlus size={14} color="#6366f1" />
-                <Text style={styles.addMemberBtnText}>{t('common.addMember')}</Text>
+              <Pressable onPress={handleOpenAddMember} style={[styles.addMemberBtn, { backgroundColor: colors.accentDim }]}>
+                <UserPlus size={14} color={colors.accent} />
+                <Text style={[styles.addMemberBtnText, { color: colors.accent }]}>{t('common.addMember')}</Text>
               </Pressable>
             )
           )}
         </View>
 
         {/* Actions */}
-        <View style={styles.section}>
+        <View style={[styles.section, { borderBottomColor: colors.border }]}>
           {isGroup && !isArchived && (
-            <Pressable onPress={handleArchive} disabled={loading} style={styles.actionItem}>
-              <Archive size={14} color="#64748b" />
-              <Text style={styles.actionItemText}>{t('settings.archive')}</Text>
+            <Pressable onPress={handleArchive} disabled={loading} style={[styles.actionItem, { backgroundColor: colors.bgHover }]}>
+              <Archive size={14} color={colors.textSecondary} />
+              <Text style={[styles.actionItemText, { color: colors.textSecondary }]}>{t('settings.archive')}</Text>
             </Pressable>
           )}
           {isGroup && myParticipant?.role !== 'owner' && !isArchived && (
-            <Pressable onPress={handleLeave} disabled={loading} style={styles.actionItemDanger}>
+            <Pressable onPress={handleLeave} disabled={loading} style={[styles.actionItemDanger, { backgroundColor: `${colors.error}12` }]}>
               {loading
-                ? <ActivityIndicator size="small" color="#dc2626" />
-                : <LogOut size={14} color="#dc2626" />
+                ? <ActivityIndicator size="small" color={colors.error} />
+                : <LogOut size={14} color={colors.error} />
               }
-              <Text style={styles.actionItemDangerText}>{t('settings.leave')}</Text>
+              <Text style={[styles.actionItemDangerText, { color: colors.error }]}>{t('settings.leave')}</Text>
             </Pressable>
           )}
         </View>
@@ -649,26 +656,26 @@ export function ConversationSettings({ conversation, onClose, onLeave, onUpdated
         )}
 
         {currentSection === 'prompt' && (
-          <View style={styles.section}>
+          <View style={[styles.section, { borderBottomColor: colors.border }]}>
             <View style={styles.inlineSectionHeader}>
               <View style={styles.sectionTitleRow}>
-                <Terminal size={12} color="#94a3b8" />
-                <Text style={styles.sectionLabelInline}>{t('agentConfig.prompt')}</Text>
+                <Terminal size={12} color={colors.textMuted} />
+                <Text style={[styles.sectionLabelInline, { color: colors.textMuted }]}>{t('agentConfig.prompt')}</Text>
               </View>
               {canManage && !isArchived && !loadingPrompt && (
                 <Pressable onPress={() => { setPromptValue(prompt); setEditingPrompt((prev) => !prev) }} style={styles.iconBtn}>
-                  <Pencil size={12} color="#94a3b8" />
+                  <Pencil size={12} color={colors.textMuted} />
                 </Pressable>
               )}
             </View>
             {loadingPrompt ? (
-              <ActivityIndicator size="small" color="#94a3b8" style={styles.inlineLoader} />
+              <ActivityIndicator size="small" color={colors.textMuted} style={styles.inlineLoader} />
             ) : editingPrompt ? (
               <View style={styles.editColumn}>
                 <TextInput
                   value={promptValue}
                   onChangeText={setPromptValue}
-                  style={[styles.input, styles.textarea]}
+                  style={[styles.input, styles.textarea, { backgroundColor: colors.bg, borderColor: colors.border, color: colors.text }]}
                   multiline
                   numberOfLines={3}
                   autoFocus
@@ -678,33 +685,33 @@ export function ConversationSettings({ conversation, onClose, onLeave, onUpdated
                     <Text style={styles.smallBtnText}>{t('common.save')}</Text>
                   </Pressable>
                   <Pressable onPress={() => { setPromptValue(prompt); setEditingPrompt(false) }}>
-                    <Text style={styles.cancelText}>{t('common.cancel')}</Text>
+                    <Text style={[styles.cancelText, { color: colors.textMuted }]}>{t('common.cancel')}</Text>
                   </Pressable>
                 </View>
               </View>
             ) : (
-              <Text style={styles.bodyText}>{promptPreview}</Text>
+              <Text style={[styles.bodyText, { color: colors.textSecondary }]}>{promptPreview}</Text>
             )}
           </View>
         )}
 
         {currentSection === 'memories' && (
-          <View style={styles.section}>
-            <View style={styles.memoryStats}>
-              <Text style={styles.memoryStatsText}>
+          <View style={[styles.section, { borderBottomColor: colors.border }]}>
+            <View style={[styles.memoryStats, { backgroundColor: colors.bg, borderColor: colors.border }]}>
+              <Text style={[styles.memoryStatsText, { color: colors.textSecondary }]}>
                 {t('context.messages')}: {contextMessages} | {t('memory.memories')}: {memories.length}
               </Text>
             </View>
             <View style={styles.inlineSectionHeader}>
-              <Text style={styles.sectionLabelInline}>{t('memory.memories')} ({memories.length})</Text>
+              <Text style={[styles.sectionLabelInline, { color: colors.textMuted }]}>{t('memory.memories')} ({memories.length})</Text>
               {canManage && !isArchived && (
                 <Pressable onPress={() => setShowMemoryForm((prev) => !prev)} style={styles.iconBtn}>
-                  <Plus size={12} color="#6366f1" />
+                  <Plus size={12} color={colors.accent} />
                 </Pressable>
               )}
             </View>
             {loadingMemories ? (
-              <ActivityIndicator size="small" color="#94a3b8" style={styles.inlineLoader} />
+              <ActivityIndicator size="small" color={colors.textMuted} style={styles.inlineLoader} />
             ) : (
               <>
                 {showMemoryForm && canManage && !isArchived && (
@@ -713,15 +720,15 @@ export function ConversationSettings({ conversation, onClose, onLeave, onUpdated
                       value={memoryKey}
                       onChangeText={setMemoryKey}
                       placeholder={t('memory.keyPlaceholder')}
-                      placeholderTextColor="#94a3b8"
-                      style={styles.input}
+                      placeholderTextColor={colors.textMuted}
+                      style={[styles.input, { backgroundColor: colors.bg, borderColor: colors.border, color: colors.text }]}
                     />
                     <TextInput
                       value={memoryContent}
                       onChangeText={setMemoryContent}
                       placeholder={t('memory.contentPlaceholder')}
-                      placeholderTextColor="#94a3b8"
-                      style={[styles.input, styles.textarea]}
+                      placeholderTextColor={colors.textMuted}
+                      style={[styles.input, styles.textarea, { backgroundColor: colors.bg, borderColor: colors.border, color: colors.text }]}
                       multiline
                       numberOfLines={2}
                     />
@@ -732,24 +739,24 @@ export function ConversationSettings({ conversation, onClose, onLeave, onUpdated
                           : <Text style={styles.smallBtnText}>{t('common.save')}</Text>}
                       </Pressable>
                       <Pressable onPress={() => setShowMemoryForm(false)}>
-                        <Text style={styles.cancelText}>{t('common.cancel')}</Text>
+                        <Text style={[styles.cancelText, { color: colors.textMuted }]}>{t('common.cancel')}</Text>
                       </Pressable>
                     </View>
                   </View>
                 )}
                 <View style={styles.memoryList}>
                   {memories.length === 0 ? (
-                    <Text style={styles.emptyText}>{t('memory.noPrompt')}</Text>
+                    <Text style={[styles.emptyText, { color: colors.textMuted }]}>{t('memory.noPrompt')}</Text>
                   ) : (
                     memories.map((memory) => (
-                      <View key={memory.id} style={styles.memoryItem}>
+                      <View key={memory.id} style={[styles.memoryItem, { backgroundColor: colors.bg, borderColor: colors.border }]}>
                         <View style={styles.memoryContent}>
-                          <Text style={styles.memoryKey}>{memory.key}</Text>
-                          <Text style={styles.memoryValue}>{memory.content}</Text>
+                          <Text style={[styles.memoryKey, { color: colors.accent }]}>{memory.key}</Text>
+                          <Text style={[styles.memoryValue, { color: colors.textSecondary }]}>{memory.content}</Text>
                         </View>
                         {canManage && !isArchived && (
                           <Pressable onPress={() => handleDeleteMemory(memory.id)} style={styles.iconBtn}>
-                            <Trash2 size={12} color="#94a3b8" />
+                            <Trash2 size={12} color={colors.textMuted} />
                           </Pressable>
                         )}
                       </View>
@@ -757,10 +764,10 @@ export function ConversationSettings({ conversation, onClose, onLeave, onUpdated
                   )}
                 </View>
                 {canManage && !isArchived && memories.length > 0 && (
-                  <Pressable onPress={handleClearMemories} disabled={memoryClearing} style={styles.clearButton}>
+                  <Pressable onPress={handleClearMemories} disabled={memoryClearing} style={[styles.clearButton, { borderColor: `${colors.error}55`, backgroundColor: `${colors.error}10` }]}>
                     {memoryClearing
-                      ? <ActivityIndicator size="small" color="#dc2626" />
-                      : <Text style={styles.clearButtonText}>{t('context.clearMemory')}</Text>}
+                      ? <ActivityIndicator size="small" color={colors.error} />
+                      : <Text style={[styles.clearButtonText, { color: colors.error }]}>{t('context.clearMemory')}</Text>}
                   </Pressable>
                 )}
               </>
@@ -769,40 +776,40 @@ export function ConversationSettings({ conversation, onClose, onLeave, onUpdated
         )}
 
         {currentSection === 'invites' && canManage && isGroup && !isArchived && (
-          <View style={styles.section}>
+          <View style={[styles.section, { borderBottomColor: colors.border }]}>
             <View style={styles.inlineSectionHeader}>
               <View style={styles.sectionTitleRow}>
-                <Link2 size={12} color="#94a3b8" />
-                <Text style={styles.sectionLabelInline}>{t('invite.title')}</Text>
+                <Link2 size={12} color={colors.textMuted} />
+                <Text style={[styles.sectionLabelInline, { color: colors.textMuted }]}>{t('invite.title')}</Text>
               </View>
               <Pressable onPress={handleCreateInvite} disabled={creatingInvite} style={styles.iconBtn}>
                 {creatingInvite
-                  ? <Loader2 size={12} color="#6366f1" />
-                  : <Plus size={12} color="#6366f1" />}
+                  ? <Loader2 size={12} color={colors.accent} />
+                  : <Plus size={12} color={colors.accent} />}
               </Pressable>
             </View>
             {loadingInvites ? (
-              <ActivityIndicator size="small" color="#94a3b8" style={styles.inlineLoader} />
+              <ActivityIndicator size="small" color={colors.textMuted} style={styles.inlineLoader} />
             ) : inviteLinks.length === 0 ? (
-              <Text style={styles.emptyText}>{t('invite.noLinks')}</Text>
+              <Text style={[styles.emptyText, { color: colors.textMuted }]}>{t('invite.noLinks')}</Text>
             ) : (
               <View style={styles.inviteList}>
                 {inviteLinks.map((link) => (
-                  <View key={link.id} style={styles.inviteItem}>
+                  <View key={link.id} style={[styles.inviteItem, { backgroundColor: colors.bg, borderColor: colors.border }]}>
                     <View style={styles.inviteContent}>
-                      <Text style={styles.inviteCode} numberOfLines={1}>{link.code}</Text>
-                      <Text style={styles.inviteMeta}>
+                      <Text style={[styles.inviteCode, { color: colors.text }]} numberOfLines={1}>{link.code}</Text>
+                      <Text style={[styles.inviteMeta, { color: colors.textMuted }]}>
                         {t('invite.uses', { count: link.use_count, max: link.max_uses || '∞' })}
                         {link.expires_at ? ` · ${t('invite.expires', { date: new Date(link.expires_at).toLocaleDateString() })}` : ''}
                       </Text>
                     </View>
                     <Pressable onPress={() => handleCopyInvite(link)} style={styles.iconBtn}>
                       {copiedInviteId === link.id
-                        ? <Check size={12} color="#16a34a" />
-                        : <Copy size={12} color="#94a3b8" />}
+                        ? <Check size={12} color={colors.success} />
+                        : <Copy size={12} color={colors.textMuted} />}
                     </Pressable>
                     <Pressable onPress={() => handleDeleteInvite(link.id)} style={styles.iconBtn}>
-                      <Trash2 size={12} color="#94a3b8" />
+                      <Trash2 size={12} color={colors.textMuted} />
                     </Pressable>
                   </View>
                 ))}
