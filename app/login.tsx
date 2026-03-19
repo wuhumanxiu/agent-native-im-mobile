@@ -72,7 +72,7 @@ export default function LoginScreen() {
           {/* Form */}
           <View style={styles.form}>
             <View style={styles.field}>
-              <Text style={styles.label}>{t('auth.usernameOrEmail')}</Text>
+              <Text style={styles.label}>{t('auth.username')}</Text>
               <TextInput
                 style={styles.input}
                 value={username}

@@ -202,8 +202,8 @@ export function ChatThread({
     const now = new Date()
     const diff = now.getTime() - d.getTime()
     const days = Math.floor(diff / 86400000)
-    if (days === 0) return t('message.today') || 'Today'
-    if (days === 1) return t('message.yesterday') || 'Yesterday'
+    if (days === 0) return t('app.today') || 'Today'
+    if (days === 1) return t('app.yesterday') || 'Yesterday'
     return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: d.getFullYear() !== now.getFullYear() ? 'numeric' : undefined })
   }, [t])
 
