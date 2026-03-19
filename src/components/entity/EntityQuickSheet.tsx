@@ -1,12 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { View, Text, Pressable, ScrollView, StyleSheet } from 'react-native'
 import { useTranslation } from 'react-i18next'
-import { ArrowLeft, Bot, Clock, ExternalLink, MessageSquare, User, Wifi, WifiOff } from 'lucide-react-native'
+import { ArrowLeft, Bot, Clock, ExternalLink, MessageSquare, PowerOff, User, Wifi, WifiOff } from 'lucide-react-native'
 import { EntityAvatar } from '../ui/EntityAvatar'
 import { useThemeColors } from '../../lib/theme'
 import { useAuthStore } from '../../store/auth'
 import * as api from '../../lib/api'
 import type { Entity } from '../../lib/types'
+import { getEntityPresenceSemantic, getEntityStatusLabel } from '../../lib/entity-status'
 
 interface Props {
   entity: Entity
@@ -79,11 +80,8 @@ export function EntityQuickSheet({
     : entity.entity_type === 'service'
       ? t('entityPopover.service')
       : t('entityPopover.user')
-  const statusLabel = entity.status === 'disabled'
-    ? t('entityPopover.disabled')
-    : entity.status === 'pending'
-      ? t('entityPopover.pending')
-      : t('entityPopover.active')
+  const statusSemantic = getEntityPresenceSemantic(entity, resolvedOnline)
+  const statusLabel = getEntityStatusLabel(t, entity, resolvedOnline)
   const ownerLabel = useMemo(() => {
     if (!isBot) return null
     if (entity.owner_id && entity.owner_id === myEntity?.id) {
@@ -147,8 +145,27 @@ export function EntityQuickSheet({
             </View>
             <Text style={[styles.handle, { color: colors.textMuted }]}>@{entity.name}</Text>
             <View style={styles.statusRow}>
-              {resolvedOnline ? <Wifi size={12} color="#16a34a" /> : <WifiOff size={12} color={colors.textMuted} />}
-              <Text style={[styles.statusText, { color: resolvedOnline ? '#16a34a' : colors.textMuted }]}>
+              {statusSemantic === 'disabled' ? (
+                <PowerOff size={12} color={colors.warning} />
+              ) : statusSemantic === 'pending' ? (
+                <Clock size={12} color={colors.warning} />
+              ) : statusSemantic === 'online' ? (
+                <Wifi size={12} color={colors.success} />
+              ) : (
+                <WifiOff size={12} color={colors.textMuted} />
+              )}
+              <Text
+                style={[
+                  styles.statusText,
+                  {
+                    color: statusSemantic === 'disabled' || statusSemantic === 'pending'
+                      ? colors.warning
+                      : statusSemantic === 'online'
+                        ? colors.success
+                        : colors.textMuted,
+                  },
+                ]}
+              >
                 {statusLabel}
               </Text>
             </View>

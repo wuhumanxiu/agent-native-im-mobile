@@ -10,6 +10,7 @@ import { getErrorMessage } from '../../lib/errors'
 import type { Entity } from '../../lib/types'
 import { EntityAvatar } from '../ui/EntityAvatar'
 import { useThemeColors } from '../../lib/theme'
+import { getEntityPresenceSemantic, getEntityStatusLabel } from '../../lib/entity-status'
 
 interface Props {
   selectedId: number | null
@@ -95,7 +96,9 @@ export function BotList({ selectedId, onSelect, onCreatePress, refreshTrigger }:
 
   const renderBotItem = ({ item: entity }: { item: Entity }) => {
     const isOnline = onlineSet.has(entity.id)
-    const isDisabled = entity.status === 'disabled'
+    const statusSemantic = getEntityPresenceSemantic(entity, isOnline)
+    const statusLabel = getEntityStatusLabel(t, entity, isOnline)
+    const isDisabled = statusSemantic === 'disabled'
     const isActive = entity.id === selectedId
     const meta = entity.metadata as Record<string, unknown> | undefined
     const tags = Array.isArray(meta?.tags) ? (meta.tags as string[]) : []
@@ -123,9 +126,9 @@ export function BotList({ selectedId, onSelect, onCreatePress, refreshTrigger }:
             <View style={[
               styles.statusBadge,
               {
-                backgroundColor: isDisabled
+                backgroundColor: statusSemantic === 'disabled' || statusSemantic === 'pending'
                   ? `${colors.warning}20`
-                  : isOnline
+                  : statusSemantic === 'online'
                     ? `${colors.success}20`
                     : colors.bgHover,
               },
@@ -133,14 +136,14 @@ export function BotList({ selectedId, onSelect, onCreatePress, refreshTrigger }:
               <Text style={[
                 styles.statusText,
                 {
-                  color: isDisabled
+                  color: statusSemantic === 'disabled' || statusSemantic === 'pending'
                     ? colors.warning
-                    : isOnline
+                    : statusSemantic === 'online'
                       ? colors.success
                       : colors.textSecondary,
                 },
               ]}>
-                {isDisabled ? t('bot.disabled') : isOnline ? t('common.online') : t('common.offline')}
+                {statusLabel}
               </Text>
             </View>
           </View>

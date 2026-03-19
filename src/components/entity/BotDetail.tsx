@@ -14,6 +14,7 @@ import * as api from '../../lib/api'
 import type { Entity, Conversation } from '../../lib/types'
 import { EntityAvatar } from '../ui/EntityAvatar'
 import { useThemeColors } from '../../lib/theme'
+import { getEntityPresenceSemantic, getEntityStatusLabel } from '../../lib/entity-status'
 
 interface Props {
   bot: Entity | null
@@ -168,6 +169,8 @@ export function BotDetail({
   }
 
   const isDisabled = bot.status === 'disabled'
+  const statusSemantic = getEntityPresenceSemantic(bot, isOnline)
+  const statusLabel = getEntityStatusLabel(t, bot, isOnline)
   const meta = bot.metadata as Record<string, unknown> | undefined
   const description = (meta?.description as string) || ''
   const tags = (meta?.tags as string[]) || []
@@ -193,15 +196,30 @@ export function BotDetail({
         </View>
         <View style={[
           styles.headerBadge,
-          isDisabled ? styles.badgeWarning : isOnline ? styles.badgeOnline : styles.badgeOffline,
+          statusSemantic === 'disabled' || statusSemantic === 'pending'
+            ? styles.badgeWarning
+            : statusSemantic === 'online'
+              ? styles.badgeOnline
+              : styles.badgeOffline,
         ]}>
-          {isDisabled ? <PowerOff size={12} color="#d97706" /> :
-           isOnline ? <Wifi size={12} color="#16a34a" /> : <WifiOff size={12} color="#94a3b8" />}
+          {statusSemantic === 'disabled' ? (
+            <PowerOff size={12} color={colors.warning} />
+          ) : statusSemantic === 'pending' ? (
+            <Clock size={12} color={colors.warning} />
+          ) : statusSemantic === 'online' ? (
+            <Wifi size={12} color={colors.success} />
+          ) : (
+            <WifiOff size={12} color={colors.textMuted} />
+          )}
           <Text style={[
             styles.badgeText,
-            isDisabled ? { color: '#d97706' } : isOnline ? { color: '#16a34a' } : { color: '#94a3b8' },
+            statusSemantic === 'disabled' || statusSemantic === 'pending'
+              ? { color: colors.warning }
+              : statusSemantic === 'online'
+                ? { color: colors.success }
+                : { color: colors.textMuted },
           ]}>
-            {isDisabled ? t('bot.disabled') : isOnline ? t('common.online') : t('common.offline')}
+            {statusLabel}
           </Text>
         </View>
       </View>
