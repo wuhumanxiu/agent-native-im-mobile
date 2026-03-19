@@ -993,8 +993,10 @@ const styles = StyleSheet.create({
   aboutRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingVertical: 12,
-    gap: 16,
+    alignItems: 'flex-start',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    gap: 18,
   },
   aboutRowBorder: {
     borderTopWidth: 1,
@@ -1003,6 +1005,8 @@ const styles = StyleSheet.create({
   aboutLabel: {
     fontSize: 13,
     color: '#94a3b8',
+    lineHeight: 18,
+    paddingTop: 1,
   },
   aboutValue: {
     fontSize: 13,
@@ -1010,6 +1014,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     flexShrink: 1,
     textAlign: 'right',
+    lineHeight: 18,
   },
   aboutValueMono: {
     fontFamily: 'monospace',
@@ -1020,6 +1025,7 @@ const styles = StyleSheet.create({
     borderColor: '#e2e8f0',
     backgroundColor: '#ffffff',
     overflow: 'hidden',
+    paddingVertical: 2,
   },
   copyBtn: {
     alignSelf: 'stretch',
