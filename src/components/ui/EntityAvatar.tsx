@@ -70,7 +70,7 @@ function resolveAvatarUrl(url?: string): string | null {
   }
   // Stable public avatar path backed by the server avatar endpoint.
   if (url.startsWith('/files/')) {
-    return `${API_BASE_URL}/avatar-files/${url.slice('/files/'.length)}`
+    return `${API_BASE_URL}/avatar-files/${url.slice('/files/'.length)}?v=1`
   }
   if (url.startsWith('/')) {
     return API_BASE_URL + url
