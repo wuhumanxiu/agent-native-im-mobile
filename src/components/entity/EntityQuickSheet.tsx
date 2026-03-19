@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { View, Text, Pressable, ScrollView, StyleSheet } from 'react-native'
 import { useTranslation } from 'react-i18next'
-import { ArrowLeft, Bot, ExternalLink, MessageSquare, User, Wifi, WifiOff } from 'lucide-react-native'
+import { ArrowLeft, Bot, Clock, ExternalLink, MessageSquare, User, Wifi, WifiOff } from 'lucide-react-native'
 import { EntityAvatar } from '../ui/EntityAvatar'
 import { useThemeColors } from '../../lib/theme'
 import { useAuthStore } from '../../store/auth'
@@ -39,6 +39,7 @@ export function EntityQuickSheet({
   const token = useAuthStore((s) => s.token)
   const isBot = isBotOrService(entity)
   const [resolvedOnline, setResolvedOnline] = useState(isOnline)
+  const [lastSeen, setLastSeen] = useState<string | null>(null)
   const description = useMemo(() => {
     const raw = entity.metadata?.description
     return typeof raw === 'string' ? raw.trim() : ''
@@ -70,6 +71,17 @@ export function EntityQuickSheet({
       if (res.ok && res.data?.presence) {
         setResolvedOnline(!!res.data.presence[String(entity.id)])
       }
+    }).catch(() => {})
+    return () => { cancelled = true }
+  }, [token, entity.id])
+
+  useEffect(() => {
+    if (!token || !entity.id) return
+    let cancelled = false
+    api.getEntityStatus(token, entity.id).then((res) => {
+      if (cancelled || !res.ok || !res.data) return
+      setResolvedOnline(!!res.data.online)
+      setLastSeen(res.data.last_seen || null)
     }).catch(() => {})
     return () => { cancelled = true }
   }, [token, entity.id])
@@ -121,6 +133,14 @@ export function EntityQuickSheet({
           <InfoRow label={t('entityPopover.type')} value={typeLabel} colors={colors} />
           <InfoRow label={t('bot.owner')} value={entity.owner_id ? `#${entity.owner_id}` : '--'} colors={colors} />
           <InfoRow label="ID" value={`#${entity.id}`} colors={colors} />
+          {!resolvedOnline && lastSeen ? (
+            <InfoRow
+              label={t('bot.lastSeen')}
+              value={new Date(lastSeen).toLocaleString()}
+              colors={colors}
+              icon={<Clock size={14} color={colors.textMuted} />}
+            />
+          ) : null}
         </View>
 
         {tags.length > 0 && (
@@ -165,14 +185,19 @@ function InfoRow({
   label,
   value,
   colors,
+  icon,
 }: {
   label: string
   value: string
   colors: ReturnType<typeof useThemeColors>
+  icon?: React.ReactNode
 }) {
   return (
     <View style={styles.infoRow}>
-      <Text style={[styles.infoLabel, { color: colors.textMuted }]}>{label}</Text>
+      <View style={styles.infoLabelRow}>
+        {icon}
+        <Text style={[styles.infoLabel, { color: colors.textMuted }]}>{label}</Text>
+      </View>
       <Text style={[styles.infoValue, { color: colors.textSecondary }]} numberOfLines={1}>{value}</Text>
     </View>
   )
@@ -274,6 +299,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 12,
+  },
+  infoLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   infoLabel: {
     fontSize: 12,
