@@ -454,6 +454,8 @@
     "bot": "Bot",
     "service": "Service",
     "user": "User",
+    "type": "Type",
+    "tags": "Tags",
     "active": "Active",
     "disabled": "Disabled",
     "pending": "Pending",

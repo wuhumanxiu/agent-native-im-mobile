@@ -11,6 +11,7 @@ import type { Message, Conversation, ActiveStream, Entity } from '../../src/lib/
 import { ChatThread } from '../../src/components/chat/ChatThread'
 import { ConversationSettings } from '../../src/components/conversation/ConversationSettings'
 import { TaskPanel } from '../../src/components/task/TaskPanel'
+import { EntityQuickSheet } from '../../src/components/entity/EntityQuickSheet'
 import { useWSContext } from '../../src/hooks/WebSocketContext'
 import { usePresenceStore } from '../../src/store/presence'
 
@@ -26,6 +27,7 @@ export default function ChatDetailScreen() {
   const removeConversation = useConversationsStore((s) => s.removeConversation)
   const readReceipts = useConversationsStore((s) => s.readReceipts)
   const wsConnected = usePresenceStore((s) => s.wsConnected)
+  const presenceMap = usePresenceStore((s) => s.entities)
 
   // WebSocket context — typing, streams, cancel
   const { typingMap, sendTyping, sendCancelStream } = useWSContext()
@@ -50,6 +52,7 @@ export default function ChatDetailScreen() {
   const [hasMore, setHasMore] = useState(true)
   const [showSettings, setShowSettings] = useState(false)
   const [showTasks, setShowTasks] = useState(false)
+  const [selectedEntity, setSelectedEntity] = useState<Entity | null>(null)
   const [botThinkingEntity, setBotThinkingEntity] = useState<Entity | null>(null)
   const botThinkingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -318,6 +321,30 @@ export default function ChatDetailScreen() {
     return null
   }, [token])
 
+  const handleEntityPress = useCallback((pressedEntity: Entity) => {
+    if (pressedEntity.id === entity?.id) return
+    setSelectedEntity(pressedEntity)
+  }, [entity?.id])
+
+  const handleStartChatWithEntity = useCallback(async (target: Entity) => {
+    if (!token) return
+    const title = target.display_name || target.name || 'Chat'
+    const res = await api.createConversation(token, {
+      title,
+      conv_type: 'direct',
+      participant_ids: [target.id],
+    })
+    if (res.ok && res.data) {
+      setSelectedEntity(null)
+      router.push(`/chat/${res.data.id}`)
+    }
+  }, [token, router])
+
+  const handleOpenEntityDetails = useCallback((target: Entity) => {
+    setSelectedEntity(null)
+    router.push(`/bots/${target.id}`)
+  }, [router])
+
   // Conversation settings handlers
   const handleConvUpdated = useCallback((partial: Partial<Conversation>) => {
     if (conversation) {
@@ -368,6 +395,7 @@ export default function ChatDetailScreen() {
           progress={progress}
           thinkingEntity={botThinkingEntity || undefined}
           readReceipts={convReadReceipts}
+          onEntityPress={handleEntityPress}
           onBack={() => router.back()}
           onSettings={() => setShowSettings(true)}
           onLoadMore={handleLoadMore}
@@ -412,6 +440,29 @@ export default function ChatDetailScreen() {
             participants={displayConv.participants || []}
             onClose={() => setShowTasks(false)}
           />
+        </SafeAreaView>
+      </Modal>
+
+      <Modal
+        visible={!!selectedEntity}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setSelectedEntity(null)}
+      >
+        <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+          {selectedEntity ? (
+            <EntityQuickSheet
+              entity={selectedEntity}
+              isOnline={!!presenceMap[String(selectedEntity.id)]}
+              canViewDetails={
+                (selectedEntity.entity_type === 'bot' || selectedEntity.entity_type === 'service') &&
+                selectedEntity.owner_id === entity?.id
+              }
+              onClose={() => setSelectedEntity(null)}
+              onStartChat={handleStartChatWithEntity}
+              onViewDetails={handleOpenEntityDetails}
+            />
+          ) : null}
         </SafeAreaView>
       </Modal>
     </>

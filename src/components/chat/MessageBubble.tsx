@@ -328,6 +328,7 @@ interface Props {
   myEntityId?: number
   participantsMap?: Map<number, Entity>
   replyMessage?: Message
+  onEntityPress?: (entity: Entity) => void
   onRevoke?: (msgId: number) => void
   onReply?: (msg: Message) => void
   onReact?: (msgId: number, emoji: string) => void
@@ -345,6 +346,7 @@ export function MessageBubble({
   myEntityId,
   participantsMap,
   replyMessage,
+  onEntityPress,
   onRevoke,
   onReply,
   onReact,
@@ -568,7 +570,11 @@ export function MessageBubble({
         {/* Avatar */}
         {!isSelf && (
           showSender ? (
-            <EntityAvatar entity={message.sender} size="sm" />
+            <EntityAvatar
+              entity={message.sender}
+              size="sm"
+              onPress={message.sender ? () => onEntityPress?.(message.sender!) : undefined}
+            />
           ) : (
             <View style={styles.avatarSpacer} />
           )

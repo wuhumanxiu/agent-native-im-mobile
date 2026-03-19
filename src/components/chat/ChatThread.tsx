@@ -45,6 +45,7 @@ interface Props {
   onBack?: () => void
   onSettings?: () => void
   onLoadMore?: () => void
+  onEntityPress?: (entity: Entity) => void
   onSend: (text: string, attachments?: UploadedAttachment[], mentions?: number[], replyToId?: number) => void
   onAudioSend?: (blob: any, duration: number) => void
   onFileUpload?: (file: { uri: string; name: string; type: string; size: number }) => Promise<string | null>
@@ -78,6 +79,7 @@ export function ChatThread({
   onBack,
   onSettings,
   onLoadMore,
+  onEntityPress,
   onSend,
   onAudioSend,
   onFileUpload,
@@ -242,6 +244,7 @@ export function ChatThread({
           myEntityId={myEntityId}
           participantsMap={participantMap}
           replyMessage={replyMessage}
+          onEntityPress={onEntityPress}
           showSender={showSender}
           isRead={isSelf ? isMessageRead(item.id) : undefined}
           onRevoke={isArchived ? undefined : onRevoke}
@@ -252,7 +255,7 @@ export function ChatThread({
         />
       </View>
     )
-  }, [myEntityId, isGroup, shouldShowSender, invertedMessages, messageMap, participantMap, isMessageRead, isArchived, onRevoke, handleReply, onReact, onRespondInteraction, onRetryOutbox, colors, formatDateSeparator])
+  }, [myEntityId, isGroup, shouldShowSender, invertedMessages, messageMap, participantMap, isMessageRead, isArchived, onEntityPress, onRevoke, handleReply, onReact, onRespondInteraction, onRetryOutbox, colors, formatDateSeparator])
 
   // Render streaming bubbles at the top (bottom visually in inverted list)
   const renderHeader = useCallback(() => {

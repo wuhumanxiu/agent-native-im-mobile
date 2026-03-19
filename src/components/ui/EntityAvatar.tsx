@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react'
-import { View, Text, Image, StyleSheet } from 'react-native'
+import { View, Text, Image, StyleSheet, Pressable } from 'react-native'
 import { Bot } from 'lucide-react-native'
 import type { Entity } from '../../lib/types'
 import { API_BASE_URL } from '../../lib/constants'
@@ -9,6 +9,7 @@ interface Props {
   size?: 'xs' | 'sm' | 'md' | 'lg'
   showStatus?: boolean
   isOnline?: boolean
+  onPress?: () => void
 }
 
 const SIZE_MAP = {
@@ -78,7 +79,7 @@ function resolveAvatarUrl(url?: string): string | null {
   return url
 }
 
-export function EntityAvatar({ entity, size = 'md', showStatus = false, isOnline = false }: Props) {
+export function EntityAvatar({ entity, size = 'md', showStatus = false, isOnline = false, onPress }: Props) {
   const dimension = SIZE_MAP[size]
   const fontSize = FONT_SIZE_MAP[size]
   const dotDim = DOT_SIZE_MAP[size]
@@ -90,7 +91,7 @@ export function EntityAvatar({ entity, size = 'md', showStatus = false, isOnline
   const avatarUri = useMemo(() => resolveAvatarUrl(entity?.avatar_url), [entity?.avatar_url])
   const showImage = !!avatarUri && !imgError
 
-  return (
+  const content = (
     <View style={[styles.container, { width: dimension, height: dimension }]}>
       <View
         style={[
@@ -133,12 +134,25 @@ export function EntityAvatar({ entity, size = 'md', showStatus = false, isOnline
       )}
     </View>
   )
+
+  if (onPress) {
+    return (
+      <Pressable onPress={onPress} hitSlop={8} style={styles.pressable}>
+        {content}
+      </Pressable>
+    )
+  }
+
+  return content
 }
 
 const styles = StyleSheet.create({
   container: {
     position: 'relative',
     flexShrink: 0,
+  },
+  pressable: {
+    borderRadius: 9999,
   },
   avatar: {
     alignItems: 'center',

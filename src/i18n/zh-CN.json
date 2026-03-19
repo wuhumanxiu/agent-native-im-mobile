@@ -454,6 +454,8 @@
     "bot": "Bot",
     "service": "Service",
     "user": "用户",
+    "type": "类型",
+    "tags": "标签",
     "active": "活跃",
     "disabled": "已停用",
     "pending": "待审批",
