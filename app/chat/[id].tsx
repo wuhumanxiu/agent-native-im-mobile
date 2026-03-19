@@ -50,7 +50,7 @@ export default function ChatDetailScreen() {
   const [hasMore, setHasMore] = useState(true)
   const [showSettings, setShowSettings] = useState(false)
   const [showTasks, setShowTasks] = useState(false)
-  const [botThinking, setBotThinking] = useState(false)
+  const [botThinkingEntity, setBotThinkingEntity] = useState<Entity | null>(null)
   const botThinkingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Set active conversation for unread count tracking
@@ -67,33 +67,42 @@ export default function ChatDetailScreen() {
   }, [storeStreams, convId])
 
   const isGroup = conversation?.conv_type === 'group' || conversation?.conv_type === 'channel'
-  const botParticipant = useMemo(() => {
-    const participants = conversation?.participants || []
-    return participants.find((participant) => {
-      const participantEntity = participant.entity
-      return participant.entity_id !== entity?.id && (
-        participantEntity?.entity_type === 'bot' || participantEntity?.entity_type === 'service'
-      )
-    })?.entity
+  const botParticipants = useMemo(() => {
+    return (conversation?.participants || [])
+      .filter((participant) => participant.entity_id !== entity?.id)
+      .map((participant) => participant.entity)
+      .filter((participantEntity): participantEntity is Entity => (
+        !!participantEntity && (
+          participantEntity.entity_type === 'bot' || participantEntity.entity_type === 'service'
+        )
+      ))
   }, [conversation?.participants, entity?.id])
-  const isDmWithBot = !isGroup && !!botParticipant
+  const directBotParticipant = !isGroup ? (botParticipants[0] || null) : null
 
   const stopBotThinking = useCallback(() => {
     if (botThinkingTimerRef.current) {
       clearTimeout(botThinkingTimerRef.current)
       botThinkingTimerRef.current = null
     }
-    setBotThinking(false)
+    setBotThinkingEntity(null)
   }, [])
 
-  const startBotThinking = useCallback(() => {
+  const startBotThinking = useCallback((target?: Entity | null) => {
+    if (!target) return
     if (botThinkingTimerRef.current) clearTimeout(botThinkingTimerRef.current)
-    setBotThinking(true)
+    setBotThinkingEntity(target)
     botThinkingTimerRef.current = setTimeout(() => {
-      setBotThinking(false)
+      setBotThinkingEntity(null)
       botThinkingTimerRef.current = null
     }, 60000)
   }, [])
+
+  const resolveProcessingEntity = useCallback((mentions?: number[]) => {
+    if (!isGroup) return directBotParticipant
+    if (!mentions || mentions.length === 0) return null
+    const mentionedBots = botParticipants.filter((participant) => mentions.includes(participant.id))
+    return mentionedBots.length === 1 ? mentionedBots[0] : null
+  }, [isGroup, directBotParticipant, botParticipants])
 
   // Typing/processing info for this conversation
   const typingInfo = useMemo<{ text: string; isProcessing: boolean } | null>(() => {
@@ -126,7 +135,7 @@ export default function ChatDetailScreen() {
   }, [typingMap, convId, entity?.id, t])
 
   useEffect(() => {
-    if (!botThinking) return
+    if (!botThinkingEntity) return
 
     const lastMessage = messages[messages.length - 1]
     if (
@@ -144,7 +153,7 @@ export default function ChatDetailScreen() {
     }
 
     return () => stopBotThinking()
-  }, [botThinking, messages, entity?.id, typingInfo, progress, convStreams.length, stopBotThinking])
+  }, [botThinkingEntity, messages, entity?.id, typingInfo, progress, convStreams.length, stopBotThinking])
 
   // Read receipts for this conversation: entityId -> last read messageId
   const convReadReceipts = useMemo<Record<number, number>>(() => {
@@ -231,13 +240,9 @@ export default function ChatDetailScreen() {
     const res = await api.sendMessage(token, msg)
     if (res.ok && res.data) {
       addStoreMessage(res.data)
-      if (isDmWithBot) {
-        startBotThinking()
-      } else if (isGroup && mentions && botParticipant && mentions.includes(botParticipant.id)) {
-        startBotThinking()
-      }
+      startBotThinking(resolveProcessingEntity(mentions))
     }
-  }, [token, convId, addStoreMessage, isDmWithBot, isGroup, botParticipant, startBotThinking])
+  }, [token, convId, addStoreMessage, startBotThinking, resolveProcessingEntity])
 
   // Revoke message
   const handleRevoke = useCallback(async (msgId: number) => {
@@ -259,6 +264,12 @@ export default function ChatDetailScreen() {
 
   const handleRespondInteraction = useCallback(async (msgId: number, value: string, label: string) => {
     if (!token) return
+    const sourceMessage = messages.find((message) => message.id === msgId)
+    const processingEntity = sourceMessage?.sender && (
+      sourceMessage.sender.entity_type === 'bot' || sourceMessage.sender.entity_type === 'service'
+    )
+      ? sourceMessage.sender
+      : null
     const tempId = `interaction-${convId}-${msgId}-${Date.now()}`
     const optimisticId = -Date.now()
     addOptimisticMessage(tempId, {
@@ -286,15 +297,11 @@ export default function ChatDetailScreen() {
     })
     if (res.ok && res.data) {
       replaceOptimisticMessage(tempId, res.data)
-      if (isDmWithBot) {
-        startBotThinking()
-      } else if (isGroup && botParticipant) {
-        startBotThinking()
-      }
+      startBotThinking(processingEntity)
       return
     }
     setOptimisticState(tempId, 'failed')
-  }, [token, convId, entity, addOptimisticMessage, replaceOptimisticMessage, setOptimisticState, isDmWithBot, isGroup, botParticipant, startBotThinking])
+  }, [token, convId, entity, messages, addOptimisticMessage, replaceOptimisticMessage, setOptimisticState, startBotThinking])
 
   // Mark as read
   const handleMarkAsRead = useCallback(async (conversationId: number, messageId: number) => {
@@ -358,7 +365,7 @@ export default function ChatDetailScreen() {
           wsConnected={wsConnected}
           typingInfo={typingInfo}
           progress={progress}
-          thinkingEntity={botThinking ? botParticipant : undefined}
+          thinkingEntity={botThinkingEntity || undefined}
           readReceipts={convReadReceipts}
           onBack={() => router.back()}
           onSettings={() => setShowSettings(true)}
