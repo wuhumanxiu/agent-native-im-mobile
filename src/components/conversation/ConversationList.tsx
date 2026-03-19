@@ -31,6 +31,7 @@ interface Props {
   onRefresh?: () => Promise<void>
   isMuted?: (id: number) => boolean
   loading?: boolean
+  error?: string | null
 }
 
 export function ConversationList({
@@ -47,6 +48,7 @@ export function ConversationList({
   onRefresh,
   isMuted,
   loading,
+  error,
 }: Props) {
   const { t } = useTranslation()
   const colors = useThemeColors()
@@ -123,8 +125,8 @@ export function ConversationList({
     return (
       <EmptyState
         icon={<MessageSquare size={28} color="#94a3b8" />}
-        title={t('conversation.noConversations')}
-        description={t('conversation.noConversationsDesc')}
+        title={error ? t('common.error') : t('conversation.noConversations')}
+        description={error || t('conversation.noConversationsDesc')}
         action={
           <Pressable style={[styles.newChatButton, { backgroundColor: colors.accent }]} onPress={onNewChat}>
             <Text style={styles.newChatButtonText}>{t('conversation.newChat')}</Text>

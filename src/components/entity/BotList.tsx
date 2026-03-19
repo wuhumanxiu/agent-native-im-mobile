@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next'
 import { Bot, Plus, Search, PowerOff } from 'lucide-react-native'
 import { useAuthStore } from '../../store/auth'
 import * as api from '../../lib/api'
+import { getErrorMessage } from '../../lib/errors'
 import type { Entity } from '../../lib/types'
 import { EntityAvatar } from '../ui/EntityAvatar'
 import { useThemeColors } from '../../lib/theme'
@@ -26,13 +27,16 @@ function entityDisplayName(entity?: Entity | null): string {
 export function BotList({ selectedId, onSelect, onCreatePress, refreshTrigger }: Props) {
   const { t } = useTranslation()
   const colors = useThemeColors()
-  const token = useAuthStore((s) => s.token)!
+  const token = useAuthStore((s) => s.token)
+  const sessionChecked = useAuthStore((s) => s.sessionChecked)
   const [entities, setEntities] = useState<Entity[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [onlineSet, setOnlineSet] = useState<Set<number>>(new Set())
 
   const fetchPresence = useCallback(async (list: Entity[]) => {
+    if (!token) return
     const botIds = list.filter((e) => e.entity_type !== 'user').map((e) => e.id)
     if (botIds.length > 0) {
       const presRes = await api.batchPresence(token, botIds)
@@ -47,17 +51,28 @@ export function BotList({ selectedId, onSelect, onCreatePress, refreshTrigger }:
   }, [token])
 
   const loadEntities = useCallback(async () => {
+    if (!sessionChecked || !token) {
+      setLoading(false)
+      return
+    }
     try {
+      setError(null)
       const res = await api.listEntities(token)
-      const list = res.ok && res.data ? (Array.isArray(res.data) ? res.data : []) : []
+      if (!res.ok || !res.data) {
+        setEntities([])
+        setError(getErrorMessage(res))
+        return
+      }
+      const list = Array.isArray(res.data) ? res.data : []
       setEntities(list)
       await fetchPresence(list)
     } catch {
-      // Network failed
+      setEntities([])
+      setError('Failed to load bots')
     } finally {
       setLoading(false)
     }
-  }, [token, fetchPresence])
+  }, [sessionChecked, token, fetchPresence])
 
   useEffect(() => {
     setLoading(true)
@@ -198,7 +213,7 @@ export function BotList({ selectedId, onSelect, onCreatePress, refreshTrigger }:
         <View style={styles.centered}>
           <Bot size={32} color="#94a3b8" />
           <Text style={styles.emptyText}>
-            {search ? t('common.noMatches') : t('bot.noAgents')}
+            {search ? t('common.noMatches') : (error || t('bot.noAgents'))}
           </Text>
         </View>
       ) : (

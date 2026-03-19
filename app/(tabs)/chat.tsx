@@ -7,12 +7,14 @@ import { GlobalSearch } from '../../src/components/conversation/GlobalSearch'
 import { useAuthStore } from '../../src/store/auth'
 import { useConversationsStore } from '../../src/store/conversations'
 import { useThemeColors } from '../../src/lib/theme'
+import { getErrorMessage } from '../../src/lib/errors'
 import * as api from '../../src/lib/api'
 
 export default function ChatTab() {
   const router = useRouter()
   const token = useAuthStore((s) => s.token)
   const entity = useAuthStore((s) => s.entity)
+  const sessionChecked = useAuthStore((s) => s.sessionChecked)
   const conversations = useConversationsStore((s) => s.conversations)
   const setConversations = useConversationsStore((s) => s.setConversations)
   const toggleMute = useConversationsStore((s) => s.toggleMute)
@@ -22,15 +24,29 @@ export default function ChatTab() {
   const colors = useThemeColors()
   const [showNewChat, setShowNewChat] = useState(false)
   const [showSearch, setShowSearch] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const loadConversations = useCallback(async () => {
-    if (!token) return
-    const res = await api.listConversations(token)
-    if (res.ok && res.data) {
-      const convs = Array.isArray(res.data) ? res.data : (res.data as any).conversations || []
-      setConversations(convs)
+    if (!sessionChecked || !token) return
+    setLoading(true)
+    setError(null)
+    try {
+      const res = await api.listConversations(token)
+      if (res.ok && res.data) {
+        const convs = Array.isArray(res.data) ? res.data : (res.data as any).conversations || []
+        setConversations(convs)
+      } else {
+        setError(getErrorMessage(res))
+        setConversations([])
+      }
+    } catch {
+      setError('Failed to load conversations')
+      setConversations([])
+    } finally {
+      setLoading(false)
     }
-  }, [token, setConversations])
+  }, [sessionChecked, token, setConversations])
 
   useEffect(() => {
     loadConversations()
@@ -86,6 +102,8 @@ export default function ChatTab() {
         onArchive={handleArchive}
         onLeave={handleLeave}
         isMuted={(id) => isMuted(id)}
+        loading={loading}
+        error={error}
       />
 
       {/* New Conversation Modal */}
