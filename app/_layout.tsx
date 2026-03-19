@@ -12,6 +12,8 @@ export default function RootLayout() {
   const router = useRouter()
   const segments = useSegments()
   const token = useAuthStore((s) => s.token)
+  const sessionChecked = useAuthStore((s) => s.sessionChecked)
+  const hydrateAuth = useAuthStore((s) => s.hydrate)
   const [isReady, setIsReady] = useState(false)
   const colors = useThemeColors()
 
@@ -22,7 +24,11 @@ export default function RootLayout() {
   }, [])
 
   useEffect(() => {
-    if (!isReady) return
+    hydrateAuth().catch(() => {})
+  }, [hydrateAuth])
+
+  useEffect(() => {
+    if (!isReady || !sessionChecked) return
 
     const inAuthGroup = segments[0] === 'login' || segments[0] === 'register'
 
@@ -31,7 +37,7 @@ export default function RootLayout() {
     } else if (token && inAuthGroup) {
       router.replace('/(tabs)/chat')
     }
-  }, [token, segments, isReady])
+  }, [token, segments, isReady, sessionChecked])
 
   return (
     <SafeAreaProvider>
