@@ -490,7 +490,8 @@
     "chatWithBotDesc": "与 Bot 开始一对一对话",
     "createGroup": "创建群聊",
     "createGroupDesc": "创建包含 Bot 和用户的群组",
-    "createGroupButton": "创建群组（已选 {{count}} 人）"
+    "createGroupButton": "创建群组（已选 {{count}} 人）",
+    "directTitleWithBot": "与{{name}}的对话 #{{stamp}}"
   },
   "emoji": {
     "search": "搜索表情...",

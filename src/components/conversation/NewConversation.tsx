@@ -12,6 +12,7 @@ import * as api from '../../lib/api'
 import type { Entity } from '../../lib/types'
 import { EntityAvatar } from '../ui/EntityAvatar'
 import { OnboardingCard } from '../ui/OnboardingCard'
+import { buildDirectConversationTitle } from '../../lib/conversation-title'
 
 type Step = 'choose' | 'chat-with-bot' | 'create-group'
 
@@ -93,7 +94,7 @@ export function NewConversation({ visible, onClose, onCreated, preselectedEntity
   const handleChatWithBot = async (bot: Entity) => {
     setCreating(true)
     const res = await api.createConversation(token, {
-      title: entityDisplayName(bot),
+      title: buildDirectConversationTitle(t, bot),
       conv_type: 'direct',
       participant_ids: [bot.id],
     })

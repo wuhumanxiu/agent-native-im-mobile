@@ -490,7 +490,8 @@
     "chatWithBotDesc": "Start a direct conversation with a bot",
     "createGroup": "Create Group",
     "createGroupDesc": "Create a group with bots and users",
-    "createGroupButton": "Create Group ({{count}} selected)"
+    "createGroupButton": "Create Group ({{count}} selected)",
+    "directTitleWithBot": "Chat with {{name}} #{{stamp}}"
   },
   "emoji": {
     "search": "Search emojis...",

@@ -15,6 +15,7 @@ import { EntityQuickSheet } from '../../src/components/entity/EntityQuickSheet'
 import { useWSContext } from '../../src/hooks/WebSocketContext'
 import { usePresenceStore } from '../../src/store/presence'
 import { normalizeAttachmentUrl } from '../../src/lib/files'
+import { buildDirectConversationTitle } from '../../src/lib/conversation-title'
 
 export default function ChatDetailScreen() {
   const { t } = useTranslation()
@@ -355,7 +356,7 @@ export default function ChatDetailScreen() {
 
   const handleStartChatWithEntity = useCallback(async (target: Entity) => {
     if (!token) return
-    const title = target.display_name || target.name || 'Chat'
+    const title = buildDirectConversationTitle(t, target)
     const res = await api.createConversation(token, {
       title,
       conv_type: 'direct',
@@ -365,7 +366,7 @@ export default function ChatDetailScreen() {
       setSelectedEntity(null)
       router.push(`/chat/${res.data.id}`)
     }
-  }, [token, router])
+  }, [token, router, t])
 
   const handleOpenEntityDetails = useCallback((target: Entity) => {
     setSelectedEntity(null)

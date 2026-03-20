@@ -1,14 +1,17 @@
 import { useState, useCallback } from 'react'
 import { useRouter } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '../../src/store/auth'
 import * as api from '../../src/lib/api'
 import { BotList } from '../../src/components/entity/BotList'
 import { useThemeColors } from '../../src/lib/theme'
 import { CreateBotDialog } from '../../src/components/entity/CreateBotDialog'
 import type { Entity } from '../../src/lib/types'
+import { buildDirectConversationTitle } from '../../src/lib/conversation-title'
 
 export default function BotsTab() {
+  const { t } = useTranslation()
   const router = useRouter()
   const token = useAuthStore((s) => s.token)
   const colors = useThemeColors()
@@ -26,21 +29,21 @@ export default function BotsTab() {
     if (!token) return
     // Get entity name for chat title
     const res = await api.listEntities(token)
-    let name = 'Bot'
+    let directTitle = 'Bot'
     if (res.ok && res.data) {
       const entities = Array.isArray(res.data) ? res.data : []
       const found = entities.find((e) => e.id === entityId)
-      if (found) name = found.display_name || found.name || 'Bot'
+      if (found) directTitle = buildDirectConversationTitle(t, found)
     }
     const convRes = await api.createConversation(token, {
-      title: name,
+      title: directTitle,
       conv_type: 'direct',
       participant_ids: [entityId],
     })
     if (convRes.ok && convRes.data) {
       router.push(`/chat/${convRes.data.id}`)
     }
-  }, [token, router])
+  }, [token, router, t])
 
   const handleCreated = useCallback((result: { entity: Entity; key: string; doc: string }) => {
     setCreatedResult(result)
