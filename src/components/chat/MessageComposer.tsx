@@ -25,6 +25,7 @@ function formatFileSize(bytes: number): string {
 // ─── Types ───────────────────────────────────────────────────────
 
 export interface PendingFile {
+  id: string
   uri: string
   name: string
   type: string
@@ -85,6 +86,7 @@ export function MessageComposer({
   const [inputHeight, setInputHeight] = useState(40)
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
   const textInputRef = useRef<TextInput>(null)
+  const uploadSeqRef = useRef(0)
 
   // Audio recording state
   const [isRecording, setIsRecording] = useState(false)
@@ -335,6 +337,32 @@ export function MessageComposer({
     }
   }, [])
 
+  const uploadPendingFile = useCallback(async (entry: PendingFile) => {
+    if (!onFileUpload) return
+
+    setPendingFiles((prev) =>
+      prev.map((pf) => (pf.id === entry.id ? { ...pf, status: 'uploading' } : pf))
+    )
+
+    try {
+      const url = await Promise.race<string | null>([
+        onFileUpload({ uri: entry.uri, name: entry.name, type: entry.type, size: entry.size }),
+        new Promise<null>((resolve) => setTimeout(() => resolve(null), 60000)),
+      ])
+      setPendingFiles((prev) =>
+        prev.map((pf) =>
+          pf.id === entry.id
+            ? { ...pf, status: url ? 'uploaded' : 'failed', url: url ?? undefined }
+            : pf
+        )
+      )
+    } catch {
+      setPendingFiles((prev) =>
+        prev.map((pf) => (pf.id === entry.id ? { ...pf, status: 'failed', url: undefined } : pf))
+      )
+    }
+  }, [onFileUpload])
+
   // Image/file picker
   const handlePickImage = useCallback(async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -351,6 +379,7 @@ export function MessageComposer({
       const type = asset.mimeType || 'image/jpeg'
       const size = asset.fileSize || 0
       const entry: PendingFile = {
+        id: `pending-${Date.now()}-${uploadSeqRef.current++}`,
         uri: asset.uri,
         name,
         type,
@@ -358,21 +387,12 @@ export function MessageComposer({
         status: 'uploading',
       }
       setPendingFiles((prev) => [...prev, entry])
-
-      onFileUpload({ uri: asset.uri, name, type, size }).then((url) => {
-        setPendingFiles((prev) =>
-          prev.map((pf) =>
-            pf.uri === asset.uri
-              ? { ...pf, status: url ? 'uploaded' : 'failed', url: url ?? undefined }
-              : pf
-          )
-        )
-      })
+      void uploadPendingFile(entry)
     }
-  }, [onFileUpload])
+  }, [onFileUpload, uploadPendingFile])
 
-  const removeFile = useCallback((uri: string) => {
-    setPendingFiles((prev) => prev.filter((pf) => pf.uri !== uri))
+  const removeFile = useCallback((id: string) => {
+    setPendingFiles((prev) => prev.filter((pf) => pf.id !== id))
   }, [])
 
   // Observer state
@@ -442,7 +462,7 @@ export function MessageComposer({
         <View style={styles.filesRow}>
           {pendingFiles.map((pf) => (
             <View
-              key={pf.uri}
+              key={pf.id}
               style={[
                 styles.fileChip,
                 {
@@ -470,27 +490,13 @@ export function MessageComposer({
               )}
               {pf.status === 'failed' && (
                 <Pressable
-                  onPress={() => {
-                    if (!onFileUpload) return
-                    setPendingFiles((prev) =>
-                      prev.map((f) => f.uri === pf.uri ? { ...f, status: 'uploading' } : f)
-                    )
-                    onFileUpload({ uri: pf.uri, name: pf.name, type: pf.type, size: pf.size }).then((url) => {
-                      setPendingFiles((prev) =>
-                        prev.map((f) =>
-                          f.uri === pf.uri
-                            ? { ...f, status: url ? 'uploaded' : 'failed', url: url ?? undefined }
-                            : f
-                        )
-                      )
-                    })
-                  }}
+                  onPress={() => { void uploadPendingFile(pf) }}
                   hitSlop={8}
                 >
                   <RotateCw size={14} color={colors.error} />
                 </Pressable>
               )}
-              <Pressable onPress={() => removeFile(pf.uri)} hitSlop={8}>
+              <Pressable onPress={() => removeFile(pf.id)} hitSlop={8}>
                 <X size={12} color={pf.status === 'failed' ? colors.error : colors.textMuted} />
               </Pressable>
             </View>
