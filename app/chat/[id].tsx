@@ -14,6 +14,7 @@ import { TaskPanel } from '../../src/components/task/TaskPanel'
 import { EntityQuickSheet } from '../../src/components/entity/EntityQuickSheet'
 import { useWSContext } from '../../src/hooks/WebSocketContext'
 import { usePresenceStore } from '../../src/store/presence'
+import { normalizeAttachmentUrl } from '../../src/lib/files'
 
 export default function ChatDetailScreen() {
   const { t } = useTranslation()
@@ -238,7 +239,10 @@ export default function ChatDetailScreen() {
       reply_to: replyToId,
     }
     if (attachments && attachments.length > 0) {
-      msg.attachments = attachments
+      msg.attachments = attachments.map((attachment) => ({
+        ...attachment,
+        url: normalizeAttachmentUrl(attachment?.url),
+      }))
     }
     const res = await api.sendMessage(token, msg)
     if (res.ok && res.data) {

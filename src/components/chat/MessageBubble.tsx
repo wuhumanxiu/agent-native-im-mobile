@@ -12,6 +12,8 @@ import {
 import { EntityAvatar } from '../ui/EntityAvatar'
 import { ActionSheet, type ActionSheetOption } from '../ui/ActionSheet'
 import { useThemeColors } from '../../lib/theme'
+import { useAuthStore } from '../../store/auth'
+import { authenticatedFileUrl } from '../../lib/files'
 import type { Message, Entity, Attachment, InteractionLayer } from '../../lib/types'
 
 // ─── Utility helpers ─────────────────────────────────────────────
@@ -412,6 +414,7 @@ export function MessageBubble({
 }: Props) {
   const { t } = useTranslation()
   const colors = useThemeColors()
+  const token = useAuthStore((s) => s.token)
   const themedContentStyles = useMemo(() => createContentStyles(colors), [colors])
   const themedMarkdownStyles = useMemo(() => createMarkdownStyles(colors), [colors])
   const [showThinking, setShowThinking] = useState(false)
@@ -429,6 +432,7 @@ export function MessageBubble({
   const canReply = !isRevoked && !!onReply
   const canReact = !isRevoked && !!onReact
   const canRetryOutbox = isSelf && !!message.temp_id && message.client_state !== 'sending' && !!onRetryOutbox
+  const authUrl = useCallback((url?: string | null) => authenticatedFileUrl(url, token), [token])
 
   const handleLongPress = useCallback(() => {
     if (isRevoked) return
@@ -515,9 +519,9 @@ export function MessageBubble({
               {message.attachments?.map((att, i) => {
                 if (!att.url) return null
                 return (
-                  <Pressable key={i} onPress={() => setLightboxUri(att.url!)}>
+                  <Pressable key={i} onPress={() => setLightboxUri(authUrl(att.url))}>
                     <Image
-                      source={{ uri: att.url }}
+                      source={{ uri: authUrl(att.url) }}
                       style={contentStyles.imageThumb}
                     />
                   </Pressable>
@@ -530,7 +534,7 @@ export function MessageBubble({
       case 'audio':
         return (
           <AudioPlayer
-            url={message.attachments?.[0]?.url}
+            url={authUrl(message.attachments?.[0]?.url)}
             duration={message.attachments?.[0]?.duration}
           />
         )
@@ -543,7 +547,7 @@ export function MessageBubble({
               <Pressable
                 key={i}
                 style={[themedContentStyles.fileCard, { borderColor: colors.border }]}
-                onPress={() => { if (att.url) Linking.openURL(att.url) }}
+                onPress={() => { if (att.url) Linking.openURL(authUrl(att.url)) }}
               >
                 <View style={[themedContentStyles.fileIcon, { backgroundColor: colors.accentDim }]}>
                   <FileText size={16} color={colors.accent} />
@@ -589,8 +593,8 @@ export function MessageBubble({
               <View style={{ marginTop: 6, gap: 6 }}>
                 {message.attachments.filter((att) => att.type === 'image').map((att, i) => (
                   att.url ? (
-                    <Pressable key={`img-${i}`} onPress={() => setLightboxUri(att.url!)}>
-                      <Image source={{ uri: att.url }} style={contentStyles.imageThumb} />
+                    <Pressable key={`img-${i}`} onPress={() => setLightboxUri(authUrl(att.url))}>
+                      <Image source={{ uri: authUrl(att.url) }} style={contentStyles.imageThumb} />
                     </Pressable>
                   ) : null
                 ))}
@@ -598,7 +602,7 @@ export function MessageBubble({
                   <Pressable
                     key={`file-${i}`}
                     style={[themedContentStyles.fileCard, { borderColor: colors.border }]}
-                    onPress={() => { if (att.url) Linking.openURL(att.url) }}
+                    onPress={() => { if (att.url) Linking.openURL(authUrl(att.url)) }}
                   >
                     <View style={[themedContentStyles.fileIcon, { backgroundColor: colors.accentDim }]}>
                       <FileText size={16} color={colors.accent} />
