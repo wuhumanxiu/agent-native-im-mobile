@@ -344,7 +344,10 @@
   },
   "interaction": {
     "responded": "已回复：{{value}}",
-    "inputPlaceholder": "输入回复..."
+    "inputPlaceholder": "输入回复...",
+    "awaiting": "等待回复",
+    "responding": "正在发送回复...",
+    "responseFailed": "回复失败，请重试"
   },
   "changeRequest": {
     "title": "变更请求",
@@ -402,6 +405,8 @@
     "details": "详情",
     "deliverables": "交付物",
     "knownIssues": "已知问题",
+    "testFocus": "测试重点",
+    "assignedTo": "交接给 {{names}}",
     "linkedTask": "关联任务 #{{id}}"
   },
   "mentionIntent": {

@@ -129,6 +129,15 @@ export function ChatThread({
     messages.forEach((m) => map.set(m.id, m))
     return map
   }, [messages])
+  const interactionResponseMap = useMemo(() => {
+    const map = new Map<number, Message>()
+    for (const msg of messages) {
+      const reply = msg.layers?.data?.interaction_reply as { reply_to?: number } | undefined
+      const replyToId = typeof reply?.reply_to === 'number' ? reply.reply_to : undefined
+      if (replyToId) map.set(replyToId, msg)
+    }
+    return map
+  }, [messages])
 
   // Check if a message has been read (for read receipt)
   const isMessageRead = useCallback((msgId: number): boolean => {
@@ -220,6 +229,7 @@ export function ChatThread({
     const isSelf = item.sender_id === myEntityId
     const showSender = isGroup ? shouldShowSender(index, item, invertedMessages) : (index === invertedMessages.length - 1 || invertedMessages[index + 1]?.sender_id !== item.sender_id)
     const replyMessage = item.reply_to ? messageMap.get(item.reply_to) : undefined
+    const interactionResponse = interactionResponseMap.get(item.id)
 
     // Date separator: show when day changes from next message (inverted list, so next = older)
     const nextMsg = invertedMessages[index + 1]
@@ -244,6 +254,7 @@ export function ChatThread({
           myEntityId={myEntityId}
           participantsMap={participantMap}
           replyMessage={replyMessage}
+          interactionResponse={interactionResponse}
           onEntityPress={onEntityPress}
           showSender={showSender}
           isRead={isSelf ? isMessageRead(item.id) : undefined}
@@ -255,7 +266,7 @@ export function ChatThread({
         />
       </View>
     )
-  }, [myEntityId, isGroup, shouldShowSender, invertedMessages, messageMap, participantMap, isMessageRead, isArchived, onEntityPress, onRevoke, handleReply, onReact, onRespondInteraction, onRetryOutbox, colors, formatDateSeparator])
+  }, [myEntityId, isGroup, shouldShowSender, invertedMessages, messageMap, interactionResponseMap, participantMap, isMessageRead, isArchived, onEntityPress, onRevoke, handleReply, onReact, onRespondInteraction, onRetryOutbox, colors, formatDateSeparator])
 
   // Render streaming bubbles at the top (bottom visually in inverted list)
   const renderHeader = useCallback(() => {

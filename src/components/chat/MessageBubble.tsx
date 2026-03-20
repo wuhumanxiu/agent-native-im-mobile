@@ -36,6 +36,16 @@ function isBotOrService(entity?: Entity | null): boolean {
   return entity?.entity_type === 'bot' || entity?.entity_type === 'service'
 }
 
+function getInteractionReplyLabel(message?: Message): string | null {
+  if (!message) return null
+  const summary = message.layers?.summary
+  if (typeof summary === 'string' && summary.trim()) return summary.trim()
+  const reply = message.layers?.data?.interaction_reply as { choice?: string; value?: string } | undefined
+  if (typeof reply?.choice === 'string' && reply.choice.trim()) return reply.choice.trim()
+  if (typeof reply?.value === 'string' && reply.value.trim()) return reply.value.trim()
+  return null
+}
+
 interface HandoverData {
   handover_type?: string
   task_id?: number
@@ -43,6 +53,7 @@ interface HandoverData {
   context?: {
     changes_summary?: string
     known_issues?: string[]
+    test_focus?: string[]
   }
   assign_to?: number[]
 }
@@ -59,37 +70,49 @@ function InteractionCard({
   colors,
   onReply,
   disabled = false,
+  responseMessage,
 }: {
   interaction: InteractionLayer
   colors: ReturnType<typeof useThemeColors>
   onReply?: (value: string, label: string) => void
   disabled?: boolean
+  responseMessage?: Message
 }) {
   const { t } = useTranslation()
   const themedCardStyles = useMemo(() => createCardStyles(colors), [colors])
   const [inputValue, setInputValue] = useState('')
-  const [responded, setResponded] = useState<string | null>(null)
+  const responseLabel = getInteractionReplyLabel(responseMessage)
+  const responseState = responseMessage?.client_state
+  const isResponded = !!responseMessage && responseState !== 'failed'
+  const isPending = responseState === 'sending' || responseState === 'queued'
+  const canSubmit = !disabled && !isPending && !isResponded
 
-  const handleReply = (value: string, label: string) => {
-    setResponded(label)
-    onReply?.(value, label)
-  }
+  const handleReply = (value: string, label: string) => onReply?.(value, label)
 
-  if (responded) {
-    return <Text style={themedCardStyles.respondedText}>{t('interaction.responded', { value: responded })}</Text>
+  if (isResponded && responseLabel) {
+    return <Text style={themedCardStyles.respondedText}>{t('interaction.responded', { value: responseLabel })}</Text>
   }
 
   if (interaction.type === 'choice') {
     return (
       <View style={cardStyles.cardSection}>
+        <View style={cardStyles.interactionStatusRow}>
+          <Text style={[themedCardStyles.interactionStatus, isPending && themedCardStyles.interactionStatusPending]}>
+            {isPending
+              ? t('interaction.responding')
+              : responseState === 'failed'
+                ? t('interaction.responseFailed')
+                : t('interaction.awaiting')}
+          </Text>
+        </View>
         {interaction.prompt ? <Text style={themedCardStyles.cardPrompt}>{interaction.prompt}</Text> : null}
         <View style={cardStyles.choiceRow}>
           {interaction.options?.map((option) => (
               <Pressable
                 key={option.value}
                 onPress={() => handleReply(option.value, option.label)}
-                style={[themedCardStyles.choiceButton, disabled && cardStyles.choiceButtonDisabled]}
-                disabled={disabled}
+                style={[themedCardStyles.choiceButton, !canSubmit && cardStyles.choiceButtonDisabled]}
+                disabled={!canSubmit}
               >
               <Text style={themedCardStyles.choiceButtonText}>{option.label}</Text>
             </Pressable>
@@ -102,20 +125,29 @@ function InteractionCard({
   if (interaction.type === 'confirm') {
     return (
       <View style={cardStyles.cardSection}>
+        <View style={cardStyles.interactionStatusRow}>
+          <Text style={[themedCardStyles.interactionStatus, isPending && themedCardStyles.interactionStatusPending]}>
+            {isPending
+              ? t('interaction.responding')
+              : responseState === 'failed'
+                ? t('interaction.responseFailed')
+                : t('interaction.awaiting')}
+          </Text>
+        </View>
         {interaction.prompt ? <Text style={themedCardStyles.cardPrompt}>{interaction.prompt}</Text> : null}
         <View style={cardStyles.choiceRow}>
           <Pressable
             onPress={() => handleReply('confirmed', t('common.confirm'))}
-            style={[themedCardStyles.primaryAction, disabled && cardStyles.actionDisabled]}
-            disabled={disabled}
+            style={[themedCardStyles.primaryAction, !canSubmit && cardStyles.actionDisabled]}
+            disabled={!canSubmit}
           >
             <Check size={12} color="#ffffff" />
             <Text style={cardStyles.primaryActionText}>{t('common.confirm')}</Text>
           </Pressable>
           <Pressable
             onPress={() => handleReply('cancelled', t('common.cancel'))}
-            style={[themedCardStyles.secondaryAction, disabled && cardStyles.actionDisabled]}
-            disabled={disabled}
+            style={[themedCardStyles.secondaryAction, !canSubmit && cardStyles.actionDisabled]}
+            disabled={!canSubmit}
           >
             <X size={12} color={colors.textSecondary} />
             <Text style={themedCardStyles.secondaryActionText}>{t('common.cancel')}</Text>
@@ -128,6 +160,15 @@ function InteractionCard({
   if (interaction.type === 'form') {
     return (
       <View style={cardStyles.cardSection}>
+        <View style={cardStyles.interactionStatusRow}>
+          <Text style={[themedCardStyles.interactionStatus, isPending && themedCardStyles.interactionStatusPending]}>
+            {isPending
+              ? t('interaction.responding')
+              : responseState === 'failed'
+                ? t('interaction.responseFailed')
+                : t('interaction.awaiting')}
+          </Text>
+        </View>
         {interaction.prompt ? <Text style={themedCardStyles.cardPrompt}>{interaction.prompt}</Text> : null}
         <View style={cardStyles.formRow}>
           <TextInput
@@ -136,12 +177,12 @@ function InteractionCard({
             placeholder={t('interaction.inputPlaceholder')}
             placeholderTextColor={colors.textMuted}
             style={themedCardStyles.formInput}
-            editable={!disabled}
+            editable={canSubmit}
           />
           <Pressable
             onPress={() => inputValue.trim() && handleReply(inputValue.trim(), inputValue.trim())}
-            style={[themedCardStyles.iconAction, (!inputValue.trim() || disabled) && cardStyles.iconActionDisabled]}
-            disabled={!inputValue.trim() || disabled}
+            style={[themedCardStyles.iconAction, (!inputValue.trim() || !canSubmit) && cardStyles.iconActionDisabled]}
+            disabled={!inputValue.trim() || !canSubmit}
           >
             <Send size={12} color="#ffffff" />
           </Pressable>
@@ -171,7 +212,7 @@ function HandoverCard({ message, participants, colors }: { message: Message; par
           <>
             <ArrowRight size={12} color={colors.textMuted} />
             <Text style={themedCardStyles.handoverMeta} numberOfLines={1}>
-              {assignees.join(', ')}
+              {t('handover.assignedTo', { names: assignees.join(', ') })}
             </Text>
           </>
         )}
@@ -208,6 +249,14 @@ function HandoverCard({ message, participants, colors }: { message: Message; par
               <Text style={themedCardStyles.detailLabel}>{t('handover.knownIssues')}</Text>
               {data.context.known_issues.map((issue, index) => (
                 <Text key={index} style={themedCardStyles.detailText}>• {issue}</Text>
+              ))}
+            </View>
+          )}
+          {data.context?.test_focus && data.context.test_focus.length > 0 && (
+            <View style={cardStyles.detailBlock}>
+              <Text style={themedCardStyles.detailLabel}>{t('handover.testFocus')}</Text>
+              {data.context.test_focus.map((focus, index) => (
+                <Text key={index} style={themedCardStyles.detailText}>• {focus}</Text>
               ))}
             </View>
           )}
@@ -332,6 +381,7 @@ interface Props {
   myEntityId?: number
   participantsMap?: Map<number, Entity>
   replyMessage?: Message
+  interactionResponse?: Message
   onEntityPress?: (entity: Entity) => void
   onRevoke?: (msgId: number) => void
   onReply?: (msg: Message) => void
@@ -350,6 +400,7 @@ export function MessageBubble({
   myEntityId,
   participantsMap,
   replyMessage,
+  interactionResponse,
   onEntityPress,
   onRevoke,
   onReply,
@@ -641,6 +692,7 @@ export function MessageBubble({
             <InteractionCard
               interaction={layers.interaction}
               colors={colors}
+              responseMessage={interactionResponse}
               onReply={(value, label) => onRespondInteraction?.(message.id, value, label)}
               disabled={!onRespondInteraction}
             />
@@ -1058,6 +1110,18 @@ const cardStyles = StyleSheet.create({
     fontStyle: 'italic',
     color: '#94a3b8',
   },
+  interactionStatusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  interactionStatus: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#94a3b8',
+  },
+  interactionStatusPending: {
+    color: '#6366f1',
+  },
   handoverCard: {
     minWidth: 220,
   },
@@ -1238,6 +1302,14 @@ function createCardStyles(colors: ReturnType<typeof useThemeColors>) {
     respondedText: {
       ...cardStyles.respondedText,
       color: colors.textMuted,
+    },
+    interactionStatus: {
+      ...cardStyles.interactionStatus,
+      color: colors.textMuted,
+    },
+    interactionStatusPending: {
+      ...cardStyles.interactionStatusPending,
+      color: colors.accent,
     },
     handoverHeader: {
       ...cardStyles.handoverHeader,

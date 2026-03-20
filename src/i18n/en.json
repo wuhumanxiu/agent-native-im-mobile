@@ -344,7 +344,10 @@
   },
   "interaction": {
     "responded": "Responded: {{value}}",
-    "inputPlaceholder": "Type your response..."
+    "inputPlaceholder": "Type your response...",
+    "awaiting": "Awaiting response",
+    "responding": "Sending response...",
+    "responseFailed": "Response failed. Try again."
   },
   "changeRequest": {
     "title": "Change Requests",
@@ -402,6 +405,8 @@
     "details": "Details",
     "deliverables": "Deliverables",
     "knownIssues": "Known Issues",
+    "testFocus": "Test Focus",
+    "assignedTo": "Assigned to {{names}}",
     "linkedTask": "Linked Task #{{id}}"
   },
   "mentionIntent": {
