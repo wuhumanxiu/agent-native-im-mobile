@@ -420,6 +420,7 @@ export function ChatThread({
         prompt={conversation.prompt}
         messageCount={messages.length}
         onOpenSettings={onSettings}
+        onOpenTasks={onToggleTasks}
       />
 
       {/* Messages */}

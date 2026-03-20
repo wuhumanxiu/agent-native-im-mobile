@@ -1,16 +1,18 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { View, Text, Pressable, StyleSheet } from 'react-native'
 import { useTranslation } from 'react-i18next'
-import { Brain, ChevronRight, MessagesSquare, TerminalSquare } from 'lucide-react-native'
+import { Brain, ChevronRight, ListTodo, MessagesSquare, TerminalSquare } from 'lucide-react-native'
 import * as api from '../../lib/api'
 import { useAuthStore } from '../../store/auth'
 import { useThemeColors } from '../../lib/theme'
+import type { ConversationMemory, Task } from '../../lib/types'
 
 interface Props {
   conversationId: number
   prompt?: string
   messageCount: number
   onOpenSettings?: () => void
+  onOpenTasks?: () => void
 }
 
 function truncate(text: string, max = 120) {
@@ -19,12 +21,14 @@ function truncate(text: string, max = 120) {
   return `${value.slice(0, max).trim()}…`
 }
 
-export function ConversationContextCard({ conversationId, prompt = '', messageCount, onOpenSettings }: Props) {
+export function ConversationContextCard({ conversationId, prompt = '', messageCount, onOpenSettings, onOpenTasks }: Props) {
   const { t } = useTranslation()
   const colors = useThemeColors()
   const token = useAuthStore((s) => s.token)
   const [resolvedPrompt, setResolvedPrompt] = useState(prompt)
   const [memoryCount, setMemoryCount] = useState(0)
+  const [recentMemories, setRecentMemories] = useState<ConversationMemory[]>([])
+  const [tasks, setTasks] = useState<Task[]>([])
 
   useEffect(() => {
     setResolvedPrompt(prompt)
@@ -36,35 +40,50 @@ export function ConversationContextCard({ conversationId, prompt = '', messageCo
     api.listMemories(token, conversationId).then((res) => {
       if (cancelled || !res.ok || !res.data) return
       setResolvedPrompt(res.data.prompt || '')
-      setMemoryCount((res.data.memories || []).length)
+      const nextMemories = res.data.memories || []
+      setMemoryCount(nextMemories.length)
+      setRecentMemories(nextMemories.slice(0, 2))
+    }).catch(() => {})
+    return () => { cancelled = true }
+  }, [token, conversationId])
+
+  useEffect(() => {
+    if (!token) return
+    let cancelled = false
+    api.listTasks(token, conversationId).then((res) => {
+      if (cancelled || !res.ok || !res.data) return
+      setTasks(res.data || [])
     }).catch(() => {})
     return () => { cancelled = true }
   }, [token, conversationId])
 
   const promptPreview = useMemo(() => truncate(resolvedPrompt), [resolvedPrompt])
   const hasContext = !!promptPreview || memoryCount > 0
+  const openTaskCount = useMemo(() => tasks.filter((task) => task.status !== 'done').length, [tasks])
+  const doneTaskCount = useMemo(() => tasks.filter((task) => task.status === 'done').length, [tasks])
+  const canOpen = !!onOpenSettings || !!onOpenTasks
 
-  if (!hasContext) return null
+  if (!hasContext && tasks.length === 0) return null
 
   return (
     <Pressable
-      onPress={onOpenSettings}
+      onPress={onOpenSettings || onOpenTasks}
       style={({ pressed }) => [
         styles.card,
         {
           backgroundColor: colors.bgSecondary,
           borderColor: colors.border,
         },
-        pressed && onOpenSettings && { backgroundColor: colors.bgHover },
+        pressed && canOpen && { backgroundColor: colors.bgHover },
       ]}
-      disabled={!onOpenSettings}
+      disabled={!canOpen}
     >
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <Brain size={14} color={colors.accent} />
           <Text style={[styles.title, { color: colors.text }]}>{t('memory.contextTitle')}</Text>
         </View>
-        {onOpenSettings ? <ChevronRight size={14} color={colors.textMuted} /> : null}
+        {canOpen ? <ChevronRight size={14} color={colors.textMuted} /> : null}
       </View>
 
       {promptPreview ? (
@@ -88,8 +107,32 @@ export function ConversationContextCard({ conversationId, prompt = '', messageCo
           <Text style={[styles.value, { color: colors.textSecondary }]}>
             {t('memory.contextSummary', { count: memoryCount, messages: messageCount })}
           </Text>
+          {recentMemories.map((memory) => (
+            <Text key={memory.id} style={[styles.detailText, { color: colors.textMuted }]} numberOfLines={2}>
+              <Text style={[styles.detailStrong, { color: colors.textSecondary }]}>{memory.key}</Text>: {truncate(memory.content, 68)}
+            </Text>
+          ))}
         </View>
       </View>
+
+      {tasks.length > 0 && (
+        <View style={styles.row}>
+          <View style={[styles.iconChip, { backgroundColor: colors.bgHover }]}>
+            <ListTodo size={12} color={colors.textSecondary} />
+          </View>
+          <View style={styles.content}>
+            <Text style={[styles.label, { color: colors.textMuted }]}>{t('memory.contextTasks')}</Text>
+            <Text style={[styles.value, { color: colors.textSecondary }]}>
+              {t('memory.contextTaskSummary', { open: openTaskCount, done: doneTaskCount })}
+            </Text>
+            {tasks[0]?.title ? (
+              <Text style={[styles.detailText, { color: colors.textMuted }]} numberOfLines={2}>
+                <Text style={[styles.detailStrong, { color: colors.textSecondary }]}>{t('memory.contextTopTask')}</Text>: {tasks[0].title}
+              </Text>
+            ) : null}
+          </View>
+        </View>
+      )}
     </Pressable>
   )
 }
@@ -144,5 +187,13 @@ const styles = StyleSheet.create({
   value: {
     fontSize: 12,
     lineHeight: 18,
+  },
+  detailText: {
+    fontSize: 11,
+    lineHeight: 16,
+    marginTop: 4,
+  },
+  detailStrong: {
+    fontWeight: '600',
   },
 })

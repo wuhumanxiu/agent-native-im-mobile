@@ -288,6 +288,8 @@
     "statusActionNeeded": "Action needed",
     "capabilityTitle": "Capabilities & file handling",
     "capabilitySummary": "This bot can participate in ANI conversations and receive protected attachments through the platform.",
+    "capabilityPartial": "This bot can work beyond text for some file types, but richer media still depends on the model and runtime tools behind it.",
+    "capabilityTextOnly": "This bot is currently best with text. Rich media can still be delivered, but it may not be able to interpret images, audio, video, or documents directly.",
     "capabilityBoundary": "Text is the most reliable input today. Images, audio, video, and PDFs may be delivered correctly, but understanding them still depends on the bot's model and runtime tools.",
     "capabilityText": "Text",
     "capabilityImages": "Images",
@@ -352,7 +354,10 @@
     "contextTitle": "Conversation Context",
     "contextPrompt": "Instructions",
     "contextMemories": "Memory",
-    "contextSummary": "{{count}} memories shaping {{messages}} loaded messages"
+    "contextSummary": "{{count}} memories shaping {{messages}} loaded messages",
+    "contextTasks": "Roadmap",
+    "contextTaskSummary": "{{open}} open · {{done}} done",
+    "contextTopTask": "Current focus"
   },
   "invite": {
     "title": "Invite Links",

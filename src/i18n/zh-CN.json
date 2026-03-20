@@ -288,6 +288,8 @@
     "statusActionNeeded": "需要操作",
     "capabilityTitle": "能力与文件处理",
     "capabilitySummary": "这个 Bot 可以参与 ANI 会话，并通过平台接收受保护附件。",
+    "capabilityPartial": "这个 Bot 对部分非文本文件有处理能力，但更丰富的媒体理解仍取决于背后的模型和运行时工具。",
+    "capabilityTextOnly": "这个 Bot 当前最适合处理文本。富媒体虽然能送达，但它未必能直接理解图片、音频、视频或文档内容。",
     "capabilityBoundary": "文本目前最可靠。图片、音频、视频和 PDF 虽然可以正确送达，但是否能被真正理解，仍取决于 Bot 的模型和运行时工具。",
     "capabilityText": "文本",
     "capabilityImages": "图片",
@@ -352,7 +354,10 @@
     "contextTitle": "会话上下文",
     "contextPrompt": "会话指令",
     "contextMemories": "会话记忆",
-    "contextSummary": "{{count}} 条记忆正在影响这 {{messages}} 条已加载消息"
+    "contextSummary": "{{count}} 条记忆正在影响这 {{messages}} 条已加载消息",
+    "contextTasks": "任务路线图",
+    "contextTaskSummary": "{{open}} 个未完成 · {{done}} 个已完成",
+    "contextTopTask": "当前重点"
   },
   "invite": {
     "title": "邀请链接",

@@ -79,10 +79,11 @@ Important:
 - Typing / processing / streaming feedback
 - Interaction cards and task handover cards
 - Conversation settings with prompt / memory / invite links
+- Conversation context card with memory preview and roadmap summary
 - Global search
 - File attachments and image upload
 - Audio message rendering
-- Bot quick sheet and bot detail
+- Bot quick sheet and bot detail with capability boundary messaging
 - About page with version / commit / build info
 
 ## Important Product Boundaries

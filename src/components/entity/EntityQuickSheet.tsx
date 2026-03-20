@@ -8,6 +8,7 @@ import { useAuthStore } from '../../store/auth'
 import * as api from '../../lib/api'
 import type { Entity } from '../../lib/types'
 import { getEntityPresenceSemantic, getEntityStatusLabel } from '../../lib/entity-status'
+import { getEntityCapabilityChips, getEntityCapabilitySummary } from '../../lib/entity-capabilities'
 
 interface Props {
   entity: Entity
@@ -65,6 +66,8 @@ export function EntityQuickSheet({
   const token = useAuthStore((s) => s.token)
   const myEntity = useAuthStore((s) => s.entity)
   const isBot = isBotOrService(entity)
+  const capabilityChips = useMemo(() => (isBot ? getEntityCapabilityChips(t, entity) : []), [entity, isBot, t])
+  const capabilitySummary = useMemo(() => (isBot ? getEntityCapabilitySummary(t, entity) : ''), [entity, isBot, t])
   const [resolvedOnline, setResolvedOnline] = useState(isOnline)
   const [lastSeen, setLastSeen] = useState<string | null>(null)
   const description = useMemo(() => {
@@ -199,6 +202,20 @@ export function EntityQuickSheet({
               {tags.map((tag) => (
                 <View key={tag} style={[styles.tagChip, { backgroundColor: colors.accentDim }]}>
                   <Text style={[styles.tagText, { color: colors.accent }]}>{tag}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
+
+        {isBot && (
+          <View style={[styles.section, { backgroundColor: colors.bg, borderColor: colors.border }]}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('bot.capabilityTitle')}</Text>
+            <Text style={[styles.description, { color: colors.textSecondary }]}>{capabilitySummary}</Text>
+            <View style={[styles.tagsRow, { marginTop: 10 }]}>
+              {capabilityChips.map((chip) => (
+                <View key={chip} style={[styles.tagChip, { backgroundColor: colors.bgHover }]}>
+                  <Text style={[styles.tagText, { color: colors.textSecondary }]}>{chip}</Text>
                 </View>
               ))}
             </View>
