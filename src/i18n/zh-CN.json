@@ -186,7 +186,9 @@
     "pushDisabled": "点击启用以接收消息通知",
     "disablePush": "关闭",
     "pushFailed": "注册失败，请重试",
-    "pushDenied": "系统拒绝了通知权限"
+    "pushDenied": "系统拒绝了通知权限",
+    "pushWebOnly": "原生推送链路尚未接通，当前只支持 Web Push。",
+    "pushNativePending": "原生推送暂不可用，当前后端只支持 Web Push 订阅。"
   },
   "message": {
     "revoked": "{{name}} 撤回了一条消息",

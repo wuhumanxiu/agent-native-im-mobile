@@ -186,7 +186,9 @@
     "pushDisabled": "Tap Enable to receive message notifications",
     "disablePush": "Disable",
     "pushFailed": "Registration failed — try again",
-    "pushDenied": "Permission denied by system"
+    "pushDenied": "Permission denied by system",
+    "pushWebOnly": "Native push is not wired yet. Web push is currently the only supported path.",
+    "pushNativePending": "Native push notifications are not available yet. The current backend only supports web push subscriptions."
   },
   "message": {
     "revoked": "{{name}} revoked a message",

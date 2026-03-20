@@ -620,13 +620,15 @@ export function SettingsScreen({ onBack }: Props) {
             <Bell size={18} color={colors.textSecondary} />
             <View style={styles.toggleBody}>
               <Text style={[styles.navItemText, { color: colors.text }]}>{t('settings.pushNotifications')}</Text>
+              <Text style={[styles.navItemMeta, { color: colors.textMuted }]}>{t('settings.pushWebOnly')}</Text>
             </View>
             <Switch
               value={pushEnabled}
-              onValueChange={(val) => {
+              disabled
+              onValueChange={() => {
                 Alert.alert(
                   t('settings.pushNotifications'),
-                  'Push notifications will be available in the standalone app build. Expo Go does not support push notifications.',
+                  t('settings.pushNativePending'),
                   [{ text: 'OK' }]
                 )
               }}
