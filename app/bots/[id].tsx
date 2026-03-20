@@ -6,6 +6,7 @@ import { useAuthStore } from '../../src/store/auth'
 import * as api from '../../src/lib/api'
 import type { Entity } from '../../src/lib/types'
 import { BotDetail } from '../../src/components/entity/BotDetail'
+import { NewConversation } from '../../src/components/conversation/NewConversation'
 
 export default function BotDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>()
@@ -14,6 +15,7 @@ export default function BotDetailScreen() {
   const token = useAuthStore((s) => s.token)
   const [bot, setBot] = useState<Entity | null>(null)
   const [refreshTrigger, setRefreshTrigger] = useState(0)
+  const [showNewChat, setShowNewChat] = useState(false)
 
   useEffect(() => {
     if (!token || !botId) return
@@ -37,18 +39,9 @@ export default function BotDetailScreen() {
     router.push(`/chat/${convId}`)
   }, [router])
 
-  const handleStartChat = useCallback(async (entityId: number) => {
-    if (!token || !bot) return
-    const displayName = bot.display_name || bot.name || 'Bot'
-    const res = await api.createConversation(token, {
-      title: displayName,
-      conv_type: 'direct',
-      participant_ids: [entityId],
-    })
-    if (res.ok && res.data) {
-      router.push(`/chat/${res.data.id}`)
-    }
-  }, [token, bot, router])
+  const handleStartChat = useCallback(async (_entityId: number) => {
+    setShowNewChat(true)
+  }, [])
 
   const handleDisable = useCallback(async (entityId: number) => {
     if (!token) return
@@ -78,6 +71,15 @@ export default function BotDetailScreen() {
           onDisable={handleDisable}
           onReactivate={handleReactivate}
           onRefresh={handleRefresh}
+        />
+        <NewConversation
+          visible={showNewChat}
+          preselectedEntityId={bot?.id}
+          onClose={() => setShowNewChat(false)}
+          onCreated={(convId) => {
+            setShowNewChat(false)
+            router.push(`/chat/${convId}`)
+          }}
         />
       </SafeAreaView>
     </>

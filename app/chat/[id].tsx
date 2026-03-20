@@ -55,6 +55,7 @@ export default function ChatDetailScreen() {
   const [showTasks, setShowTasks] = useState(false)
   const [selectedEntity, setSelectedEntity] = useState<Entity | null>(null)
   const [botThinkingEntity, setBotThinkingEntity] = useState<Entity | null>(null)
+  const [directParticipantOnline, setDirectParticipantOnline] = useState(false)
   const botThinkingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Set active conversation for unread count tracking
@@ -71,6 +72,9 @@ export default function ChatDetailScreen() {
   }, [storeStreams, convId])
 
   const isGroup = conversation?.conv_type === 'group' || conversation?.conv_type === 'channel'
+  const otherParticipant = useMemo(() => (
+    (conversation?.participants || []).find((participant) => participant.entity_id !== entity?.id)?.entity || null
+  ), [conversation?.participants, entity?.id])
   const botParticipants = useMemo(() => {
     return (conversation?.participants || [])
       .filter((participant) => participant.entity_id !== entity?.id)
@@ -82,6 +86,7 @@ export default function ChatDetailScreen() {
       ))
   }, [conversation?.participants, entity?.id])
   const directBotParticipant = !isGroup ? (botParticipants[0] || null) : null
+  const isDirectOtherOnline = otherParticipant ? directParticipantOnline : false
 
   const stopBotThinking = useCallback(() => {
     if (botThinkingTimerRef.current) {
@@ -209,6 +214,24 @@ export default function ChatDetailScreen() {
       setLoading(false)
     }).catch(() => setLoading(false))
   }, [token, convId])
+
+  useEffect(() => {
+    if (!otherParticipant) {
+      setDirectParticipantOnline(false)
+      return
+    }
+
+    setDirectParticipantOnline(onlineSet.has(otherParticipant.id))
+
+    if (!token) return
+    let cancelled = false
+    api.getEntityStatus(token, otherParticipant.id).then((res) => {
+      if (cancelled || !res.ok || !res.data) return
+      setDirectParticipantOnline(!!res.data.online)
+    }).catch(() => {})
+
+    return () => { cancelled = true }
+  }, [otherParticipant, onlineSet, token])
 
   // Load more messages (pagination)
   const handleLoadMore = useCallback(async () => {
@@ -394,6 +417,7 @@ export default function ChatDetailScreen() {
           myEntity={entity || { id: 0, entity_type: 'user', name: 'me', display_name: 'Me', status: 'active', metadata: {}, created_at: '', updated_at: '' }}
           loading={loading}
           hasMore={hasMore}
+          isOnline={isDirectOtherOnline}
           wsConnected={wsConnected}
           typingInfo={typingInfo}
           progress={progress}
@@ -402,6 +426,7 @@ export default function ChatDetailScreen() {
           onEntityPress={handleEntityPress}
           onBack={() => router.back()}
           onSettings={() => setShowSettings(true)}
+          onToggleTasks={() => setShowTasks(true)}
           onLoadMore={handleLoadMore}
           onSend={handleSend}
           onRevoke={handleRevoke}

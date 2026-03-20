@@ -37,7 +37,7 @@ export function NewConversation({ visible, onClose, onCreated, preselectedEntity
   const myEntity = useAuthStore((s) => s.entity)
   const [entities, setEntities] = useState<Entity[]>([])
   const [loading, setLoading] = useState(false)
-  const [step, setStep] = useState<Step>(preselectedEntityId ? 'create-group' : 'choose')
+  const [step, setStep] = useState<Step>('choose')
   const [search, setSearch] = useState('')
   const [groupTitle, setGroupTitle] = useState('')
   const [selected, setSelected] = useState<Set<number>>(new Set(preselectedEntityId ? [preselectedEntityId] : []))
@@ -58,7 +58,7 @@ export function NewConversation({ visible, onClose, onCreated, preselectedEntity
   useEffect(() => {
     if (!visible) {
       setTimeout(() => {
-        setStep(preselectedEntityId ? 'create-group' : 'choose')
+        setStep('choose')
         setSearch('')
         setGroupTitle('')
         setSelected(new Set(preselectedEntityId ? [preselectedEntityId] : []))
@@ -103,6 +103,19 @@ export function NewConversation({ visible, onClose, onCreated, preselectedEntity
     setCreating(false)
   }
 
+  const preselectedEntity = useMemo(
+    () => entities.find((candidate) => candidate.id === preselectedEntityId) || null,
+    [entities, preselectedEntityId],
+  )
+
+  const handleChooseChatWithBot = () => {
+    if (preselectedEntity && isBotOrService(preselectedEntity)) {
+      void handleChatWithBot(preselectedEntity)
+      return
+    }
+    setStep('chat-with-bot')
+  }
+
   const handleCreateGroup = async () => {
     if (selected.size === 0) return
     setCreating(true)
@@ -144,7 +157,7 @@ export function NewConversation({ visible, onClose, onCreated, preselectedEntity
               </View>
             )}
             <View style={styles.chooseOptions}>
-              <Pressable onPress={() => setStep('chat-with-bot')} style={styles.chooseOption}>
+              <Pressable onPress={handleChooseChatWithBot} style={styles.chooseOption}>
                 <View style={[styles.chooseIcon, { backgroundColor: '#eef2ff' }]}>
                   <Bot size={20} color="#6366f1" />
                 </View>

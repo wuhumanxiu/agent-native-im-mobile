@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import { View, Text, FlatList, Pressable, ActivityIndicator, StyleSheet, Platform, KeyboardAvoidingView } from 'react-native'
 import { useTranslation } from 'react-i18next'
-import { ArrowLeft, Users, Settings, Search } from 'lucide-react-native'
+import { ArrowLeft, Users, Settings, Search, ListTodo } from 'lucide-react-native'
 import { MessageBubble } from './MessageBubble'
 import { StreamingBubble } from './StreamingBubble'
 import { ThinkingBubble, ProcessingDots } from './ThinkingBubble'
@@ -45,6 +45,7 @@ interface Props {
   isArchived?: boolean
   onBack?: () => void
   onSettings?: () => void
+  onToggleTasks?: () => void
   onLoadMore?: () => void
   onEntityPress?: (entity: Entity) => void
   onSend: (text: string, attachments?: UploadedAttachment[], mentions?: number[], replyToId?: number) => void
@@ -79,6 +80,7 @@ export function ChatThread({
   isArchived,
   onBack,
   onSettings,
+  onToggleTasks,
   onLoadMore,
   onEntityPress,
   onSend,
@@ -378,18 +380,33 @@ export function ChatThread({
           </View>
         </Pressable>
 
-        {onSettings && (
-          <Pressable
-            style={({ pressed }) => [
-              styles.headerButton,
-              { backgroundColor: colors.bg, borderColor: colors.border },
-              pressed && { backgroundColor: colors.bgHover },
-            ]}
-            onPress={onSettings}
-          >
-            <Settings size={20} color={colors.textMuted} />
-          </Pressable>
-        )}
+        <View style={styles.headerActions}>
+          {onToggleTasks && !isArchived ? (
+            <Pressable
+              style={({ pressed }) => [
+                styles.headerButton,
+                { backgroundColor: colors.bg, borderColor: colors.border },
+                pressed && { backgroundColor: colors.bgHover },
+              ]}
+              onPress={onToggleTasks}
+            >
+              <ListTodo size={20} color={colors.textMuted} />
+            </Pressable>
+          ) : null}
+
+          {onSettings ? (
+            <Pressable
+              style={({ pressed }) => [
+                styles.headerButton,
+                { backgroundColor: colors.bg, borderColor: colors.border },
+                pressed && { backgroundColor: colors.bgHover },
+              ]}
+              onPress={onSettings}
+            >
+              <Settings size={20} color={colors.textMuted} />
+            </Pressable>
+          ) : null}
+        </View>
       </View>
 
       <ConnectionStatusBar
@@ -500,6 +517,11 @@ const styles = StyleSheet.create({
   titleContent: {
     flex: 1,
     minWidth: 0,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   titleText: {
     fontSize: 14,
