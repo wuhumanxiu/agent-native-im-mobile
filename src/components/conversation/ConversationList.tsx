@@ -5,6 +5,7 @@ import { Search, Plus, MessageSquare, X } from 'lucide-react-native'
 import { ConversationItem } from './ConversationItem'
 import { SkeletonLoader } from '../ui/SkeletonLoader'
 import { EmptyState } from '../ui/EmptyState'
+import { OnboardingCard } from '../ui/OnboardingCard'
 import { useThemeColors } from '../../lib/theme'
 import type { Conversation } from '../../lib/types'
 
@@ -23,6 +24,7 @@ interface Props {
   myEntityId: number
   onSelect: (id: number) => void
   onNewChat: () => void
+  onManageBots?: () => void
   onToggleMute?: (id: number) => void
   onPin?: (id: number) => void
   onUnpin?: (id: number) => void
@@ -40,6 +42,7 @@ export function ConversationList({
   myEntityId,
   onSelect,
   onNewChat,
+  onManageBots,
   onToggleMute,
   onPin,
   onUnpin,
@@ -128,13 +131,13 @@ export function ConversationList({
         title={error ? t('common.error') : t('conversation.noConversations')}
         description={error || t('conversation.noConversationsDesc')}
         action={
-          <Pressable style={[styles.newChatButton, { backgroundColor: colors.accent }]} onPress={onNewChat}>
-            <Text style={styles.newChatButtonText}>{t('conversation.newChat')}</Text>
-          </Pressable>
+          <View style={styles.onboardingWrap}>
+            <OnboardingCard onNewChat={onNewChat} onManageBots={onManageBots} />
+          </View>
         }
       />
     )
-  }, [loading, conversations.length, search, t, onNewChat])
+  }, [loading, conversations.length, search, t, onNewChat, onManageBots, error])
 
   return (
     <View style={[styles.container, { backgroundColor: colors.bg }]}>
@@ -279,6 +282,10 @@ const styles = StyleSheet.create({
   },
   emptyContainer: {
     flexGrow: 1,
+  },
+  onboardingWrap: {
+    width: '100%',
+    maxWidth: 360,
   },
   separator: {
     height: 2,

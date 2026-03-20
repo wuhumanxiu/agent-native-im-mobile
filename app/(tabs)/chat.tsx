@@ -95,6 +95,7 @@ export default function ChatTab() {
         myEntityId={entity?.id || 0}
         onSelect={(id) => router.push(`/chat/${id}`)}
         onNewChat={() => setShowNewChat(true)}
+        onManageBots={() => router.push('/bots')}
         onRefresh={loadConversations}
         onToggleMute={(id) => toggleMute(id)}
         onPin={handlePin}

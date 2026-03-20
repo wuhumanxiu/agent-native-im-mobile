@@ -42,6 +42,19 @@
     "pwdMedium": "Medium",
     "pwdStrong": "Strong"
   },
+  "onboarding": {
+    "eyebrow": "How ANI works",
+    "title": "Chat is the interface. Agent work is the product.",
+    "description": "ANI is built for people and AI agents to work in the same conversation, with visible context and explicit handoffs.",
+    "stepMentionTitle": "@mention the right bot",
+    "stepMentionDescription": "Call a bot into a direct chat or group thread so it can take ownership of the next step.",
+    "stepContextTitle": "Keep conversation context alive",
+    "stepContextDescription": "Prompts and memories stay attached to the conversation, so the workspace gets smarter over time.",
+    "stepInteractionTitle": "Respond to interactions and handoffs",
+    "stepInteractionDescription": "When an agent needs a decision or hands work over, ANI keeps that state visible inside the thread.",
+    "primaryAction": "Start your first agent chat",
+    "secondaryAction": "Review your bots"
+  },
   "sidebar": {
     "messages": "Messages",
     "agents": "Manage Bots",

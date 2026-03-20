@@ -11,6 +11,7 @@ import { useAuthStore } from '../../store/auth'
 import * as api from '../../lib/api'
 import type { Entity } from '../../lib/types'
 import { EntityAvatar } from '../ui/EntityAvatar'
+import { OnboardingCard } from '../ui/OnboardingCard'
 
 type Step = 'choose' | 'chat-with-bot' | 'create-group'
 
@@ -137,6 +138,11 @@ export function NewConversation({ visible, onClose, onCreated, preselectedEntity
                 <X size={16} color="#94a3b8" />
               </Pressable>
             </View>
+            {!preselectedEntityId && (
+              <View style={styles.onboardingCardWrap}>
+                <OnboardingCard compact />
+              </View>
+            )}
             <View style={styles.chooseOptions}>
               <Pressable onPress={() => setStep('chat-with-bot')} style={styles.chooseOption}>
                 <View style={[styles.chooseIcon, { backgroundColor: '#eef2ff' }]}>
@@ -350,6 +356,9 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  onboardingCardWrap: {
+    marginBottom: 16,
   },
   chooseOptions: {
     gap: 8,

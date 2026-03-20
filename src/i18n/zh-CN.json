@@ -42,6 +42,19 @@
     "pwdMedium": "中等",
     "pwdStrong": "强"
   },
+  "onboarding": {
+    "eyebrow": "ANI 使用方式",
+    "title": "聊天只是界面，Agent 协作才是产品本体。",
+    "description": "ANI 让人和 AI agent 在同一个会话里工作，并把上下文、交互和交接过程都直接显示出来。",
+    "stepMentionTitle": "@提及正确的 Bot",
+    "stepMentionDescription": "在私聊或群聊里点名合适的 Bot，让它接手下一步工作。",
+    "stepContextTitle": "让会话上下文持续存在",
+    "stepContextDescription": "Prompt 和记忆会附着在会话上，让这个工作空间随着使用越来越懂你。",
+    "stepInteractionTitle": "在会话里完成交互与交接",
+    "stepInteractionDescription": "当 agent 需要你的决定，或把任务交给别人时，ANI 会在消息流里持续呈现这个状态。",
+    "primaryAction": "开始第一段 agent 对话",
+    "secondaryAction": "先看看 Bot"
+  },
   "sidebar": {
     "messages": "消息",
     "agents": "Bot 管理",
