@@ -3,6 +3,8 @@ import type {
   MessagesResponse, SearchResponse, GlobalSearchResponse, Message,
   Task, ConversationMemory, ChangeRequest, EntitySelfCheck, EntityDiagnostics,
 } from './types'
+import { Platform } from 'react-native'
+import * as FileSystem from 'expo-file-system/legacy'
 import { getSessionHooks } from './auth-session'
 import { reportApiError } from './errors'
 import { API_BASE_URL } from './constants'
@@ -243,34 +245,58 @@ export const updateProfile = (token: string, data: { display_name?: string; avat
 // Files
 export async function uploadFile(token: string, uri: string, filename: string, mimeType: string): Promise<APIResponse<{ url: string }>> {
   const uploadUrl = `${baseUrl}/api/v1/files/upload`
-  const form = new FormData()
-  form.append('file', {
-    uri,
-    name: filename,
-    type: mimeType,
-  } as unknown as Blob)
-
-  const controller = new AbortController()
-  const timeout = setTimeout(() => controller.abort(), 45000)
 
   try {
-    const res = await fetch(uploadUrl, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}` },
-      body: form,
-      signal: controller.signal,
-    })
-    if (res.status === 413) {
-      return { ok: false, error: 'File too large' } as APIResponse<{ url: string }>
+    if (Platform.OS !== 'web') {
+      const res = await FileSystem.uploadAsync(uploadUrl, uri, {
+        fieldName: 'file',
+        httpMethod: 'POST',
+        uploadType: FileSystem.FileSystemUploadType.MULTIPART,
+        mimeType,
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (res.status === 413) {
+        return { ok: false, error: 'File too large' } as APIResponse<{ url: string }>
+      }
+      try {
+        const parsed = JSON.parse(res.body) as APIResponse<{ url: string }>
+        if (!parsed.ok) reportApiError(parsed)
+        return parsed
+      } catch {
+        const fallback = { ok: false, error: `HTTP ${res.status}` } as APIResponse<{ url: string }>
+        reportApiError(fallback)
+        return fallback
+      }
     }
-    return parseAPIResponse<{ url: string }>(res)
+
+    const form = new FormData()
+    form.append('file', {
+      uri,
+      name: filename,
+      type: mimeType,
+    } as unknown as Blob)
+
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 45000)
+    try {
+      const res = await fetch(uploadUrl, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: form,
+        signal: controller.signal,
+      })
+      if (res.status === 413) {
+        return { ok: false, error: 'File too large' } as APIResponse<{ url: string }>
+      }
+      return parseAPIResponse<{ url: string }>(res)
+    } finally {
+      clearTimeout(timeout)
+    }
   } catch (err) {
     const message = err instanceof Error && err.name === 'AbortError'
       ? 'Upload timeout'
       : String(err)
     return { ok: false, error: message } as APIResponse<{ url: string }>
-  } finally {
-    clearTimeout(timeout)
   }
 }
 
