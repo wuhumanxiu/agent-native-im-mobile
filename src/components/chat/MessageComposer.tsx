@@ -58,6 +58,7 @@ interface Props {
   placeholder?: string
   participants?: Participant[]
   isObserver?: boolean
+  enableMentions?: boolean
   replyTo?: Message | null
   onCancelReply?: () => void
   disabled?: boolean
@@ -74,6 +75,7 @@ export function MessageComposer({
   placeholder,
   participants,
   isObserver,
+  enableMentions = true,
   replyTo,
   onCancelReply,
   disabled,
@@ -179,7 +181,7 @@ export function MessageComposer({
 
   // Filter participants by mention query
   const mentionCandidates = useMemo(() => {
-    if (mentionQuery === null || !participants) return []
+    if (!enableMentions || mentionQuery === null || !participants) return []
     const q = mentionQuery.toLowerCase()
     return participants
       .filter((p) => p.entity)
@@ -189,7 +191,7 @@ export function MessageComposer({
         return name.includes(q) || display.includes(q)
       })
       .slice(0, 8)
-  }, [mentionQuery, participants])
+  }, [enableMentions, mentionQuery, participants])
 
   useEffect(() => {
     setMentionIndex(0)
@@ -225,7 +227,11 @@ export function MessageComposer({
     const trimmed = text.trim()
     if (!trimmed && uploadedAttachments.length === 0) return
     if (hasUploading) return
-    onSend(trimmed, uploadedAttachments.length > 0 ? uploadedAttachments : undefined, mentionIds.length > 0 ? mentionIds : undefined)
+    onSend(
+      trimmed,
+      uploadedAttachments.length > 0 ? uploadedAttachments : undefined,
+      enableMentions && mentionIds.length > 0 ? mentionIds : undefined,
+    )
     setText('')
     setPendingFiles([])
     setMentionIds([])
@@ -233,12 +239,19 @@ export function MessageComposer({
     // Clear draft on send
     if (draftKey) storage.delete(draftKey)
     textInputRef.current?.focus()
-  }, [text, uploadedAttachments, hasUploading, mentionIds, onSend])
+  }, [text, uploadedAttachments, hasUploading, mentionIds, onSend, enableMentions])
 
   // Handle text change with @mention detection
   const handleTextChange = useCallback((value: string) => {
     setText(value)
     emitTyping()
+
+    if (!enableMentions) {
+      setMentionQuery(null)
+      setMentionStart(-1)
+      if (mentionIds.length > 0) setMentionIds([])
+      return
+    }
 
     // Detect @mention trigger
     const atMatch = value.match(/(^|[^a-zA-Z0-9])@([^\s@]*)$/)
@@ -249,7 +262,7 @@ export function MessageComposer({
       setMentionQuery(null)
       setMentionStart(-1)
     }
-  }, [emitTyping, participants])
+  }, [emitTyping, participants, enableMentions, mentionIds.length])
 
   // ─── Audio recording ──────────────────────────────────────────
   const startRecording = useCallback(async () => {
@@ -407,7 +420,7 @@ export function MessageComposer({
   return (
     <View style={[styles.container, { backgroundColor: colors.bg, borderTopColor: colors.border }]}>
       {/* @mention autocomplete */}
-      {mentionQuery !== null && mentionCandidates.length > 0 && (
+      {enableMentions && mentionQuery !== null && mentionCandidates.length > 0 && (
         <View style={[styles.mentionPopover, { backgroundColor: colors.bgSecondary, borderColor: colors.border }]}>
           <FlatList
             data={mentionCandidates}
@@ -505,7 +518,7 @@ export function MessageComposer({
       )}
 
       {/* Mention badges */}
-      {mentionIds.length > 0 && participants && (
+      {enableMentions && mentionIds.length > 0 && participants && (
         <View style={styles.mentionBadgesRow}>
           {mentionIds.map((eid) => {
             const p = participants.find((pp) => pp.entity_id === eid)

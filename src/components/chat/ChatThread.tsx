@@ -457,6 +457,7 @@ export function ChatThread({
         placeholder={t('conversation.typeMessage')}
         participants={conversation.participants}
         isObserver={isObserver || isArchived}
+        enableMentions={conversation.conv_type !== 'direct'}
         replyTo={replyTo}
         onCancelReply={() => setReplyTo(null)}
       />
