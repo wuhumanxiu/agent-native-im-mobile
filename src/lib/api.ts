@@ -250,15 +250,27 @@ export async function uploadFile(token: string, uri: string, filename: string, m
     type: mimeType,
   } as unknown as Blob)
 
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), 45000)
+
   try {
     const res = await fetch(uploadUrl, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}` },
       body: form,
+      signal: controller.signal,
     })
+    if (res.status === 413) {
+      return { ok: false, error: 'File too large' } as APIResponse<{ url: string }>
+    }
     return parseAPIResponse<{ url: string }>(res)
   } catch (err) {
-    return { ok: false, error: String(err) } as APIResponse<{ url: string }>
+    const message = err instanceof Error && err.name === 'AbortError'
+      ? 'Upload timeout'
+      : String(err)
+    return { ok: false, error: message } as APIResponse<{ url: string }>
+  } finally {
+    clearTimeout(timeout)
   }
 }
 
