@@ -365,6 +365,32 @@ export function BotDetail({
             )}
           </View>
 
+          <View style={[styles.capabilityCard, { backgroundColor: colors.bgTertiary, borderColor: colors.border }]}>
+            <View style={styles.capabilityHeader}>
+              <Activity size={16} color={colors.accent} />
+              <Text style={[styles.capabilityTitle, { color: colors.text }]}>{t('bot.capabilityTitle')}</Text>
+            </View>
+            <Text style={[styles.capabilitySummary, { color: colors.textSecondary }]}>
+              {t('bot.capabilitySummary')}
+            </Text>
+            <View style={styles.capabilityChips}>
+              {[
+                t('bot.capabilityText'),
+                t('bot.capabilityImages'),
+                t('bot.capabilityAudio'),
+                t('bot.capabilityVideo'),
+                t('bot.capabilityPdf'),
+              ].map((label) => (
+                <View key={label} style={[styles.capabilityChip, { backgroundColor: colors.bg, borderColor: colors.border }]}>
+                  <Text style={[styles.capabilityChipText, { color: colors.textSecondary }]}>{label}</Text>
+                </View>
+              ))}
+            </View>
+            <Text style={[styles.capabilityBoundary, { color: colors.textMuted }]}>
+              {t('bot.capabilityBoundary')}
+            </Text>
+          </View>
+
           {tags.length > 0 && (
             <View style={styles.tagsRow}>
               {tags.map((tag, i) => (
@@ -771,6 +797,48 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 6,
     marginTop: 16,
+  },
+  capabilityCard: {
+    marginTop: 16,
+    borderWidth: 1,
+    borderRadius: 18,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  capabilityHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  capabilityTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  capabilitySummary: {
+    fontSize: 12,
+    lineHeight: 18,
+    marginTop: 8,
+  },
+  capabilityChips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 10,
+  },
+  capabilityChip: {
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  capabilityChipText: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  capabilityBoundary: {
+    fontSize: 12,
+    lineHeight: 17,
+    marginTop: 10,
   },
   tag: {
     paddingHorizontal: 8,

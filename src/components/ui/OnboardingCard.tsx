@@ -77,6 +77,13 @@ export function OnboardingCard({ onNewChat, onManageBots, compact = false }: Pro
         })}
       </View>
 
+      <View style={[styles.boundaryCard, { backgroundColor: colors.bgTertiary, borderColor: colors.border }]}>
+        <Text style={[styles.boundaryTitle, { color: colors.text }]}>{t('onboarding.boundaryTitle')}</Text>
+        <Text style={[styles.boundaryDescription, { color: colors.textMuted }]}>
+          {t('onboarding.boundaryDescription')}
+        </Text>
+      </View>
+
       {!compact && (onNewChat || onManageBots) && (
         <View style={styles.actions}>
           {onNewChat && (
@@ -161,6 +168,22 @@ const styles = StyleSheet.create({
   stepDescription: {
     fontSize: 12,
     lineHeight: 17,
+  },
+  boundaryCard: {
+    marginTop: 16,
+    borderWidth: 1,
+    borderRadius: 18,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  boundaryTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  boundaryDescription: {
+    fontSize: 12,
+    lineHeight: 17,
+    marginTop: 4,
   },
   actions: {
     marginTop: 16,
