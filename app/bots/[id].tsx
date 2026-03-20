@@ -32,7 +32,11 @@ export default function BotDetailScreen() {
   }, [token, botId, refreshTrigger])
 
   const handleBack = useCallback(() => {
-    router.back()
+    if (typeof router.canGoBack === 'function' && router.canGoBack()) {
+      router.back()
+      return
+    }
+    router.replace('/(tabs)/bots')
   }, [router])
 
   const handleOpenConversation = useCallback((convId: number) => {
@@ -78,7 +82,7 @@ export default function BotDetailScreen() {
           onClose={() => setShowNewChat(false)}
           onCreated={(convId) => {
             setShowNewChat(false)
-            router.push(`/chat/${convId}`)
+            router.push(`/chat/${convId}?backTo=list`)
           }}
         />
       </SafeAreaView>

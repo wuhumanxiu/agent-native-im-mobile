@@ -18,7 +18,7 @@ import { normalizeAttachmentUrl } from '../../src/lib/files'
 
 export default function ChatDetailScreen() {
   const { t } = useTranslation()
-  const { id } = useLocalSearchParams<{ id: string }>()
+  const { id, backTo } = useLocalSearchParams<{ id: string; backTo?: string }>()
   const convId = Number(id)
   const router = useRouter()
   const token = useAuthStore((s) => s.token)
@@ -424,7 +424,17 @@ export default function ChatDetailScreen() {
           thinkingEntity={botThinkingEntity || undefined}
           readReceipts={convReadReceipts}
           onEntityPress={handleEntityPress}
-          onBack={() => router.back()}
+          onBack={() => {
+            if (backTo === 'list') {
+              router.replace('/(tabs)/chat')
+              return
+            }
+            if (typeof router.canGoBack === 'function' && router.canGoBack()) {
+              router.back()
+              return
+            }
+            router.replace('/(tabs)/chat')
+          }}
           onSettings={() => setShowSettings(true)}
           onToggleTasks={() => setShowTasks(true)}
           onLoadMore={handleLoadMore}
