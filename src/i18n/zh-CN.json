@@ -323,7 +323,11 @@
     "noPrompt": "未设置系统提示词",
     "memories": "记忆",
     "keyPlaceholder": "键（如 project_goal）",
-    "contentPlaceholder": "内容..."
+    "contentPlaceholder": "内容...",
+    "contextTitle": "会话上下文",
+    "contextPrompt": "会话指令",
+    "contextMemories": "会话记忆",
+    "contextSummary": "{{count}} 条记忆正在影响这 {{messages}} 条已加载消息"
   },
   "invite": {
     "title": "邀请链接",

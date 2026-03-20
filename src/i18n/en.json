@@ -323,7 +323,11 @@
     "noPrompt": "No system prompt set",
     "memories": "Memories",
     "keyPlaceholder": "Key (e.g. project_goal)",
-    "contentPlaceholder": "Content..."
+    "contentPlaceholder": "Content...",
+    "contextTitle": "Conversation Context",
+    "contextPrompt": "Instructions",
+    "contextMemories": "Memory",
+    "contextSummary": "{{count}} memories shaping {{messages}} loaded messages"
   },
   "invite": {
     "title": "Invite Links",

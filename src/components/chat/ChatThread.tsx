@@ -6,6 +6,7 @@ import { MessageBubble } from './MessageBubble'
 import { StreamingBubble } from './StreamingBubble'
 import { ThinkingBubble, ProcessingDots } from './ThinkingBubble'
 import { MessageComposer, type UploadedAttachment } from './MessageComposer'
+import { ConversationContextCard } from './ConversationContextCard'
 import { SkeletonLoader } from '../ui/SkeletonLoader'
 import { EntityAvatar } from '../ui/EntityAvatar'
 import { ConnectionStatusBar } from '../ui/ConnectionStatusBar'
@@ -395,6 +396,13 @@ export function ChatThread({
         connected={wsConnected}
         outboxCount={outboxCount}
         outboxFailedCount={outboxFailedCount}
+      />
+
+      <ConversationContextCard
+        conversationId={conversation.id}
+        prompt={conversation.prompt}
+        messageCount={messages.length}
+        onOpenSettings={onSettings}
       />
 
       {/* Messages */}
