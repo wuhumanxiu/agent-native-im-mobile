@@ -52,7 +52,7 @@ export function useWebSocket() {
   useEffect(() => {
     if (!token || !entity) return
 
-    const wsUrl = WS_BASE_URL || `wss://ani-web.51pwd.com`
+    const wsUrl = WS_BASE_URL || `wss://agent-native.im`
     const ws = new AnimpWebSocket(wsUrl, token)
     wsRef.current = ws
 

@@ -43,7 +43,7 @@ function buildInviteUrl(code: string): string {
   const configuredBase = Constants.expoConfig?.extra?.apiBaseUrl
   const rawBase = typeof configuredBase === 'string' && configuredBase
     ? configuredBase
-    : (API_BASE_URL || 'https://ani-web.51pwd.com')
+    : (API_BASE_URL || 'https://agent-native.im')
   return `${rawBase.replace(/\/+$/, '')}/join/${code}`
 }
 

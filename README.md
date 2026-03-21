@@ -53,7 +53,7 @@ The app reads its default API base from `app.json`:
 
 Current default:
 
-- `https://ani-web.51pwd.com`
+- `https://agent-native.im`
 
 ## Build / Release
 

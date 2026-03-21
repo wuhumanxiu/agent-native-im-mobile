@@ -5,7 +5,7 @@ const configuredApiUrl = typeof Constants.expoConfig?.extra?.apiBaseUrl === 'str
   ? Constants.expoConfig.extra.apiBaseUrl
   : ''
 const normalizedConfiguredApiUrl = configuredApiUrl.replace(/\/+$/, '')
-const fallbackNativeApiUrl = 'https://ani-web.51pwd.com'
+const fallbackNativeApiUrl = 'https://agent-native.im'
 const defaultApiUrl = Platform.OS === 'web'
   ? ''
   : (normalizedConfiguredApiUrl || fallbackNativeApiUrl)
@@ -17,5 +17,5 @@ function toWebSocketBase(url: string): string {
 }
 
 export const WS_BASE_URL = Platform.OS === 'web'
-  ? `${typeof location !== 'undefined' ? location.origin.replace(/^http/, 'ws') : 'wss://ani-rn.51pwd.com'}`
+  ? `${typeof location !== 'undefined' ? location.origin.replace(/^http/, 'ws') : 'wss://agent-native.im'}`
   : toWebSocketBase(API_BASE_URL || fallbackNativeApiUrl)

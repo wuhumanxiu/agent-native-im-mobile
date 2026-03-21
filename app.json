@@ -44,7 +44,7 @@
       "expo-router"
     ],
     "extra": {
-      "apiBaseUrl": "https://ani-web.51pwd.com",
+      "apiBaseUrl": "https://agent-native.im",
       "eas": {
         "projectId": "72831474-137d-4003-ba89-592810a97906"
       },
