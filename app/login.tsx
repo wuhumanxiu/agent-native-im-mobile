@@ -30,7 +30,7 @@ export default function LoginScreen() {
 
   useEffect(() => {
     let cancelled = false
-    api.getVapidPublicKey().then((res) => {
+    api.getVapidKey().then((res) => {
       if (!cancelled) setIsOffline(!res.ok)
     }).catch(() => {
       if (!cancelled) setIsOffline(true)
