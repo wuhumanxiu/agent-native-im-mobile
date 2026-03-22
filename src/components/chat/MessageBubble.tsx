@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef, useMemo } from 'react'
-import { View, Text, Pressable, Image, StyleSheet, Linking, Modal, TextInput } from 'react-native'
+import { View, Text, Pressable, Image, StyleSheet, Modal, TextInput } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import Markdown from 'react-native-markdown-display'
 import { ArtifactRenderer } from './ArtifactRenderer'
@@ -13,7 +13,7 @@ import { EntityAvatar } from '../ui/EntityAvatar'
 import { ActionSheet, type ActionSheetOption } from '../ui/ActionSheet'
 import { useThemeColors } from '../../lib/theme'
 import { useAuthStore } from '../../store/auth'
-import { authenticatedFileUrl } from '../../lib/files'
+import { authenticatedFileUrl, authenticatedImageSource, openAuthenticatedFile } from '../../lib/files'
 import type { Message, Entity, Attachment, InteractionLayer } from '../../lib/types'
 
 // ─── Utility helpers ─────────────────────────────────────────────
@@ -346,14 +346,12 @@ const audioStyles = StyleSheet.create({
   },
 })
 
-// ─── Image Lightbox ──────────────────────────────────────────────
-
-function ImageLightbox({ uri, onClose }: { uri: string; onClose: () => void }) {
+function AuthenticatedImageLightbox({ source, onClose }: { source: { uri: string; headers?: Record<string, string> }; onClose: () => void }) {
   return (
     <Modal visible transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={lightboxStyles.overlay} onPress={onClose}>
         <Image
-          source={{ uri }}
+          source={source}
           style={lightboxStyles.image}
           resizeMode="contain"
         />
@@ -418,7 +416,7 @@ export function MessageBubble({
   const themedContentStyles = useMemo(() => createContentStyles(colors), [colors])
   const themedMarkdownStyles = useMemo(() => createMarkdownStyles(colors), [colors])
   const [showThinking, setShowThinking] = useState(false)
-  const [lightboxUri, setLightboxUri] = useState<string | null>(null)
+  const [lightboxSource, setLightboxSource] = useState<{ uri: string; headers?: Record<string, string> } | null>(null)
   const [showActionSheet, setShowActionSheet] = useState(false)
 
   const layers = message?.layers || {}
@@ -433,6 +431,7 @@ export function MessageBubble({
   const canReact = !isRevoked && !!onReact
   const canRetryOutbox = isSelf && !!message.temp_id && message.client_state !== 'sending' && !!onRetryOutbox
   const authUrl = useCallback((url?: string | null) => authenticatedFileUrl(url, token), [token])
+  const authImageSource = useCallback((url?: string | null) => authenticatedImageSource(url, token), [token])
 
   const handleLongPress = useCallback(() => {
     if (isRevoked) return
@@ -519,9 +518,15 @@ export function MessageBubble({
               {message.attachments?.map((att, i) => {
                 if (!att.url) return null
                 return (
-                  <Pressable key={i} onPress={() => setLightboxUri(authUrl(att.url))}>
+                  <Pressable
+                    key={i}
+                    onPress={() => {
+                      const source = authImageSource(att.url)
+                      if (source) setLightboxSource(source)
+                    }}
+                  >
                     <Image
-                      source={{ uri: authUrl(att.url) }}
+                      source={authImageSource(att.url)}
                       style={contentStyles.imageThumb}
                     />
                   </Pressable>
@@ -547,7 +552,11 @@ export function MessageBubble({
               <Pressable
                 key={i}
                 style={[themedContentStyles.fileCard, { borderColor: colors.border }]}
-                onPress={() => { if (att.url) Linking.openURL(authUrl(att.url)) }}
+                onPress={async () => {
+                  if (att.url) {
+                    await openAuthenticatedFile(att.url, token, att.filename)
+                  }
+                }}
               >
                 <View style={[themedContentStyles.fileIcon, { backgroundColor: colors.accentDim }]}>
                   <FileText size={16} color={colors.accent} />
@@ -593,8 +602,14 @@ export function MessageBubble({
               <View style={{ marginTop: 6, gap: 6 }}>
                 {message.attachments.filter((att) => att.type === 'image').map((att, i) => (
                   att.url ? (
-                    <Pressable key={`img-${i}`} onPress={() => setLightboxUri(authUrl(att.url))}>
-                      <Image source={{ uri: authUrl(att.url) }} style={contentStyles.imageThumb} />
+                    <Pressable
+                      key={`img-${i}`}
+                      onPress={() => {
+                        const source = authImageSource(att.url)
+                        if (source) setLightboxSource(source)
+                      }}
+                    >
+                      <Image source={authImageSource(att.url)} style={contentStyles.imageThumb} />
                     </Pressable>
                   ) : null
                 ))}
@@ -602,7 +617,11 @@ export function MessageBubble({
                   <Pressable
                     key={`file-${i}`}
                     style={[themedContentStyles.fileCard, { borderColor: colors.border }]}
-                    onPress={() => { if (att.url) Linking.openURL(authUrl(att.url)) }}
+                    onPress={async () => {
+                      if (att.url) {
+                        await openAuthenticatedFile(att.url, token, att.filename)
+                      }
+                    }}
                   >
                     <View style={[themedContentStyles.fileIcon, { backgroundColor: colors.accentDim }]}>
                       <FileText size={16} color={colors.accent} />
@@ -794,8 +813,8 @@ export function MessageBubble({
       </View>
 
       {/* Lightbox */}
-      {lightboxUri && (
-        <ImageLightbox uri={lightboxUri} onClose={() => setLightboxUri(null)} />
+      {lightboxSource && (
+        <AuthenticatedImageLightbox source={lightboxSource} onClose={() => setLightboxSource(null)} />
       )}
 
       {/* Action sheet */}
