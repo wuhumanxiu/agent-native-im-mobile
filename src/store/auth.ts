@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import type { Entity } from '../lib/types'
-import { storage } from '../lib/storage'
+import { hydrateStorage, storage } from '../lib/storage'
 
 interface AuthState {
   token: string | null
@@ -19,16 +19,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   entity: null,
   sessionChecked: false,
   hydrate: async () => {
+    await hydrateStorage()
     try {
-      const AsyncStorage = require('@react-native-async-storage/async-storage').default
-      const entries = await AsyncStorage.multiGet(['aim_token', 'aim_entity'])
-      const token = entries.find(([key]) => key === 'aim_token')?.[1] ?? null
-      const rawEntity = entries.find(([key]) => key === 'aim_entity')?.[1] ?? null
-
-      if (token) storage.set('aim_token', token)
+      const token = storage.getString('aim_token') ?? null
+      const rawEntity = storage.getString('aim_entity') ?? null
       let entity: Entity | null = null
       if (rawEntity) {
-        storage.set('aim_entity', rawEntity)
         try {
           entity = JSON.parse(rawEntity) as Entity
         } catch {
