@@ -34,6 +34,7 @@ interface Props {
   isMuted?: (id: number) => boolean
   loading?: boolean
   error?: string | null
+  showCachedSnapshot?: boolean
 }
 
 export function ConversationList({
@@ -52,6 +53,7 @@ export function ConversationList({
   isMuted,
   loading,
   error,
+  showCachedSnapshot = false,
 }: Props) {
   const { t } = useTranslation()
   const colors = useThemeColors()
@@ -181,6 +183,13 @@ export function ConversationList({
             </Pressable>
           )}
         </View>
+        {showCachedSnapshot ? (
+          <View style={[styles.cachedBanner, { backgroundColor: colors.bgSecondary, borderColor: colors.border }]}>
+            <Text style={[styles.cachedBannerText, { color: colors.textMuted }]}>
+              {t('conversation.cachedSnapshot')}
+            </Text>
+          </View>
+        ) : null}
       </View>
 
       {/* List */}
@@ -251,6 +260,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingTop: 12,
     paddingBottom: 10,
+  },
+  cachedBanner: {
+    marginTop: 8,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+  },
+  cachedBannerText: {
+    fontSize: 11,
+    lineHeight: 16,
   },
   searchBox: {
     flexDirection: 'row',

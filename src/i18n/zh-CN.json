@@ -93,6 +93,8 @@
     "unarchive": "取消归档",
     "noArchivedConversations": "没有归档的会话",
     "unnamed": "未命名会话",
+    "cachedSnapshot": "当前显示的是缓存快照。重新联网后会同步最新消息和会话元数据。",
+    "cachedShort": "缓存",
     "direct": "私聊",
     "group": "群组",
     "chat": "聊天",

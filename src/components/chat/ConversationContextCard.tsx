@@ -30,6 +30,7 @@ export function ConversationContextCard({ conversationId, prompt = '', messageCo
   const [memoryCount, setMemoryCount] = useState(0)
   const [recentMemories, setRecentMemories] = useState<ConversationMemory[]>([])
   const [tasks, setTasks] = useState<Task[]>([])
+  const [isCachedSnapshot, setIsCachedSnapshot] = useState(false)
 
   useEffect(() => {
     setResolvedPrompt(prompt)
@@ -42,6 +43,7 @@ export function ConversationContextCard({ conversationId, prompt = '', messageCo
     setMemoryCount((cached.memories || []).length)
     setRecentMemories((cached.memories || []).slice(0, 2))
     setTasks(cached.tasks || [])
+    setIsCachedSnapshot(true)
   }, [conversationId, prompt])
 
   useEffect(() => {
@@ -54,6 +56,7 @@ export function ConversationContextCard({ conversationId, prompt = '', messageCo
       setResolvedPrompt(nextPrompt)
       setMemoryCount(nextMemories.length)
       setRecentMemories(nextMemories.slice(0, 2))
+      setIsCachedSnapshot(false)
       cacheConversationContext(conversationId, {
         prompt: nextPrompt,
         memories: nextMemories,
@@ -71,6 +74,7 @@ export function ConversationContextCard({ conversationId, prompt = '', messageCo
       if (cancelled || !res.ok || !res.data) return
       const nextTasks = res.data || []
       setTasks(nextTasks)
+      setIsCachedSnapshot(false)
       cacheConversationContext(conversationId, {
         prompt: resolvedPrompt,
         memories: recentMemories,
@@ -106,6 +110,11 @@ export function ConversationContextCard({ conversationId, prompt = '', messageCo
         <View style={styles.headerLeft}>
           <Brain size={14} color={colors.accent} />
           <Text style={[styles.title, { color: colors.text }]}>{t('memory.contextTitle')}</Text>
+          {isCachedSnapshot ? (
+            <View style={[styles.cachedChip, { backgroundColor: colors.bgHover }]}>
+              <Text style={[styles.cachedChipText, { color: colors.textMuted }]}>{t('conversation.cachedShort')}</Text>
+            </View>
+          ) : null}
         </View>
         {canOpen ? <ChevronRight size={14} color={colors.textMuted} /> : null}
       </View>
@@ -184,6 +193,15 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 13,
     fontWeight: '700',
+  },
+  cachedChip: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 999,
+  },
+  cachedChipText: {
+    fontSize: 10,
+    fontWeight: '600',
   },
   row: {
     flexDirection: 'row',

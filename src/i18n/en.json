@@ -93,6 +93,8 @@
     "unarchive": "Unarchive",
     "noArchivedConversations": "No archived conversations",
     "unnamed": "Unnamed Conversation",
+    "cachedSnapshot": "Showing a cached workspace snapshot. Reconnect to sync the latest messages and metadata.",
+    "cachedShort": "Cached",
     "direct": "Direct",
     "group": "Group",
     "chat": "Chat",

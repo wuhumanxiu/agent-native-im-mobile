@@ -27,6 +27,7 @@ export default function ChatTab() {
   const [showSearch, setShowSearch] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [showCachedSnapshot, setShowCachedSnapshot] = useState(false)
 
   const loadConversations = useCallback(async () => {
     if (!sessionChecked || !token) return
@@ -38,11 +39,13 @@ export default function ChatTab() {
         const convs = Array.isArray(res.data) ? res.data : (res.data as any).conversations || []
         setConversations(convs)
         cacheConversations(convs)
+        setShowCachedSnapshot(false)
       } else {
         const cached = getCachedConversations()
         if (cached.length > 0) {
           setConversations(cached)
           setError(null)
+          setShowCachedSnapshot(true)
         } else {
           setError(getErrorMessage(res))
           setConversations([])
@@ -53,6 +56,7 @@ export default function ChatTab() {
       if (cached.length > 0) {
         setConversations(cached)
         setError(null)
+        setShowCachedSnapshot(true)
       } else {
         setError('Failed to load conversations')
         setConversations([])
@@ -65,7 +69,10 @@ export default function ChatTab() {
   useEffect(() => {
     if (sessionChecked && token) {
       const cached = getCachedConversations()
-      if (cached.length > 0) setConversations(cached)
+      if (cached.length > 0) {
+        setConversations(cached)
+        setShowCachedSnapshot(true)
+      }
     }
     loadConversations()
   }, [loadConversations, sessionChecked, token, setConversations])
@@ -123,6 +130,7 @@ export default function ChatTab() {
         isMuted={(id) => isMuted(id)}
         loading={loading}
         error={error}
+        showCachedSnapshot={showCachedSnapshot}
       />
 
       {/* New Conversation Modal */}
