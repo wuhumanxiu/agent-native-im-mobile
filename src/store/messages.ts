@@ -27,6 +27,7 @@ interface MessagesState {
   prependMessages: (convId: number, msgs: Message[], hasMore: boolean) => void
   addMessage: (msg: Message) => void
   revokeMessage: (convId: number, msgId: number) => void
+  mergeMessages: (convId: number, msgs: Message[]) => void
 
   // optimistic messages
   addOptimisticMessage: (tempId: string, msg: Message) => void
@@ -113,6 +114,35 @@ export const useMessagesStore = create<MessagesState>((set) => ({
         ),
       },
     })),
+
+  mergeMessages: (convId, msgs) =>
+    set((s) => {
+      const existing = s.byConv[convId] || []
+      const merged = [...existing]
+      const seenIds = new Set<number>()
+      const seenTempIds = new Set<string>()
+
+      for (const item of existing) {
+        if (typeof item.id === 'number') seenIds.add(item.id)
+        if (item.temp_id) seenTempIds.add(item.temp_id)
+      }
+
+      for (const msg of msgs) {
+        if ((typeof msg.id === 'number' && seenIds.has(msg.id)) || (msg.temp_id && seenTempIds.has(msg.temp_id))) {
+          continue
+        }
+        merged.push(msg)
+        if (typeof msg.id === 'number') seenIds.add(msg.id)
+        if (msg.temp_id) seenTempIds.add(msg.temp_id)
+      }
+
+      merged.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+      const latestMessageId = merged.reduce((max, m) => Math.max(max, m.id ?? 0), s.latestMessageId)
+      return {
+        byConv: { ...s.byConv, [convId]: merged },
+        latestMessageId,
+      }
+    }),
 
   addOptimisticMessage: (tempId, msg) =>
     set((s) => {

@@ -452,7 +452,7 @@
   "connection": {
     "disconnected": "连接已断开，正在重连...",
     "reconnected": "已重新连接",
-    "offlineMode": "离线模式：网络恢复后自动同步",
+    "offlineMode": "连接已断开：文本消息会在服务恢复后重试",
     "authExpired": "会话检查中...",
     "queuedMessages": "待同步 {{count}} 条",
     "failedMessages": "失败 {{count}} 条",

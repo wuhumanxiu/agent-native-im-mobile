@@ -5,6 +5,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { useAuthStore } from '../src/store/auth'
 import { useSettingsStore } from '../src/store/settings'
 import { WebSocketProvider } from '../src/hooks/WebSocketContext'
+import { useOfflineSync } from '../src/hooks/useOfflineSync'
 import { useThemeColors } from '../src/lib/theme'
 import '../src/i18n'
 
@@ -16,6 +17,8 @@ export default function RootLayout() {
   const hydrateAuth = useAuthStore((s) => s.hydrate)
   const [isReady, setIsReady] = useState(false)
   const colors = useThemeColors()
+
+  useOfflineSync()
 
   // Mark ready after navigator is fully mounted (next frame)
   useEffect(() => {

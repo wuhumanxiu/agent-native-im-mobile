@@ -7,6 +7,7 @@ import { Bot, Plus, Search, PowerOff } from 'lucide-react-native'
 import { useAuthStore } from '../../store/auth'
 import * as api from '../../lib/api'
 import { getErrorMessage } from '../../lib/errors'
+import { cacheEntities, getCachedEntities } from '../../lib/cache'
 import type { Entity } from '../../lib/types'
 import { EntityAvatar } from '../ui/EntityAvatar'
 import { useThemeColors } from '../../lib/theme'
@@ -66,10 +67,17 @@ export function BotList({ selectedId, onSelect, onCreatePress, refreshTrigger }:
       }
       const list = Array.isArray(res.data) ? res.data : []
       setEntities(list)
+      cacheEntities(list)
       await fetchPresence(list)
     } catch {
-      setEntities([])
-      setError('Failed to load bots')
+      const cached = getCachedEntities()
+      if (cached.length > 0) {
+        setEntities(cached)
+        setError(null)
+      } else {
+        setEntities([])
+        setError('Failed to load bots')
+      }
     } finally {
       setLoading(false)
     }
@@ -77,6 +85,8 @@ export function BotList({ selectedId, onSelect, onCreatePress, refreshTrigger }:
 
   useEffect(() => {
     setLoading(true)
+    const cached = getCachedEntities()
+    if (cached.length > 0) setEntities(cached)
     loadEntities()
   }, [loadEntities, refreshTrigger])
 

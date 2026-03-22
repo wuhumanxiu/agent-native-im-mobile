@@ -9,6 +9,7 @@ import { useConversationsStore } from '../../src/store/conversations'
 import { useThemeColors } from '../../src/lib/theme'
 import { getErrorMessage } from '../../src/lib/errors'
 import * as api from '../../src/lib/api'
+import { cacheConversations, getCachedConversations } from '../../src/lib/cache'
 
 export default function ChatTab() {
   const router = useRouter()
@@ -36,21 +37,38 @@ export default function ChatTab() {
       if (res.ok && res.data) {
         const convs = Array.isArray(res.data) ? res.data : (res.data as any).conversations || []
         setConversations(convs)
+        cacheConversations(convs)
       } else {
-        setError(getErrorMessage(res))
-        setConversations([])
+        const cached = getCachedConversations()
+        if (cached.length > 0) {
+          setConversations(cached)
+          setError(null)
+        } else {
+          setError(getErrorMessage(res))
+          setConversations([])
+        }
       }
     } catch {
-      setError('Failed to load conversations')
-      setConversations([])
+      const cached = getCachedConversations()
+      if (cached.length > 0) {
+        setConversations(cached)
+        setError(null)
+      } else {
+        setError('Failed to load conversations')
+        setConversations([])
+      }
     } finally {
       setLoading(false)
     }
   }, [sessionChecked, token, setConversations])
 
   useEffect(() => {
+    if (sessionChecked && token) {
+      const cached = getCachedConversations()
+      if (cached.length > 0) setConversations(cached)
+    }
     loadConversations()
-  }, [loadConversations])
+  }, [loadConversations, sessionChecked, token, setConversations])
 
   const handleNewChatCreated = useCallback((convId: number) => {
     setShowNewChat(false)

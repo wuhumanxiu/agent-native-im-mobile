@@ -5,6 +5,7 @@ import { Brain, ChevronRight, ListTodo, MessagesSquare, TerminalSquare } from 'l
 import * as api from '../../lib/api'
 import { useAuthStore } from '../../store/auth'
 import { useThemeColors } from '../../lib/theme'
+import { cacheConversationContext, getCachedConversationContext } from '../../lib/cache'
 import type { ConversationMemory, Task } from '../../lib/types'
 
 interface Props {
@@ -35,27 +36,50 @@ export function ConversationContextCard({ conversationId, prompt = '', messageCo
   }, [prompt])
 
   useEffect(() => {
+    const cached = getCachedConversationContext(conversationId)
+    if (!cached) return
+    setResolvedPrompt(cached.prompt || prompt)
+    setMemoryCount((cached.memories || []).length)
+    setRecentMemories((cached.memories || []).slice(0, 2))
+    setTasks(cached.tasks || [])
+  }, [conversationId, prompt])
+
+  useEffect(() => {
     if (!token) return
     let cancelled = false
     api.listMemories(token, conversationId).then((res) => {
       if (cancelled || !res.ok || !res.data) return
-      setResolvedPrompt(res.data.prompt || '')
+      const nextPrompt = res.data.prompt || ''
       const nextMemories = res.data.memories || []
+      setResolvedPrompt(nextPrompt)
       setMemoryCount(nextMemories.length)
       setRecentMemories(nextMemories.slice(0, 2))
+      cacheConversationContext(conversationId, {
+        prompt: nextPrompt,
+        memories: nextMemories,
+        tasks,
+        updated_at: new Date().toISOString(),
+      })
     }).catch(() => {})
     return () => { cancelled = true }
-  }, [token, conversationId])
+  }, [token, conversationId, tasks])
 
   useEffect(() => {
     if (!token) return
     let cancelled = false
     api.listTasks(token, conversationId).then((res) => {
       if (cancelled || !res.ok || !res.data) return
-      setTasks(res.data || [])
+      const nextTasks = res.data || []
+      setTasks(nextTasks)
+      cacheConversationContext(conversationId, {
+        prompt: resolvedPrompt,
+        memories: recentMemories,
+        tasks: nextTasks,
+        updated_at: new Date().toISOString(),
+      })
     }).catch(() => {})
     return () => { cancelled = true }
-  }, [token, conversationId])
+  }, [token, conversationId, resolvedPrompt, recentMemories])
 
   const promptPreview = useMemo(() => truncate(resolvedPrompt), [resolvedPrompt])
   const hasContext = !!promptPreview || memoryCount > 0

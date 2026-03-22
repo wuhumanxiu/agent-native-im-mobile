@@ -13,6 +13,7 @@ import type { Entity } from '../../lib/types'
 import { EntityAvatar } from '../ui/EntityAvatar'
 import { OnboardingCard } from '../ui/OnboardingCard'
 import { buildDirectConversationTitle } from '../../lib/conversation-title'
+import { cacheEntities, getCachedEntities } from '../../lib/cache'
 
 type Step = 'choose' | 'chat-with-bot' | 'create-group'
 
@@ -46,10 +47,15 @@ export function NewConversation({ visible, onClose, onCreated, preselectedEntity
 
   useEffect(() => {
     if (!visible || !token || !myEntity) return
+    const cached = getCachedEntities()
+    if (cached.length > 0) {
+      setEntities(cached.filter((e) => e.id !== myEntity.id))
+    }
     setLoading(true)
     api.listEntities(token).then((res) => {
       if (res.ok && res.data) {
         const all = Array.isArray(res.data) ? res.data : []
+        cacheEntities(all)
         setEntities(all.filter((e) => e.id !== myEntity.id))
       }
       setLoading(false)

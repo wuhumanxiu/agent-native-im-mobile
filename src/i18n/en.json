@@ -452,7 +452,7 @@
   "connection": {
     "disconnected": "Connection lost, reconnecting...",
     "reconnected": "Reconnected",
-    "offlineMode": "Offline mode: changes will sync when network is back",
+    "offlineMode": "Connection lost: text messages may retry when service is back",
     "authExpired": "Session check in progress...",
     "queuedMessages": "{{count}} queued",
     "failedMessages": "{{count}} failed",

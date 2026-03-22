@@ -16,6 +16,7 @@ import { useWSContext } from '../../src/hooks/WebSocketContext'
 import { usePresenceStore } from '../../src/store/presence'
 import { normalizeAttachmentUrl } from '../../src/lib/files'
 import { buildDirectConversationTitle } from '../../src/lib/conversation-title'
+import { cacheMessages, getCachedMessages, deleteOutboxMessage, enqueueOutboxMessage, listOutboxMessagesByConversation, updateOutboxMessage } from '../../src/lib/cache'
 
 export default function ChatDetailScreen() {
   const { t } = useTranslation()
@@ -46,6 +47,7 @@ export default function ChatDetailScreen() {
   const prependStoreMessages = useMessagesStore((s) => s.prependMessages)
   const addStoreMessage = useMessagesStore((s) => s.addMessage)
   const addOptimisticMessage = useMessagesStore((s) => s.addOptimisticMessage)
+  const mergeStoreMessages = useMessagesStore((s) => s.mergeMessages)
   const replaceOptimisticMessage = useMessagesStore((s) => s.replaceOptimisticMessage)
   const setOptimisticState = useMessagesStore((s) => s.setOptimisticState)
   const revokeStoreMessage = useMessagesStore((s) => s.revokeMessage)
@@ -181,6 +183,29 @@ export default function ChatDetailScreen() {
     sendTyping(convId)
   }, [sendTyping, convId])
 
+  const hydrateCachedMessages = useCallback(() => {
+    const cached = getCachedMessages(convId)
+    if (cached.length > 0) {
+      setStoreMessages(convId, cached, true)
+    }
+    const queued = listOutboxMessagesByConversation(convId).map((item) => ({
+      id: -(Math.abs(Number(item.created_at.replace(/\D/g, '').slice(-10))) || Date.now()),
+      temp_id: item.temp_id,
+      conversation_id: item.conversation_id,
+      sender_id: entity?.id || 0,
+      sender: entity || undefined,
+      content_type: (item.content_type as Message['content_type']) || 'text',
+      layers: { summary: item.text },
+      mentions: item.mentions,
+      reply_to: item.reply_to,
+      created_at: item.created_at,
+      client_state: item.sync_state === 'failed' ? 'failed' : 'queued',
+    } as Message))
+    if (queued.length > 0) {
+      mergeStoreMessages(convId, queued)
+    }
+  }, [convId, entity, mergeStoreMessages, setStoreMessages])
+
   // Cancel stream callback
   const handleCancelStream = useCallback((streamId: string, conversationId: number) => {
     sendCancelStream(streamId, conversationId)
@@ -202,6 +227,7 @@ export default function ChatDetailScreen() {
   // Load messages
   useEffect(() => {
     if (!token || !convId) return
+    hydrateCachedMessages()
     setLoading(true)
     api.listMessages(token, convId).then((res) => {
       if (res.ok && res.data) {
@@ -210,11 +236,12 @@ export default function ChatDetailScreen() {
         // API returns newest-first, UI needs oldest-first (FlatList inverted flips it)
         const msgs = [...raw].reverse()
         setStoreMessages(convId, msgs, raw.length >= 30)
+        cacheMessages(convId, msgs)
         setHasMore(Array.isArray(data) ? raw.length >= 30 : !!data?.has_more)
       }
       setLoading(false)
     }).catch(() => setLoading(false))
-  }, [token, convId])
+  }, [token, convId, hydrateCachedMessages, setStoreMessages])
 
   useEffect(() => {
     if (!otherParticipant) {
@@ -234,6 +261,12 @@ export default function ChatDetailScreen() {
     return () => { cancelled = true }
   }, [otherParticipant, onlineSet, token])
 
+  useEffect(() => {
+    if (messages.length > 0) {
+      cacheMessages(convId, messages)
+    }
+  }, [convId, messages])
+
   // Load more messages (pagination)
   const handleLoadMore = useCallback(async () => {
     if (!token || !convId || messages.length === 0 || !hasMore) return
@@ -248,6 +281,7 @@ export default function ChatDetailScreen() {
         setHasMore(false)
       } else {
         prependStoreMessages(convId, older, raw.length >= 30)
+        cacheMessages(convId, [...older, ...messages])
         setHasMore(Array.isArray(data) ? raw.length >= 30 : !!data?.has_more)
       }
     }
@@ -256,9 +290,12 @@ export default function ChatDetailScreen() {
   // Send message - backend expects { conversation_id, layers: { summary }, mentions, reply_to }
   const handleSend = useCallback(async (text: string, attachments?: any[], mentions?: number[], replyToId?: number) => {
     if (!token || !convId) return
+    const trimmed = text.trim()
+    const tempId = `msg-${convId}-${Date.now()}`
+    const createdAt = new Date().toISOString()
     const msg: Parameters<typeof api.sendMessage>[1] = {
       conversation_id: convId,
-      layers: { summary: text },
+      layers: { summary: trimmed },
       mentions: mentions || [],
       reply_to: replyToId,
     }
@@ -268,12 +305,85 @@ export default function ChatDetailScreen() {
         url: normalizeAttachmentUrl(attachment?.url),
       }))
     }
-    const res = await api.sendMessage(token, msg)
-    if (res.ok && res.data) {
-      addStoreMessage(res.data)
-      startBotThinking(resolveProcessingEntity(mentions))
+    const canQueueOffline = (!attachments || attachments.length === 0)
+    const optimisticId = -Date.now()
+    addOptimisticMessage(tempId, {
+      id: optimisticId,
+      temp_id: tempId,
+      conversation_id: convId,
+      sender_id: entity?.id || 0,
+      sender: entity || undefined,
+      content_type: attachments && attachments.length > 0 ? 'file' : 'text',
+      layers: { summary: trimmed },
+      attachments,
+      mentions: mentions || [],
+      reply_to: replyToId,
+      created_at: createdAt,
+      client_state: wsConnected ? 'sending' : 'queued',
+    })
+
+    if (!wsConnected && canQueueOffline) {
+      enqueueOutboxMessage({
+        id: tempId,
+        temp_id: tempId,
+        conversation_id: convId,
+        content_type: 'text',
+        text: trimmed,
+        mentions: mentions || [],
+        reply_to: replyToId,
+        created_at: createdAt,
+        sync_state: 'queued',
+      })
+      cacheMessages(convId, useMessagesStore.getState().byConv[convId] || [])
+      return
     }
-  }, [token, convId, addStoreMessage, startBotThinking, resolveProcessingEntity])
+
+    try {
+      const res = await api.sendMessage(token, msg)
+      if (res.ok && res.data) {
+        replaceOptimisticMessage(tempId, res.data)
+        cacheMessages(convId, useMessagesStore.getState().byConv[convId] || [])
+        startBotThinking(resolveProcessingEntity(mentions))
+        return
+      }
+      if (canQueueOffline) {
+        setOptimisticState(tempId, 'queued')
+        enqueueOutboxMessage({
+          id: tempId,
+          temp_id: tempId,
+          conversation_id: convId,
+          content_type: 'text',
+          text: trimmed,
+          mentions: mentions || [],
+          reply_to: replyToId,
+          created_at: createdAt,
+          sync_state: 'queued',
+          last_error: typeof res.error === 'string' ? res.error : undefined,
+        })
+        cacheMessages(convId, useMessagesStore.getState().byConv[convId] || [])
+        return
+      }
+      setOptimisticState(tempId, 'failed')
+    } catch {
+      if (canQueueOffline) {
+        setOptimisticState(tempId, 'queued')
+        enqueueOutboxMessage({
+          id: tempId,
+          temp_id: tempId,
+          conversation_id: convId,
+          content_type: 'text',
+          text: trimmed,
+          mentions: mentions || [],
+          reply_to: replyToId,
+          created_at: createdAt,
+          sync_state: 'queued',
+        })
+        cacheMessages(convId, useMessagesStore.getState().byConv[convId] || [])
+        return
+      }
+      setOptimisticState(tempId, 'failed')
+    }
+  }, [token, convId, entity, wsConnected, addOptimisticMessage, replaceOptimisticMessage, setOptimisticState, startBotThinking, resolveProcessingEntity])
 
   // Revoke message
   const handleRevoke = useCallback(async (msgId: number) => {
@@ -340,6 +450,38 @@ export default function ChatDetailScreen() {
     updateConversation(conversationId, { unread_count: 0 })
     api.markAsRead(token, conversationId, messageId).catch(() => {})
   }, [token, updateConversation])
+
+  const handleRetryOutbox = useCallback(async (tempId: string) => {
+    if (!token) return
+    const queued = listOutboxMessagesByConversation(convId).find((item) => item.temp_id === tempId)
+    if (!queued) return
+    setOptimisticState(tempId, 'sending')
+    updateOutboxMessage(queued.id, {
+      sync_state: 'sending',
+      attempts: (queued.attempts || 0) + 1,
+      last_attempt_at: new Date().toISOString(),
+      last_error: '',
+    })
+    const res = await api.sendMessage(token, {
+      conversation_id: queued.conversation_id,
+      content_type: queued.content_type || 'text',
+      layers: { summary: queued.text },
+      mentions: queued.mentions,
+      reply_to: queued.reply_to,
+    })
+    if (res.ok && res.data) {
+      replaceOptimisticMessage(tempId, res.data)
+      deleteOutboxMessage(queued.id)
+      cacheMessages(convId, useMessagesStore.getState().byConv[convId] || [])
+      return
+    }
+    setOptimisticState(tempId, 'failed')
+    updateOutboxMessage(queued.id, {
+      sync_state: 'failed',
+      last_error: typeof res.error === 'string' ? res.error : 'sync_failed',
+      last_attempt_at: new Date().toISOString(),
+    })
+  }, [token, convId, replaceOptimisticMessage, setOptimisticState])
 
   // File upload handler
   const handleFileUpload = useCallback(async (file: { uri: string; name: string; type: string; size: number }): Promise<string | null> => {
@@ -443,6 +585,7 @@ export default function ChatDetailScreen() {
           onRevoke={handleRevoke}
           onReact={handleReact}
           onRespondInteraction={handleRespondInteraction}
+          onRetryOutbox={handleRetryOutbox}
           onMarkAsRead={handleMarkAsRead}
           onFileUpload={handleFileUpload}
           onTyping={handleTyping}

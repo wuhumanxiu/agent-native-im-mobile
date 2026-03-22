@@ -9,6 +9,7 @@ import { useThemeColors } from '../../src/lib/theme'
 import { CreateBotDialog } from '../../src/components/entity/CreateBotDialog'
 import type { Entity } from '../../src/lib/types'
 import { buildDirectConversationTitle } from '../../src/lib/conversation-title'
+import { getCachedEntities } from '../../src/lib/cache'
 
 export default function BotsTab() {
   const { t } = useTranslation()
@@ -28,13 +29,14 @@ export default function BotsTab() {
   const handleStartChat = useCallback(async (entityId: number) => {
     if (!token) return
     // Get entity name for chat title
+    let list = getCachedEntities()
     const res = await api.listEntities(token)
     let directTitle = 'Bot'
     if (res.ok && res.data) {
-      const entities = Array.isArray(res.data) ? res.data : []
-      const found = entities.find((e) => e.id === entityId)
-      if (found) directTitle = buildDirectConversationTitle(t, found)
+      list = Array.isArray(res.data) ? res.data : []
     }
+    const found = list.find((e) => e.id === entityId)
+    if (found) directTitle = buildDirectConversationTitle(t, found)
     const convRes = await api.createConversation(token, {
       title: directTitle,
       conv_type: 'direct',
