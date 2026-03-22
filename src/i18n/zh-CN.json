@@ -459,13 +459,20 @@
     "authExpired": "会话检查中...",
     "queuedMessages": "待同步 {{count}} 条",
     "failedMessages": "失败 {{count}} 条",
+    "syncRestored": "已恢复连接并完成同步",
     "lastSyncAt": "最近同步 {{time}}",
     "lastError": "最近错误：{{error}}",
     "retryNow": "立即重试",
     "syncFailed": "离线队列同步失败"
   },
   "composer": {
-    "attachmentsRequireConnection": "附件和媒体上传需要在线连接。纯文本消息会在服务恢复后排队重试。"
+    "attachmentsRequireConnection": "附件和媒体上传需要在线连接。纯文本消息会在服务恢复后排队重试。",
+    "botCapabilityBoundary": "{{name}} 可以接收{{kinds}}，但是否真正理解内容仍取决于 bot 的模型和工具能力。",
+    "botCapabilityLimited": "{{name}} 当前更擅长文本。{{kinds}}虽然可以送达，但它未必能直接理解。",
+    "kindImage": "图片",
+    "kindAudio": "音频",
+    "kindVideo": "视频",
+    "kindDocument": "文档"
   },
   "artifact": {
     "html": "HTML 内容",

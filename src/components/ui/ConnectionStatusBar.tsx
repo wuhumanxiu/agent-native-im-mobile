@@ -8,6 +8,7 @@ interface Props {
   connected: boolean
   outboxCount?: number
   outboxFailedCount?: number
+  lastSyncAt?: string | null
   onRetryNow?: () => void
 }
 
@@ -15,6 +16,7 @@ export function ConnectionStatusBar({
   connected,
   outboxCount = 0,
   outboxFailedCount = 0,
+  lastSyncAt,
   onRetryNow,
 }: Props) {
   const { t } = useTranslation()
@@ -74,8 +76,13 @@ export function ConnectionStatusBar({
       <View style={[styles.pill, { backgroundColor: 'rgba(34, 197, 94, 0.14)' }]}>
         <Wifi size={14} color={colors.success} />
         <Text style={[styles.text, { color: colors.success }]}>
-          {t('connection.reconnected')}
+          {lastSyncAt ? t('connection.syncRestored') : t('connection.reconnected')}
         </Text>
+        {lastSyncAt ? (
+          <Text style={[styles.metaText, { color: colors.success }]}>
+            {t('connection.lastSyncAt', { time: new Date(lastSyncAt).toLocaleTimeString() })}
+          </Text>
+        ) : null}
       </View>
     </View>
   )

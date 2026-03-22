@@ -7,6 +7,7 @@ import { Audio } from 'expo-av'
 import { EntityAvatar } from '../ui/EntityAvatar'
 import { storage } from '../../lib/storage'
 import { useThemeColors } from '../../lib/theme'
+import { getEntityAttachmentHint, type AttachmentCapabilityKind } from '../../lib/entity-capabilities'
 import type { Participant, Message, Attachment } from '../../lib/types'
 
 // ─── Utility ─────────────────────────────────────────────────────
@@ -63,6 +64,7 @@ interface Props {
   onCancelReply?: () => void
   disabled?: boolean
   attachmentsEnabled?: boolean
+  targetBot?: Message['sender'] | null
 }
 
 // ─── Component ───────────────────────────────────────────────────
@@ -81,6 +83,7 @@ export function MessageComposer({
   onCancelReply,
   disabled,
   attachmentsEnabled = true,
+  targetBot = null,
 }: Props) {
   const { t } = useTranslation()
   const colors = useThemeColors()
@@ -224,6 +227,18 @@ export function MessageComposer({
   [pendingFiles])
 
   const hasUploading = pendingFiles.some((pf) => pf.status === 'uploading')
+  const attachmentKinds = useMemo<AttachmentCapabilityKind[]>(() => {
+    return pendingFiles.map((pf) => {
+      if (pf.type.startsWith('image/')) return 'image'
+      if (pf.type.startsWith('audio/')) return 'audio'
+      if (pf.type.startsWith('video/')) return 'video'
+      return 'document'
+    })
+  }, [pendingFiles])
+  const attachmentHint = useMemo(
+    () => getEntityAttachmentHint(t, targetBot || undefined, attachmentKinds),
+    [t, targetBot, attachmentKinds],
+  )
 
   const handleSubmit = useCallback(() => {
     const trimmed = text.trim()
@@ -477,6 +492,14 @@ export function MessageComposer({
         <View style={[styles.offlineNotice, { backgroundColor: colors.bgSecondary, borderColor: colors.border }]}>
           <Text style={[styles.offlineNoticeText, { color: colors.textMuted }]}>
             {t('composer.attachmentsRequireConnection')}
+          </Text>
+        </View>
+      ) : null}
+
+      {attachmentHint ? (
+        <View style={[styles.offlineNotice, { backgroundColor: colors.accentDim, borderColor: colors.border }]}>
+          <Text style={[styles.offlineNoticeText, { color: colors.textSecondary }]}>
+            {attachmentHint}
           </Text>
         </View>
       ) : null}

@@ -459,13 +459,20 @@
     "authExpired": "Session check in progress...",
     "queuedMessages": "{{count}} queued",
     "failedMessages": "{{count}} failed",
+    "syncRestored": "Reconnected and synced",
     "lastSyncAt": "last sync {{time}}",
     "lastError": "last error: {{error}}",
     "retryNow": "Retry now",
     "syncFailed": "Outbox sync failed"
   },
   "composer": {
-    "attachmentsRequireConnection": "Attachments and media uploads need a live connection. Text messages can queue and retry when service returns."
+    "attachmentsRequireConnection": "Attachments and media uploads need a live connection. Text messages can queue and retry when service returns.",
+    "botCapabilityBoundary": "{{name}} can receive {{kinds}}, but understanding them still depends on the bot's model and tools.",
+    "botCapabilityLimited": "{{name}} is currently best with text. {{kinds}} can still be delivered, but it may not interpret them directly.",
+    "kindImage": "images",
+    "kindAudio": "audio",
+    "kindVideo": "video",
+    "kindDocument": "documents"
   },
   "artifact": {
     "html": "HTML Content",

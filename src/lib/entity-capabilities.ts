@@ -9,6 +9,8 @@ type CapabilitySupport = {
   documents: boolean
 }
 
+export type AttachmentCapabilityKind = 'image' | 'audio' | 'video' | 'document'
+
 function readCapabilityTokens(entity: Entity): string[] {
   const metadata = entity.metadata as Record<string, unknown> | undefined
   const capabilities = Array.isArray(metadata?.capabilities) ? metadata?.capabilities : []
@@ -53,4 +55,45 @@ export function getEntityCapabilitySummary(t: TFunction, entity: Entity): string
     return t('bot.capabilityPartial')
   }
   return t('bot.capabilityTextOnly')
+}
+
+function getAttachmentKindLabel(t: TFunction, kind: AttachmentCapabilityKind): string {
+  switch (kind) {
+    case 'image':
+      return t('composer.kindImage')
+    case 'audio':
+      return t('composer.kindAudio')
+    case 'video':
+      return t('composer.kindVideo')
+    case 'document':
+    default:
+      return t('composer.kindDocument')
+  }
+}
+
+function joinKinds(t: TFunction, kinds: AttachmentCapabilityKind[]): string {
+  const labels = Array.from(new Set(kinds)).map((kind) => getAttachmentKindLabel(t, kind))
+  if (labels.length <= 1) return labels[0] || t('composer.kindDocument')
+  if (labels.length === 2) return `${labels[0]} + ${labels[1]}`
+  return `${labels.slice(0, -1).join(', ')} + ${labels[labels.length - 1]}`
+}
+
+export function getEntityAttachmentHint(
+  t: TFunction,
+  entity: Entity | null | undefined,
+  kinds: AttachmentCapabilityKind[],
+): string | null {
+  if (!entity || kinds.length === 0) return null
+  const support = getEntityCapabilitySupport(entity)
+  const unsupported = kinds.some((kind) => {
+    if (kind === 'image') return !support.images
+    if (kind === 'audio') return !support.audio
+    if (kind === 'video') return !support.video
+    return !support.documents
+  })
+  const name = entity.display_name || entity.name
+  const kindLabel = joinKinds(t, kinds)
+  return unsupported
+    ? t('composer.botCapabilityLimited', { name, kinds: kindLabel })
+    : t('composer.botCapabilityBoundary', { name, kinds: kindLabel })
 }

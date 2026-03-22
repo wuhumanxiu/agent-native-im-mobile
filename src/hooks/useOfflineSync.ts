@@ -8,6 +8,7 @@ import { usePresenceStore } from '../store/presence'
 export function useOfflineSync() {
   const token = useAuthStore((s) => s.token)
   const wsConnected = usePresenceStore((s) => s.wsConnected)
+  const setLastSyncAt = usePresenceStore((s) => s.setLastSyncAt)
   const replaceOptimisticMessage = useMessagesStore((s) => s.replaceOptimisticMessage)
   const setOptimisticState = useMessagesStore((s) => s.setOptimisticState)
   const runningRef = useRef(false)
@@ -42,6 +43,7 @@ export function useOfflineSync() {
           if (res.ok && res.data) {
             replaceOptimisticMessage(item.temp_id, res.data)
             deleteOutboxMessage(item.id)
+            setLastSyncAt(new Date().toISOString())
             continue
           }
 
@@ -66,6 +68,5 @@ export function useOfflineSync() {
       cancelled = true
       clearInterval(interval)
     }
-  }, [token, wsConnected, replaceOptimisticMessage, setOptimisticState])
+  }, [token, wsConnected, replaceOptimisticMessage, setOptimisticState, setLastSyncAt])
 }
-

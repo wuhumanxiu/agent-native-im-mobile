@@ -38,6 +38,7 @@ interface Props {
   hasMore?: boolean
   isOnline?: boolean
   wsConnected?: boolean
+  lastSyncAt?: string | null
   typingInfo?: { text: string; isProcessing: boolean } | null
   progress?: ProgressEntry
   thinkingEntity?: Entity
@@ -73,6 +74,7 @@ export function ChatThread({
   hasMore = true,
   isOnline = false,
   wsConnected = true,
+  lastSyncAt,
   typingInfo,
   progress,
   thinkingEntity,
@@ -102,6 +104,12 @@ export function ChatThread({
 
   const isGroup = conversation?.conv_type === 'group' || conversation?.conv_type === 'channel'
   const otherParticipant = (conversation?.participants || []).find((p) => p.entity_id !== myEntityId)?.entity
+  const botParticipants = (conversation?.participants || [])
+    .filter((p) => p.entity_id !== myEntityId)
+    .map((p) => p.entity)
+    .filter((entity): entity is Entity => !!entity && isBotOrService(entity))
+  const directBotParticipant = !isGroup ? (botParticipants[0] || null) : null
+  const composerTargetBot = !isGroup ? directBotParticipant : (botParticipants.length === 1 ? botParticipants[0] : null)
   const myParticipant = (conversation?.participants || []).find((p) => p.entity_id === myEntityId)
   const isObserver = myParticipant?.role === 'observer'
   const participantMap = useMemo(() => {
@@ -413,6 +421,7 @@ export function ChatThread({
         connected={wsConnected}
         outboxCount={outboxCount}
         outboxFailedCount={outboxFailedCount}
+        lastSyncAt={lastSyncAt}
       />
 
       <ConversationContextCard
@@ -462,6 +471,7 @@ export function ChatThread({
         enableMentions={conversation.conv_type !== 'direct'}
         replyTo={replyTo}
         onCancelReply={() => setReplyTo(null)}
+        targetBot={composerTargetBot}
       />
     </KeyboardAvoidingView>
   )

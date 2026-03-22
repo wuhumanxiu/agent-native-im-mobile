@@ -31,6 +31,7 @@ export default function ChatDetailScreen() {
   const readReceipts = useConversationsStore((s) => s.readReceipts)
   const wsConnected = usePresenceStore((s) => s.wsConnected)
   const onlineSet = usePresenceStore((s) => s.online)
+  const lastSyncAt = usePresenceStore((s) => s.lastSyncAt)
 
   // WebSocket context — typing, streams, cancel
   const { typingMap, sendTyping, sendCancelStream } = useWSContext()
@@ -562,6 +563,7 @@ export default function ChatDetailScreen() {
           hasMore={hasMore}
           isOnline={isDirectOtherOnline}
           wsConnected={wsConnected}
+          lastSyncAt={lastSyncAt}
           typingInfo={typingInfo}
           progress={progress}
           thinkingEntity={botThinkingEntity || undefined}
