@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   View,
   Text,
@@ -26,6 +26,19 @@ export default function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [isOffline, setIsOffline] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    api.getVapidPublicKey().then((res) => {
+      if (!cancelled) setIsOffline(!res.ok)
+    }).catch(() => {
+      if (!cancelled) setIsOffline(true)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const canSubmit = username.trim().length > 0 && password.length > 0 && !loading
 
@@ -71,6 +84,11 @@ export default function LoginScreen() {
 
           {/* Form */}
           <View style={styles.form}>
+            {isOffline ? (
+              <View style={styles.infoBox}>
+                <Text style={styles.infoText}>{t('auth.offlineFirstLoginHint')}</Text>
+              </View>
+            ) : null}
             <View style={styles.field}>
               <Text style={styles.label}>{t('auth.username')}</Text>
               <TextInput
@@ -232,6 +250,19 @@ const styles = StyleSheet.create({
   errorText: {
     fontSize: 12,
     color: '#ef4444',
+  },
+  infoBox: {
+    backgroundColor: 'rgba(245, 158, 11, 0.10)',
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.18)',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  infoText: {
+    fontSize: 12,
+    color: '#b45309',
+    lineHeight: 18,
   },
   button: {
     height: 44,

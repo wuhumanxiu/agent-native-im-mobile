@@ -62,6 +62,7 @@ interface Props {
   replyTo?: Message | null
   onCancelReply?: () => void
   disabled?: boolean
+  attachmentsEnabled?: boolean
 }
 
 // ─── Component ───────────────────────────────────────────────────
@@ -79,6 +80,7 @@ export function MessageComposer({
   replyTo,
   onCancelReply,
   disabled,
+  attachmentsEnabled = true,
 }: Props) {
   const { t } = useTranslation()
   const colors = useThemeColors()
@@ -378,6 +380,7 @@ export function MessageComposer({
 
   // Image/file picker
   const handlePickImage = useCallback(async () => {
+    if (!attachmentsEnabled) return
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       allowsMultipleSelection: true,
@@ -402,7 +405,7 @@ export function MessageComposer({
       setPendingFiles((prev) => [...prev, entry])
       void uploadPendingFile(entry)
     }
-  }, [onFileUpload, uploadPendingFile])
+  }, [attachmentsEnabled, onFileUpload, uploadPendingFile])
 
   const removeFile = useCallback((id: string) => {
     setPendingFiles((prev) => prev.filter((pf) => pf.id !== id))
@@ -469,6 +472,14 @@ export function MessageComposer({
           </Pressable>
         </View>
       )}
+
+      {!attachmentsEnabled && onFileUpload ? (
+        <View style={[styles.offlineNotice, { backgroundColor: colors.bgSecondary, borderColor: colors.border }]}>
+          <Text style={[styles.offlineNoticeText, { color: colors.textMuted }]}>
+            {t('composer.attachmentsRequireConnection')}
+          </Text>
+        </View>
+      ) : null}
 
       {/* Pending files preview */}
       {pendingFiles.length > 0 && (
@@ -567,9 +578,11 @@ export function MessageComposer({
             style={({ pressed }) => [
               styles.iconButton,
               { backgroundColor: colors.bgTertiary },
-              pressed && { backgroundColor: colors.bgHover },
+              !attachmentsEnabled && { opacity: 0.45 },
+              attachmentsEnabled && pressed && { backgroundColor: colors.bgHover },
             ]}
-            onPress={handlePickImage}
+            onPress={attachmentsEnabled ? handlePickImage : undefined}
+            disabled={!attachmentsEnabled}
           >
             <Paperclip size={20} color={colors.textMuted} />
           </Pressable>
@@ -693,6 +706,17 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: '#e2e8f0',
     overflow: 'hidden',
+  },
+  offlineNotice: {
+    marginBottom: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  offlineNoticeText: {
+    fontSize: 11,
+    lineHeight: 16,
   },
   mentionPopover: {
     maxHeight: 200,

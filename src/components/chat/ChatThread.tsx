@@ -454,6 +454,7 @@ export function ChatThread({
         onSend={handleSend}
         onAudioSend={onAudioSend}
         onFileUpload={onFileUpload}
+        attachmentsEnabled={wsConnected}
         onTyping={onTyping}
         placeholder={t('conversation.typeMessage')}
         participants={conversation.participants}

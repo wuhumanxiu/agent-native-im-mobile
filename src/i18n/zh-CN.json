@@ -37,6 +37,7 @@
     "backToLogin": "返回登录",
     "fieldsRequired": "请输入用户名/邮箱和密码",
     "registerError": "注册失败",
+    "offlineFirstLoginHint": "首次登录仍需要在线连接。至少成功登录过一次后，ANI 才能从本地缓存恢复最近的工作区。",
     "pwdTooShort": "太短",
     "pwdWeak": "弱",
     "pwdMedium": "中等",
@@ -460,6 +461,9 @@
     "lastError": "最近错误：{{error}}",
     "retryNow": "立即重试",
     "syncFailed": "离线队列同步失败"
+  },
+  "composer": {
+    "attachmentsRequireConnection": "附件和媒体上传需要在线连接。纯文本消息会在服务恢复后排队重试。"
   },
   "artifact": {
     "html": "HTML 内容",

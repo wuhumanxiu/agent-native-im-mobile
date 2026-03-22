@@ -37,6 +37,7 @@
     "backToLogin": "Back to Sign In",
     "fieldsRequired": "Username/email and password are required",
     "registerError": "Registration failed",
+    "offlineFirstLoginHint": "First-time sign-in still needs a live connection. After you've signed in once, ANI can restore your recent workspace from local cache.",
     "pwdTooShort": "Too short",
     "pwdWeak": "Weak",
     "pwdMedium": "Medium",
@@ -460,6 +461,9 @@
     "lastError": "last error: {{error}}",
     "retryNow": "Retry now",
     "syncFailed": "Outbox sync failed"
+  },
+  "composer": {
+    "attachmentsRequireConnection": "Attachments and media uploads need a live connection. Text messages can queue and retry when service returns."
   },
   "artifact": {
     "html": "HTML Content",
