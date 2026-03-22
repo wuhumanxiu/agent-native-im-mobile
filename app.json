@@ -2,7 +2,7 @@
   "expo": {
     "name": "ANI",
     "slug": "agent-native-im-mobile",
-    "version": "1.6.0",
+    "version": "1.6.1",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -15,6 +15,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.wuzhiai.ani",
+      "buildNumber": "2",
       "infoPlist": {
         "NSMicrophoneUsageDescription": "Used for voice messages",
         "NSCameraUsageDescription": "Used to take photos for chat",
@@ -24,6 +25,7 @@
     },
     "android": {
       "package": "com.wuzhiai.ani",
+      "versionCode": 2,
       "adaptiveIcon": {
         "backgroundColor": "#6366f1",
         "foregroundImage": "./assets/android-icon-foreground.png",

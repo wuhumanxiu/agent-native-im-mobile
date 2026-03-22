@@ -5,7 +5,7 @@ export interface BuildInfo {
 }
 
 export const buildInfo: BuildInfo = {
-  version: '1.6.0',
-  commit: '4ec2028',
-  buildTime: '2026-03-19T10:14:00+08:00',
+  version: '1.6.1',
+  commit: 'release-prep',
+  buildTime: '2026-03-22T14:40:00+08:00',
 }
