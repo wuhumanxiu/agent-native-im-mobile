@@ -72,6 +72,29 @@ Important:
 - `production` is for store-ready builds
 - Expo Go is useful for development, but it is not the public release target
 
+## EAS Update
+
+This project is now configured for EAS Update.
+
+- update URL: `https://u.expo.dev/72831474-137d-4003-ba89-592810a97906`
+- runtime version policy: `appVersion`
+- channels:
+  - `preview`
+  - `production`
+
+Useful commands:
+
+```bash
+npm run update:preview -- --message "Describe the preview update"
+npm run update:production -- --message "Describe the production hotfix"
+```
+
+Important boundary:
+
+- only builds created **after** EAS Update was configured can receive OTA updates
+- JS / asset changes can ship via EAS Update
+- native changes still require a new App Store / Play build
+
 ## Features
 
 - Theme system with multiple visual skins
