@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import {
-  View, Text, TextInput, FlatList, Pressable, ActivityIndicator, StyleSheet,
+  View, Text, TextInput, FlatList, Pressable, ActivityIndicator, RefreshControl, StyleSheet,
 } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { Bot, Plus, Search, PowerOff } from 'lucide-react-native'
 import { useAuthStore } from '../../store/auth'
+import { usePresenceStore } from '../../store/presence'
 import * as api from '../../lib/api'
 import { getErrorMessage } from '../../lib/errors'
 import { cacheEntities, getCachedEntities } from '../../lib/cache'
@@ -31,11 +32,13 @@ export function BotList({ selectedId, onSelect, onCreatePress, refreshTrigger }:
   const colors = useThemeColors()
   const token = useAuthStore((s) => s.token)
   const sessionChecked = useAuthStore((s) => s.sessionChecked)
+  const onlineSet = usePresenceStore((s) => s.online)
+  const setPresenceBatch = usePresenceStore((s) => s.setPresenceBatch)
   const [entities, setEntities] = useState<Entity[]>([])
   const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
-  const [onlineSet, setOnlineSet] = useState<Set<number>>(new Set())
 
   const fetchPresence = useCallback(async (list: Entity[]) => {
     if (!token) return
@@ -43,14 +46,14 @@ export function BotList({ selectedId, onSelect, onCreatePress, refreshTrigger }:
     if (botIds.length > 0) {
       const presRes = await api.batchPresence(token, botIds)
       if (presRes.ok && presRes.data?.presence) {
-        const next = new Set<number>()
+        const next: number[] = []
         for (const [idStr, isOn] of Object.entries(presRes.data.presence)) {
-          if (isOn) next.add(Number(idStr))
+          if (isOn) next.push(Number(idStr))
         }
-        setOnlineSet(next)
+        setPresenceBatch(botIds, next)
       }
     }
-  }, [token])
+  }, [setPresenceBatch, token])
 
   const loadEntities = useCallback(async () => {
     if (!sessionChecked || !token) {
@@ -89,6 +92,15 @@ export function BotList({ selectedId, onSelect, onCreatePress, refreshTrigger }:
     if (cached.length > 0) setEntities(cached)
     loadEntities()
   }, [loadEntities, refreshTrigger])
+
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true)
+    try {
+      await loadEntities()
+    } finally {
+      setRefreshing(false)
+    }
+  }, [loadEntities])
 
   const bots = entities.filter((e) => e.entity_type !== 'user')
   const filtered = search
@@ -248,6 +260,13 @@ export function BotList({ selectedId, onSelect, onCreatePress, refreshTrigger }:
           renderItem={renderBotItem}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              tintColor={colors.accent}
+            />
+          }
           ItemSeparatorComponent={() => {
             // Show disabled header between active and disabled sections
             const idx = activeBots.length

@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react'
 import { useRouter } from 'expo-router'
+import { useFocusEffect } from '@react-navigation/native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '../../src/store/auth'
@@ -54,6 +55,10 @@ export default function BotsTab() {
     // Navigate to the newly created bot
     router.push(`/bots/${result.entity.id}`)
   }, [router])
+
+  useFocusEffect(useCallback(() => {
+    setRefreshTrigger((v) => v + 1)
+  }, []))
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }} edges={['top']}>
