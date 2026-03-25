@@ -7,6 +7,7 @@ import { useSettingsStore } from '../src/store/settings'
 import { WebSocketProvider } from '../src/hooks/WebSocketContext'
 import { useOfflineSync } from '../src/hooks/useOfflineSync'
 import { useThemeColors } from '../src/lib/theme'
+import { applyGatewayUrl } from '../src/lib/gateway'
 import '../src/i18n'
 
 export default function RootLayout() {
@@ -27,7 +28,11 @@ export default function RootLayout() {
   }, [])
 
   useEffect(() => {
-    hydrateAuth().catch(() => {})
+    hydrateAuth().then(() => {
+      applyGatewayUrl()
+    }).catch(() => {
+      applyGatewayUrl()
+    })
   }, [hydrateAuth])
 
   useEffect(() => {

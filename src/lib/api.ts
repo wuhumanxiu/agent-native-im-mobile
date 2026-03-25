@@ -7,9 +7,9 @@ import { Platform } from 'react-native'
 import * as FileSystem from 'expo-file-system/legacy'
 import { getSessionHooks } from './auth-session'
 import { reportApiError } from './errors'
-import { API_BASE_URL } from './constants'
+import { getApiBaseUrl } from './gateway'
 
-let baseUrl = API_BASE_URL
+let baseUrl = getApiBaseUrl()
 let refreshInFlight: Promise<string | null> | null = null
 
 export function setBaseUrl(url: string) {

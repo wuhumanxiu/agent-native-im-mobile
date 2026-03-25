@@ -5,7 +5,6 @@ import {
 } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import * as Clipboard from 'expo-clipboard'
-import Constants from 'expo-constants'
 import {
   X, UserMinus, UserPlus, Bell, BellOff, Crown, Shield, Eye,
   Pencil, Check, LogOut, Archive, VolumeX, Volume2, ArrowLeft, Search,
@@ -13,7 +12,7 @@ import {
 } from 'lucide-react-native'
 import { useAuthStore } from '../../store/auth'
 import * as api from '../../lib/api'
-import { API_BASE_URL } from '../../lib/constants'
+import { getApiBaseUrl } from '../../lib/gateway'
 import type { Conversation, Entity, ConversationMemory, SubscriptionMode } from '../../lib/types'
 import { EntityAvatar } from '../ui/EntityAvatar'
 import { useThemeColors } from '../../lib/theme'
@@ -40,11 +39,7 @@ interface InviteLink {
 }
 
 function buildInviteUrl(code: string): string {
-  const configuredBase = Constants.expoConfig?.extra?.apiBaseUrl
-  const rawBase = typeof configuredBase === 'string' && configuredBase
-    ? configuredBase
-    : (API_BASE_URL || 'https://agent-native.im')
-  return `${rawBase.replace(/\/+$/, '')}/join/${code}`
+  return `${getApiBaseUrl().replace(/\/+$/, '')}/join/${code}`
 }
 
 type SettingsSection = 'main' | 'prompt' | 'memories' | 'invites'
@@ -88,6 +83,7 @@ export function ConversationSettings({ conversation, onClose, onLeave, onUpdated
   const participants = conversation?.participants || []
   const myParticipant = participants.find((p) => p.entity_id === myEntity?.id)
   const canManage = myParticipant?.role === 'owner' || myParticipant?.role === 'admin'
+  const canAddOwnBot = Boolean(myParticipant)
   const isGroup = conversation?.conv_type === 'group' || conversation?.conv_type === 'channel'
   const displayConversationId = conversation?.public_id || String(conversation?.id || 0)
   const contextMessages = conversation.last_message ? 1 : 0
@@ -173,7 +169,7 @@ export function ConversationSettings({ conversation, onClose, onLeave, onUpdated
     try {
       const res = await api.listEntities(token)
       if (res.ok && res.data) {
-        setAddableEntities((res.data as Entity[]).filter((e) => !existing.has(e.id)))
+        setAddableEntities((res.data as Entity[]).filter((e) => e.entity_type === 'bot' && !existing.has(e.id)))
       }
     } catch {
       // Silently fail
@@ -580,7 +576,7 @@ export function ConversationSettings({ conversation, onClose, onLeave, onUpdated
           </View>
 
           {/* Add member */}
-          {canManage && isGroup && !isArchived && (
+          {canAddOwnBot && isGroup && !isArchived && (
             showAddMember ? (
               <View style={styles.addMemberPanel}>
                 <View style={[styles.addSearchRow, { backgroundColor: colors.bg, borderColor: colors.border }]}>
@@ -628,7 +624,7 @@ export function ConversationSettings({ conversation, onClose, onLeave, onUpdated
             ) : (
               <Pressable onPress={handleOpenAddMember} style={[styles.addMemberBtn, { backgroundColor: colors.accentDim }]}>
                 <UserPlus size={14} color={colors.accent} />
-                <Text style={[styles.addMemberBtnText, { color: colors.accent }]}>{t('common.addMember')}</Text>
+                <Text style={[styles.addMemberBtnText, { color: colors.accent }]}>{t('common.addMyBot')}</Text>
               </Pressable>
             )
           )}

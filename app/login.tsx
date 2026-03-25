@@ -15,6 +15,7 @@ import { useTranslation } from 'react-i18next'
 import { LogIn, Eye, EyeOff } from 'lucide-react-native'
 import { useAuthStore } from '../src/store/auth'
 import * as api from '../src/lib/api'
+import { applyGatewayUrl, clearGatewayUrl, getDefaultGatewayUrl, getGatewayUrl, persistGatewayUrl } from '../src/lib/gateway'
 
 export default function LoginScreen() {
   const { t } = useTranslation()
@@ -27,6 +28,8 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isOffline, setIsOffline] = useState(false)
+  const [showGateway, setShowGateway] = useState(getGatewayUrl() !== getDefaultGatewayUrl())
+  const [gateway, setGateway] = useState(getGatewayUrl())
 
   useEffect(() => {
     let cancelled = false
@@ -47,6 +50,16 @@ export default function LoginScreen() {
     setLoading(true)
     setError(null)
     try {
+      try {
+        if (showGateway) {
+          persistGatewayUrl(gateway)
+        } else {
+          applyGatewayUrl(getGatewayUrl())
+        }
+      } catch {
+        setError(t('auth.gatewayInvalid'))
+        return
+      }
       const res = await api.login(username.trim(), password)
       if (res.ok && res.data) {
         setAuth(res.data.token, res.data.entity)
@@ -137,6 +150,48 @@ export default function LoginScreen() {
               </View>
             </View>
 
+            <View style={styles.gatewaySection}>
+              <TouchableOpacity
+                onPress={() => {
+                  setError(null)
+                  setShowGateway((prev) => !prev)
+                }}
+              >
+                <Text style={styles.gatewayToggleText}>
+                  {showGateway ? t('auth.hideGateway') : t('auth.useCustomGateway')}
+                </Text>
+              </TouchableOpacity>
+              {showGateway ? (
+                <View style={styles.field}>
+                  <Text style={styles.label}>{t('auth.gateway')}</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={gateway}
+                    onChangeText={(v) => {
+                      clearError()
+                      setGateway(v)
+                    }}
+                    placeholder={getDefaultGatewayUrl()}
+                    placeholderTextColor="#9ca3af"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                  />
+                  <Text style={styles.gatewayHelp}>{t('auth.gatewayHelp')}</Text>
+                  {gateway !== getDefaultGatewayUrl() ? (
+                    <TouchableOpacity
+                      onPress={() => {
+                        clearGatewayUrl()
+                        setGateway(getDefaultGatewayUrl())
+                        setError(null)
+                      }}
+                    >
+                      <Text style={styles.gatewayToggleText}>{t('auth.useOfficialGateway')}</Text>
+                    </TouchableOpacity>
+                  ) : null}
+                </View>
+              ) : null}
+            </View>
+
             {error ? (
               <View style={styles.errorBox}>
                 <Text style={styles.errorText}>{error}</Text>
@@ -210,6 +265,18 @@ const styles = StyleSheet.create({
   },
   field: {
     gap: 6,
+  },
+  gatewaySection: {
+    gap: 8,
+  },
+  gatewayToggleText: {
+    fontSize: 12,
+    color: '#6b7280',
+  },
+  gatewayHelp: {
+    fontSize: 11,
+    color: '#9ca3af',
+    lineHeight: 16,
   },
   label: {
     fontSize: 12,

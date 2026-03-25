@@ -9,7 +9,7 @@ import { useMessagesStore } from '../store/messages'
 import { usePresenceStore } from '../store/presence'
 import { useTasksStore } from '../store/tasks'
 import { AnimpWebSocket } from '../lib/ws-client'
-import { WS_BASE_URL } from '../lib/constants'
+import { getWsBaseUrl } from '../lib/gateway'
 import * as api from '../lib/api'
 import type { WSMessage, Message, Task } from '../lib/types'
 
@@ -52,7 +52,7 @@ export function useWebSocket() {
   useEffect(() => {
     if (!token || !entity) return
 
-    const wsUrl = WS_BASE_URL || `wss://agent-native.im`
+    const wsUrl = getWsBaseUrl() || 'wss://agent-native.im'
     const ws = new AnimpWebSocket(wsUrl, token)
     wsRef.current = ws
 

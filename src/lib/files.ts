@@ -1,6 +1,6 @@
 import * as FileSystem from 'expo-file-system/legacy'
 import { Linking } from 'react-native'
-import { API_BASE_URL } from './constants'
+import { getApiBaseUrl } from './gateway'
 
 function trimTrailingSlash(value: string): string {
   return value.replace(/\/+$/, '')
@@ -10,7 +10,7 @@ export function absoluteFileUrl(url: string | undefined | null): string {
   if (!url) return ''
   if (/^https?:\/\//i.test(url)) return url
   if (!url.startsWith('/')) return url
-  return `${trimTrailingSlash(API_BASE_URL)}${url}`
+  return `${trimTrailingSlash(getApiBaseUrl())}${url}`
 }
 
 export function authenticatedFileUrl(url: string | undefined | null, token: string | null): string {
@@ -26,7 +26,7 @@ export function normalizeAttachmentUrl(url: string | undefined | null): string {
 
   try {
     const parsed = new URL(url)
-    const apiOrigin = new URL(API_BASE_URL).origin
+    const apiOrigin = new URL(getApiBaseUrl()).origin
     if (parsed.origin === apiOrigin && parsed.pathname.startsWith('/files/')) {
       return parsed.pathname
     }

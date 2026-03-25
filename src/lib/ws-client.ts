@@ -1,7 +1,7 @@
 import { storage as mmkvStorage } from './storage'
 import { AppState, Platform } from 'react-native'
 import type { WSMessage } from './types'
-import { WS_BASE_URL } from './constants'
+import { getWsBaseUrl } from './gateway'
 
 type WSHandler = (msg: WSMessage) => void
 
@@ -64,7 +64,7 @@ export class AnimpWebSocket {
   private _sinceId: number = 0
 
   constructor(url: string, token: string) {
-    this.url = url || WS_BASE_URL
+    this.url = url || getWsBaseUrl()
     this.token = token
     this.deviceId = this.getOrCreateDeviceId()
   }
