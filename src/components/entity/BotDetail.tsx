@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import {
-  View, Text, ScrollView, Pressable, ActivityIndicator, Alert, StyleSheet,
+  View, Text, ScrollView, Pressable, ActivityIndicator, Alert, StyleSheet, Linking,
 } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import * as Clipboard from 'expo-clipboard'
@@ -15,6 +15,8 @@ import type { Entity, Conversation } from '../../lib/types'
 import { EntityAvatar } from '../ui/EntityAvatar'
 import { useThemeColors } from '../../lib/theme'
 import { getEntityPresenceSemantic, getEntityStatusLabel } from '../../lib/entity-status'
+import { getGatewayUrl, getWsBaseUrl } from '../../lib/gateway'
+import { buildBotAccessText, buildBotAccessUrl } from '../../lib/bot-access'
 
 interface Props {
   bot: Entity | null
@@ -144,7 +146,7 @@ export function BotDetail({
               setRotatedToken(res.data.api_key)
               await Clipboard.setStringAsync(res.data.api_key)
               setCopied('rotated-token')
-              setOpInfo(t('bot.regenerateResult', { count: res.data.disconnected ?? 0 }))
+              setOpInfo(`${t('bot.regenerateResult', { count: res.data.disconnected ?? 0 })} ${t('bot.regenerateReconnectHint')}`)
               onRefresh?.()
             } else {
               const detail = typeof res.error === 'string'
@@ -181,6 +183,10 @@ export function BotDetail({
 
   const showFullCreds = createdCredentials && createdCredentials.entity.id === bot.id
   const accessToken = rotatedToken || (showFullCreds ? createdCredentials?.key : null)
+  const gatewayUrl = getGatewayUrl()
+  const wsUrl = getWsBaseUrl()
+  const accessText = accessToken ? buildBotAccessText({ gatewayUrl, wsUrl, accessToken }) : ''
+  const accessUrl = accessToken ? buildBotAccessUrl({ gatewayUrl, accessToken, entityId: bot.id }) : ''
 
   return (
     <View style={[styles.container, { backgroundColor: colors.bgSecondary }]}>
@@ -323,6 +329,67 @@ export function BotDetail({
               >
                 {rotatingToken ? <RefreshCw size={12} color={colors.accent} /> : <Key size={12} color={colors.accent} />}
                 <Text style={[styles.actionBtnAccent, { color: colors.accent }]}>{t('bot.regenerateToken')}</Text>
+              </Pressable>
+            </View>
+          </View>
+        )}
+
+        {isOwner && (
+          <View style={[styles.section, { borderBottomColor: colors.border }]}>
+            <View style={styles.sectionHeader}>
+              <View style={styles.sectionHeaderLeft}>
+                <Key size={16} color={colors.accent} />
+                <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('bot.agentAccessPack')}</Text>
+              </View>
+            </View>
+            <Text style={[styles.helpText, { color: colors.textMuted }]}>
+              {rotatedToken ? t('bot.rotatedTokenCopied') : t('bot.openclawTokenHint')}
+            </Text>
+            <View style={styles.actionWrap}>
+              <Pressable
+                onPress={() => accessToken && handleCopy(accessToken, 'rotated-token')}
+                disabled={!accessToken}
+                style={[styles.secondaryBtn, { borderColor: colors.border, backgroundColor: colors.bg }, !accessToken && styles.actionBtnDisabled]}
+              >
+                {copied === 'rotated-token'
+                  ? <Check size={12} color={colors.success} />
+                  : <Copy size={12} color={colors.textMuted} />}
+                <Text style={[styles.secondaryBtnText, { color: colors.textSecondary }]}>
+                  {copied === 'rotated-token' ? t('common.copied') : t('bot.copyBotToken')}
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={() => handleCopy(accessText, 'bot-access-text')}
+                disabled={!accessToken}
+                style={[styles.secondaryBtn, { borderColor: colors.border, backgroundColor: colors.bg }, !accessToken && styles.actionBtnDisabled]}
+              >
+                {copied === 'bot-access-text'
+                  ? <Check size={12} color={colors.success} />
+                  : <Copy size={12} color={colors.textMuted} />}
+                <Text style={[styles.secondaryBtnText, { color: colors.textSecondary }]}>
+                  {copied === 'bot-access-text' ? t('common.copied') : t('bot.copyBotAccess')}
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={() => handleCopy(accessUrl, 'bot-access-url')}
+                disabled={!accessToken}
+                style={[styles.secondaryBtn, { borderColor: colors.border, backgroundColor: colors.bg }, !accessToken && styles.actionBtnDisabled]}
+              >
+                {copied === 'bot-access-url'
+                  ? <Check size={12} color={colors.success} />
+                  : <Copy size={12} color={colors.textMuted} />}
+                <Text style={[styles.secondaryBtnText, { color: colors.textSecondary }]}>
+                  {copied === 'bot-access-url' ? t('common.copied') : t('bot.copyBotUrl')}
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={() => Linking.openURL(`${gatewayUrl}/api/v1/onboarding-guide`).catch(() => {})}
+                style={[styles.secondaryBtn, { borderColor: colors.border, backgroundColor: colors.bg }]}
+              >
+                <Key size={12} color={colors.textMuted} />
+                <Text style={[styles.secondaryBtnText, { color: colors.textSecondary }]}>
+                  {t('bot.onboardingGuide')}
+                </Text>
               </Pressable>
             </View>
           </View>
@@ -839,6 +906,30 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 17,
     marginTop: 10,
+  },
+  helpText: {
+    fontSize: 12,
+    lineHeight: 18,
+    marginTop: 6,
+  },
+  actionWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 12,
+  },
+  secondaryBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  secondaryBtnText: {
+    fontSize: 12,
+    fontWeight: '500',
   },
   tag: {
     paddingHorizontal: 8,
