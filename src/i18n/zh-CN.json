@@ -179,6 +179,7 @@
     "aboutDesc": "用于排障与支持的构建和发布信息。",
     "appName": "应用",
     "version": "版本",
+    "runtimeVersion": "Runtime 版本",
     "commit": "Commit",
     "buildTime": "构建时间",
     "copyVersionInfo": "复制版本信息",

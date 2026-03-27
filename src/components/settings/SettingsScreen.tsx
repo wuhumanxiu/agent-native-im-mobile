@@ -528,6 +528,7 @@ export function SettingsScreen({ onBack }: Props) {
                 {[
                   { label: t('settings.appName'), value: 'ANI' },
                   { label: t('settings.version'), value: buildInfo.version, mono: true },
+                  { label: t('settings.runtimeVersion'), value: buildInfo.runtimeVersion, mono: true },
                   { label: t('settings.commit'), value: buildInfo.commit, mono: true },
                   { label: t('settings.buildTime'), value: new Date(buildInfo.buildTime).toLocaleString() },
                 ].map(({ label, value, mono }, index) => (
@@ -550,6 +551,7 @@ export function SettingsScreen({ onBack }: Props) {
                   await Clipboard.setStringAsync([
                     'app=ANI',
                     `version=${buildInfo.version}`,
+                    `runtime_version=${buildInfo.runtimeVersion}`,
                     `commit=${buildInfo.commit}`,
                     `build_time=${buildInfo.buildTime}`,
                   ].join('\n'))

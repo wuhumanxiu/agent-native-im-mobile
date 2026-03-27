@@ -47,7 +47,7 @@ npm run android
 npm run web
 ```
 
-The app reads its default API base from `app.json`:
+The app reads its default API base from `app.config.js`:
 
 - `expo.extra.apiBaseUrl`
 
@@ -77,7 +77,8 @@ Important:
 This project is now configured for EAS Update.
 
 - update URL: `https://u.expo.dev/72831474-137d-4003-ba89-592810a97906`
-- runtime version: `1.6.1` (pinned during the current native generation)
+- app version: `1.6.2`
+- runtime version: `native-2026-03-27.1`
 - channels:
   - `preview`
   - `production`
@@ -94,7 +95,10 @@ Important boundary:
 - only builds created **after** EAS Update was configured can receive OTA updates
 - JS / asset changes can ship via EAS Update
 - native changes still require a new App Store / Play build
-- current release policy keeps the runtime pinned to `1.6.1` so the shipped App Store binary can continue receiving JS-only hotfixes
+- current release policy keeps `app version` and `runtime version` separate
+- app version is for App Store / Play release cadence
+- runtime version is for native generation boundaries only
+- JS / asset hotfixes should continue publishing on the same runtime until a native-breaking change is introduced
 - only bump `runtimeVersion` when a native-breaking change is introduced
 
 ## Features

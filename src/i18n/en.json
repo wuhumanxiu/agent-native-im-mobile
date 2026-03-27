@@ -179,6 +179,7 @@
     "aboutDesc": "Build and release information for troubleshooting and support.",
     "appName": "Application",
     "version": "Version",
+    "runtimeVersion": "Runtime version",
     "commit": "Commit",
     "buildTime": "Build time",
     "copyVersionInfo": "Copy version info",
