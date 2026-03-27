@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import {
   View, Text, ScrollView, Pressable, ActivityIndicator, Alert, StyleSheet, Linking,
 } from 'react-native'
@@ -59,23 +59,35 @@ export function BotDetail({
   const [convsCollapsed, setConvsCollapsed] = useState(false)
   const [rotatingToken, setRotatingToken] = useState(false)
   const [rotatedToken, setRotatedToken] = useState<string | null>(null)
+  const [rotatedTokenBotId, setRotatedTokenBotId] = useState<number | null>(null)
   const [opError, setOpError] = useState<string | null>(null)
   const [opInfo, setOpInfo] = useState<string | null>(null)
   const [isOnline, setIsOnline] = useState(false)
+  const previousBotIdRef = useRef<number | null>(null)
 
   useEffect(() => {
     if (!bot) return
-    let cancelled = false
-    setLoadingConvs(true)
+    const switchedBot = previousBotIdRef.current !== bot.id
+    previousBotIdRef.current = bot.id
+
+    if (!switchedBot) return
+
     setActiveTab('direct')
     setConvsCollapsed(false)
     setRotatingToken(false)
     setRotatedToken(null)
+    setRotatedTokenBotId(null)
     setOpError(null)
     setOpInfo(null)
     setSelfCheck(null)
     setDiagnostics(null)
     setLastSeen(null)
+  }, [bot?.id])
+
+  useEffect(() => {
+    if (!bot) return
+    let cancelled = false
+    setLoadingConvs(true)
 
     api.listConversations(token).then((res) => {
       if (cancelled) return
@@ -144,6 +156,7 @@ export function BotDetail({
             const res = await api.regenerateEntityToken(token, bot.id)
             if (res.ok && res.data?.api_key) {
               setRotatedToken(res.data.api_key)
+              setRotatedTokenBotId(bot.id)
               await Clipboard.setStringAsync(res.data.api_key)
               setCopied('rotated-token')
               setOpInfo(`${t('bot.regenerateResult', { count: res.data.disconnected ?? 0 })} ${t('bot.regenerateReconnectHint')}`)
@@ -182,7 +195,7 @@ export function BotDetail({
   const tabConvs = activeTab === 'direct' ? directConvs : groupConvs
 
   const showFullCreds = createdCredentials && createdCredentials.entity.id === bot.id
-  const accessToken = rotatedToken || (showFullCreds ? createdCredentials?.key : null)
+  const accessToken = (rotatedTokenBotId === bot.id ? rotatedToken : null) || (showFullCreds ? createdCredentials?.key : null)
   const gatewayUrl = getGatewayUrl()
   const wsUrl = getWsBaseUrl()
   const accessText = accessToken ? buildBotAccessText({ gatewayUrl, wsUrl, accessToken }) : ''
