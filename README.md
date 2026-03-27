@@ -77,7 +77,7 @@ Important:
 This project is now configured for EAS Update.
 
 - update URL: `https://u.expo.dev/72831474-137d-4003-ba89-592810a97906`
-- runtime version policy: `appVersion`
+- runtime version: `1.6.1` (pinned during the current native generation)
 - channels:
   - `preview`
   - `production`
@@ -94,6 +94,8 @@ Important boundary:
 - only builds created **after** EAS Update was configured can receive OTA updates
 - JS / asset changes can ship via EAS Update
 - native changes still require a new App Store / Play build
+- current release policy keeps the runtime pinned to `1.6.1` so the shipped App Store binary can continue receiving JS-only hotfixes
+- only bump `runtimeVersion` when a native-breaking change is introduced
 
 ## Features
 

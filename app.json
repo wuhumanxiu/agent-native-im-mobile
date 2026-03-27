@@ -53,9 +53,7 @@
       "router": {}
     },
     "owner": "flagify",
-    "runtimeVersion": {
-      "policy": "appVersion"
-    },
+    "runtimeVersion": "1.6.1",
     "updates": {
       "url": "https://u.expo.dev/72831474-137d-4003-ba89-592810a97906"
     }
