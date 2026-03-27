@@ -288,6 +288,8 @@
     "copyBotUrl": "复制接入 URL",
     "downloadQuickstart": "下载 Quickstart",
     "onboardingGuide": "接入指南",
+    "showAdvancedAccess": "显示高级选项",
+    "hideAdvancedAccess": "隐藏高级选项",
     "regenerateToken": "重新生成 Token",
     "regenerateConfirm": "现在重新生成 Token 吗？旧 API Key 会失效，并断开当前连接会话。",
     "regenerateResult": "Token 已轮换。断开会话数：{{count}}",

@@ -288,6 +288,8 @@
     "copyBotUrl": "Copy Access URL",
     "downloadQuickstart": "Download Quickstart",
     "onboardingGuide": "Onboarding Guide",
+    "showAdvancedAccess": "Show advanced options",
+    "hideAdvancedAccess": "Hide advanced options",
     "regenerateToken": "Regenerate Token",
     "regenerateConfirm": "Regenerate token now? Existing API keys will be revoked and connected sessions will be disconnected.",
     "regenerateResult": "Token rotated. Disconnected sessions: {{count}}",

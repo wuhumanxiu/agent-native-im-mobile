@@ -56,6 +56,7 @@ export function BotDetail({
   } | null>(null)
   const [lastSeen, setLastSeen] = useState<string | null>(null)
   const [copied, setCopied] = useState<string | false>(false)
+  const [accessPackExpanded, setAccessPackExpanded] = useState(false)
   const [convsCollapsed, setConvsCollapsed] = useState(false)
   const [rotatingToken, setRotatingToken] = useState(false)
   const [rotatedToken, setRotatedToken] = useState<string | null>(null)
@@ -73,6 +74,7 @@ export function BotDetail({
     if (!switchedBot) return
 
     setActiveTab('direct')
+    setAccessPackExpanded(false)
     setConvsCollapsed(false)
     setRotatingToken(false)
     setRotatedToken(null)
@@ -360,51 +362,66 @@ export function BotDetail({
             </Text>
             <View style={styles.actionWrap}>
               <Pressable
-                onPress={() => accessToken && handleCopy(accessToken, 'rotated-token')}
-                disabled={!accessToken}
-                style={[styles.secondaryBtn, { borderColor: colors.border, backgroundColor: colors.bg }, !accessToken && styles.actionBtnDisabled]}
-              >
-                {copied === 'rotated-token'
-                  ? <Check size={12} color={colors.success} />
-                  : <Copy size={12} color={colors.textMuted} />}
-                <Text style={[styles.secondaryBtnText, { color: colors.textSecondary }]}>
-                  {copied === 'rotated-token' ? t('common.copied') : t('bot.copyBotToken')}
-                </Text>
-              </Pressable>
-              <Pressable
                 onPress={() => handleCopy(accessText, 'bot-access-text')}
                 disabled={!accessToken}
-                style={[styles.secondaryBtn, { borderColor: colors.border, backgroundColor: colors.bg }, !accessToken && styles.actionBtnDisabled]}
+                style={[styles.secondaryBtn, { borderColor: `${colors.accent}33`, backgroundColor: colors.accentDim }, !accessToken && styles.actionBtnDisabled]}
               >
                 {copied === 'bot-access-text'
                   ? <Check size={12} color={colors.success} />
-                  : <Copy size={12} color={colors.textMuted} />}
-                <Text style={[styles.secondaryBtnText, { color: colors.textSecondary }]}>
+                  : <Copy size={12} color={colors.accent} />}
+                <Text style={[styles.secondaryBtnText, { color: colors.accent }]}>
                   {copied === 'bot-access-text' ? t('common.copied') : t('bot.copyBotAccess')}
                 </Text>
               </Pressable>
               <Pressable
-                onPress={() => handleCopy(accessUrl, 'bot-access-url')}
-                disabled={!accessToken}
-                style={[styles.secondaryBtn, { borderColor: colors.border, backgroundColor: colors.bg }, !accessToken && styles.actionBtnDisabled]}
-              >
-                {copied === 'bot-access-url'
-                  ? <Check size={12} color={colors.success} />
-                  : <Copy size={12} color={colors.textMuted} />}
-                <Text style={[styles.secondaryBtnText, { color: colors.textSecondary }]}>
-                  {copied === 'bot-access-url' ? t('common.copied') : t('bot.copyBotUrl')}
-                </Text>
-              </Pressable>
-              <Pressable
-                onPress={() => Linking.openURL(`${gatewayUrl}/api/v1/onboarding-guide`).catch(() => {})}
+                onPress={() => setAccessPackExpanded((v) => !v)}
                 style={[styles.secondaryBtn, { borderColor: colors.border, backgroundColor: colors.bg }]}
               >
-                <Key size={12} color={colors.textMuted} />
+                {accessPackExpanded
+                  ? <ChevronUp size={12} color={colors.textMuted} />
+                  : <ChevronDown size={12} color={colors.textMuted} />}
                 <Text style={[styles.secondaryBtnText, { color: colors.textSecondary }]}>
-                  {t('bot.onboardingGuide')}
+                  {accessPackExpanded ? t('bot.hideAdvancedAccess') : t('bot.showAdvancedAccess')}
                 </Text>
               </Pressable>
             </View>
+            {accessPackExpanded && (
+              <View style={[styles.actionWrap, { marginTop: 10 }]}>
+                <Pressable
+                  onPress={() => accessToken && handleCopy(accessToken, 'rotated-token')}
+                  disabled={!accessToken}
+                  style={[styles.secondaryBtn, { borderColor: colors.border, backgroundColor: colors.bg }, !accessToken && styles.actionBtnDisabled]}
+                >
+                  {copied === 'rotated-token'
+                    ? <Check size={12} color={colors.success} />
+                    : <Copy size={12} color={colors.textMuted} />}
+                  <Text style={[styles.secondaryBtnText, { color: colors.textSecondary }]}>
+                    {copied === 'rotated-token' ? t('common.copied') : t('bot.copyBotToken')}
+                  </Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => handleCopy(accessUrl, 'bot-access-url')}
+                  disabled={!accessToken}
+                  style={[styles.secondaryBtn, { borderColor: colors.border, backgroundColor: colors.bg }, !accessToken && styles.actionBtnDisabled]}
+                >
+                  {copied === 'bot-access-url'
+                    ? <Check size={12} color={colors.success} />
+                    : <Copy size={12} color={colors.textMuted} />}
+                  <Text style={[styles.secondaryBtnText, { color: colors.textSecondary }]}>
+                    {copied === 'bot-access-url' ? t('common.copied') : t('bot.copyBotUrl')}
+                  </Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => Linking.openURL(`${gatewayUrl}/api/v1/onboarding-guide`).catch(() => {})}
+                  style={[styles.secondaryBtn, { borderColor: colors.border, backgroundColor: colors.bg }]}
+                >
+                  <Key size={12} color={colors.textMuted} />
+                  <Text style={[styles.secondaryBtnText, { color: colors.textSecondary }]}>
+                    {t('bot.onboardingGuide')}
+                  </Text>
+                </Pressable>
+              </View>
+            )}
           </View>
         )}
 
