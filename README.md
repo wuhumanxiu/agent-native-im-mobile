@@ -71,6 +71,7 @@ Important:
 - `preview` is for internal / ad hoc distribution
 - `production` is for store-ready builds
 - Expo Go is useful for development, but it is not the public release target
+- versioning policy is documented in [docs/VERSIONING.md](/Users/donaldford/code/SuperBody/dev/agent-native-im-mobile/docs/VERSIONING.md)
 
 ## EAS Update
 
@@ -100,6 +101,7 @@ Important boundary:
 - runtime version is for native generation boundaries only
 - JS / asset hotfixes should continue publishing on the same runtime until a native-breaking change is introduced
 - only bump `runtimeVersion` when a native-breaking change is introduced
+- current App Store release note draft lives in [docs/APP_STORE_RELEASE_1.6.2.md](/Users/donaldford/code/SuperBody/dev/agent-native-im-mobile/docs/APP_STORE_RELEASE_1.6.2.md)
 
 ## Features
 
