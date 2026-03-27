@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import {
   View, Text, TextInput, Pressable, Modal, ActivityIndicator,
-  KeyboardAvoidingView, Platform, StyleSheet,
+  KeyboardAvoidingView, Platform, StyleSheet, Keyboard, TouchableWithoutFeedback, ScrollView,
 } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { X, Plus, Loader2 } from 'lucide-react-native'
@@ -27,6 +27,7 @@ export function CreateBotDialog({ visible, onClose, onCreated }: Props) {
 
   const handleCreate = async () => {
     if (!name.trim()) return
+    Keyboard.dismiss()
     setCreating(true)
     setError('')
     try {
@@ -76,83 +77,87 @@ export function CreateBotDialog({ visible, onClose, onCreated }: Props) {
       presentationStyle="pageSheet"
       onRequestClose={handleClose}
     >
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.container}
-      >
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>{t('bot.createAgent')}</Text>
-          <Pressable onPress={handleClose} style={styles.closeBtn}>
-            <X size={16} color="#94a3b8" />
-          </Pressable>
-        </View>
-
-        {/* Form */}
-        <View style={styles.form}>
-          {/* Name */}
-          <View style={styles.field}>
-            <Text style={styles.label}>{t('bot.agentName')} *</Text>
-            <TextInput
-              value={name}
-              onChangeText={setName}
-              placeholder={t('bot.namePlaceholder')}
-              placeholderTextColor="#94a3b8"
-              style={styles.input}
-              autoFocus
-              returnKeyType="next"
-            />
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.container}
+        >
+          {/* Header */}
+          <View style={styles.header}>
+            <Text style={styles.headerTitle}>{t('bot.createAgent')}</Text>
+            <Pressable onPress={handleClose} style={styles.closeBtn}>
+              <X size={16} color="#94a3b8" />
+            </Pressable>
           </View>
 
-          {/* Description */}
-          <View style={styles.field}>
-            <Text style={styles.label}>{t('bot.descriptionLabel')}</Text>
-            <TextInput
-              value={description}
-              onChangeText={setDescription}
-              placeholder={t('bot.descriptionPlaceholder')}
-              placeholderTextColor="#94a3b8"
-              style={[styles.input, styles.textarea]}
-              multiline
-              numberOfLines={2}
-            />
-          </View>
-
-          {/* Tags */}
-          <View style={styles.field}>
-            <Text style={styles.label}>{t('bot.tagsLabel')}</Text>
-            <TextInput
-              value={tags}
-              onChangeText={setTags}
-              placeholder={t('bot.tagsPlaceholder')}
-              placeholderTextColor="#94a3b8"
-              style={styles.input}
-            />
-          </View>
-
-          {error ? (
-            <Text style={styles.errorText}>{error}</Text>
-          ) : null}
-        </View>
-
-        {/* Footer */}
-        <View style={styles.footer}>
-          <Pressable onPress={handleClose} style={styles.cancelBtn}>
-            <Text style={styles.cancelBtnText}>{t('common.cancel')}</Text>
-          </Pressable>
-          <Pressable
-            onPress={handleCreate}
-            disabled={creating || !name.trim()}
-            style={[styles.createBtn, (creating || !name.trim()) && styles.createBtnDisabled]}
+          <ScrollView
+            contentContainerStyle={styles.form}
+            keyboardShouldPersistTaps="handled"
           >
-            {creating
-              ? <ActivityIndicator size="small" color="#ffffff" />
-              : <Plus size={14} color="#ffffff" />
-            }
-            <Text style={styles.createBtnText}>{t('common.create')}</Text>
-          </Pressable>
-        </View>
-      </KeyboardAvoidingView>
+            {/* Name */}
+            <View style={styles.field}>
+              <Text style={styles.label}>{t('bot.agentName')} *</Text>
+              <TextInput
+                value={name}
+                onChangeText={setName}
+                placeholder={t('bot.namePlaceholder')}
+                placeholderTextColor="#94a3b8"
+                style={styles.input}
+                autoFocus
+                returnKeyType="next"
+              />
+            </View>
+
+            {/* Description */}
+            <View style={styles.field}>
+              <Text style={styles.label}>{t('bot.descriptionLabel')}</Text>
+              <TextInput
+                value={description}
+                onChangeText={setDescription}
+                placeholder={t('bot.descriptionPlaceholder')}
+                placeholderTextColor="#94a3b8"
+                style={[styles.input, styles.textarea]}
+                multiline
+                numberOfLines={2}
+              />
+            </View>
+
+            {/* Tags */}
+            <View style={styles.field}>
+              <Text style={styles.label}>{t('bot.tagsLabel')}</Text>
+              <TextInput
+                value={tags}
+                onChangeText={setTags}
+                placeholder={t('bot.tagsPlaceholder')}
+                placeholderTextColor="#94a3b8"
+                style={styles.input}
+              />
+            </View>
+
+            {error ? (
+              <Text style={styles.errorText}>{error}</Text>
+            ) : null}
+          </ScrollView>
+
+          {/* Footer */}
+          <View style={styles.footer}>
+            <Pressable onPress={handleClose} style={styles.cancelBtn}>
+              <Text style={styles.cancelBtnText}>{t('common.cancel')}</Text>
+            </Pressable>
+            <Pressable
+              onPress={handleCreate}
+              disabled={creating || !name.trim()}
+              style={[styles.createBtn, (creating || !name.trim()) && styles.createBtnDisabled]}
+            >
+              {creating
+                ? <ActivityIndicator size="small" color="#ffffff" />
+                : <Plus size={14} color="#ffffff" />
+              }
+              <Text style={styles.createBtnText}>{t('common.create')}</Text>
+            </Pressable>
+          </View>
+        </KeyboardAvoidingView>
+      </TouchableWithoutFeedback>
     </Modal>
   )
 }
