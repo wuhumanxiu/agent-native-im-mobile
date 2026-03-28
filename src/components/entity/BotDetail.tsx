@@ -201,7 +201,7 @@ export function BotDetail({
   const gatewayUrl = getGatewayUrl()
   const wsUrl = getWsBaseUrl()
   const accessText = accessToken ? buildBotAccessText({ gatewayUrl, wsUrl, accessToken }) : ''
-  const accessUrl = accessToken ? buildBotAccessUrl({ gatewayUrl, accessToken, entityId: bot.id }) : ''
+  const accessUrl = accessToken ? buildBotAccessUrl({ gatewayUrl, accessToken }) : ''
 
   return (
     <View style={[styles.container, { backgroundColor: colors.bgSecondary }]}>

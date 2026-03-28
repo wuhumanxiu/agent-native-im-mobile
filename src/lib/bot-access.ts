@@ -5,25 +5,26 @@ export function buildBotAccessText(params: {
 }) {
   const { gatewayUrl, wsUrl, accessToken } = params
   return [
-    `AGENT_IM_BASE=${gatewayUrl}/api/v1`,
-    `AGENT_IM_TOKEN=${accessToken}`,
-    `AGENT_IM_WS=${wsUrl}/api/v1/ws`,
+    '# ANI OpenClaw channel',
+    `openclaw config set channels.ani.serverUrl "${gatewayUrl}"`,
+    `openclaw config set channels.ani.apiKey "${accessToken}"`,
     '',
-    '# OpenClaw token rotation',
-    '# Replace channels.ani.apiKey with the latest token, then reconnect the gateway.',
+    '# Minimum ANI tool access',
+    `openclaw config set tools.alsoAllow '["ani_send_file","ani_fetch_chat_history_messages","ani_list_conversation_tasks","ani_get_task","ani_create_task","ani_update_task","ani_delete_task"]' --strict-json`,
     '',
-    '# Quick check',
+    '# Quick checks',
+    'openclaw gateway status',
     `curl ${gatewayUrl}/api/v1/me -H "Authorization: Bearer ${accessToken}"`,
     '',
-    '# WebSocket clients should send Authorization: Bearer <token> during the handshake',
+    '# If ANI does not appear online after updating the config, ask the user to reconnect or restart the OpenClaw gateway.',
+    `# WebSocket endpoint: ${wsUrl}/api/v1/ws`,
   ].join('\n')
 }
 
 export function buildBotAccessUrl(params: {
   gatewayUrl: string
   accessToken: string
-  entityId: number
 }) {
-  const { gatewayUrl, accessToken, entityId } = params
-  return `aim-bot://connect?base=${encodeURIComponent(`${gatewayUrl}/api/v1`)}&token=${encodeURIComponent(accessToken)}&entity_id=${entityId}`
+  const { gatewayUrl, accessToken } = params
+  return `aim-bot://connect?base=${encodeURIComponent(`${gatewayUrl}/api/v1`)}&token=${encodeURIComponent(accessToken)}`
 }
