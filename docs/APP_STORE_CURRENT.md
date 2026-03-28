@@ -1,0 +1,388 @@
+- generic [active] [ref=e1]:
+  - banner "App Store Connect" [ref=e3]:
+    - generic [ref=e4]:
+      - heading "App Store Connect" [level=1] [ref=e20]:
+        - link "App Store Connect" [ref=e21] [cursor=pointer]:
+          - /url: /
+      - navigation "Global" [ref=e7]:
+        - list [ref=e23]:
+          - listitem [ref=e24]:
+            - link "Apps" [ref=e25] [cursor=pointer]:
+              - /url: /apps
+          - listitem [ref=e26]:
+            - link "Analytics" [ref=e27] [cursor=pointer]:
+              - /url: /analytics
+          - listitem [ref=e28]:
+            - link "Trends" [ref=e29] [cursor=pointer]:
+              - /url: /trends
+          - listitem [ref=e30]:
+            - link "Reports" [ref=e31] [cursor=pointer]:
+              - /url: /itc/payments_and_financial_reports
+          - listitem [ref=e32]:
+            - link "Business" [ref=e33] [cursor=pointer]:
+              - /url: /business
+          - listitem [ref=e34]:
+            - link "Users and Access" [ref=e35] [cursor=pointer]:
+              - /url: /access/users
+      - button "Donald Ford Shanghai Flagify Intelligent Technology Co., Ltd. Account name menu" [ref=e37] [cursor=pointer]:
+        - generic:
+          - generic: Donald Ford
+          - generic: Shanghai Flagify Intelligent Technology Co., Ltd.
+          - img [ref=e38]
+  - generic [ref=e43]:
+    - button "Apps menu, com.wuzhiai.ani, selected" [ref=e48] [cursor=pointer]:
+      - generic [ref=e49]:
+        - generic "com.wuzhiai.ani" [ref=e50]:
+          - img "com.wuzhiai.ani" [ref=e51]
+        - generic [ref=e53]: com.wuzhiai.ani
+      - img [ref=e55]
+    - navigation "Apps" [ref=e58]:
+      - list [ref=e59]:
+        - listitem [ref=e60]:
+          - link "Distribution" [ref=e61] [cursor=pointer]:
+            - /url: /apps/6760842475/distribution
+        - listitem [ref=e62]:
+          - link "TestFlight" [ref=e63] [cursor=pointer]:
+            - /url: /teams/59d28118-38a2-4074-84bc-8e35337170c1/apps/6760842475/testflight
+        - listitem [ref=e64]:
+          - link "Xcode Cloud" [ref=e65] [cursor=pointer]:
+            - /url: /teams/59d28118-38a2-4074-84bc-8e35337170c1/apps/6760842475/ci
+  - main [ref=e69]:
+    - generic [ref=e74]:
+      - navigation "Distribution" [ref=e76]:
+        - list [ref=e77]:
+          - listitem [ref=e78]:
+            - generic [ref=e79]:
+              - heading "iOS App" [level=2] [ref=e81]
+              - list [ref=e82]:
+                - listitem [ref=e83]:
+                  - generic [ref=e84]:
+                    - link "1.6.1 Prepare for Submission" [ref=e85] [cursor=pointer]:
+                      - /url: /apps/6760842475/distribution/ios/version/inflight
+                      - generic [ref=e86]:
+                        - img [ref=e87]
+                        - text: 1.6.1 Prepare for Submission
+                    - button "Delete iOS version 1.6.1" [ref=e89] [cursor=pointer]:
+                      - img [ref=e91]:
+                        - img [ref=e93]
+                      - generic [ref=e95]: Delete
+            - generic [ref=e96]:
+              - heading "macOS App" [level=2] [ref=e98]
+              - list [ref=e99]:
+                - listitem [ref=e100]:
+                  - generic [ref=e101]:
+                    - link "1.0 Prepare for Submission" [ref=e102] [cursor=pointer]:
+                      - /url: /apps/6760842475/distribution/macos/version/inflight
+                      - generic [ref=e103]:
+                        - img [ref=e104]
+                        - text: 1.0 Prepare for Submission
+                    - button "Delete macOS version 1.0" [ref=e106] [cursor=pointer]:
+                      - img [ref=e108]:
+                        - img [ref=e110]
+                      - generic [ref=e112]: Delete
+            - button "Add Platform" [ref=e113] [cursor=pointer]
+          - listitem [ref=e114]:
+            - separator [ref=e115]
+          - listitem [ref=e116]:
+            - heading "General" [level=2] [ref=e118]
+            - list [ref=e119]:
+              - listitem [ref=e120]:
+                - link "App Information" [ref=e121] [cursor=pointer]:
+                  - /url: /apps/6760842475/distribution/info
+                  - generic [ref=e122]: App Information
+              - listitem [ref=e123]:
+                - link "App Review" [ref=e124] [cursor=pointer]:
+                  - /url: /apps/6760842475/distribution/reviewsubmissions
+                  - generic [ref=e125]: App Review
+              - listitem [ref=e126]:
+                - link "History" [ref=e127] [cursor=pointer]:
+                  - /url: /apps/6760842475/distribution/activity/ios/versions
+                  - generic [ref=e128]: History
+          - listitem [ref=e129]:
+            - separator [ref=e130]
+          - listitem [ref=e131]:
+            - heading "App Store" [level=2] [ref=e133]
+            - generic [ref=e134]:
+              - heading "Trust & Safety" [level=3] [ref=e136]
+              - list [ref=e137]:
+                - listitem [ref=e138]:
+                  - link "App Privacy" [ref=e139] [cursor=pointer]:
+                    - /url: /apps/6760842475/distribution/privacy
+                    - generic [ref=e140]: App Privacy
+                - listitem [ref=e141]:
+                  - link "App Accessibility" [ref=e142] [cursor=pointer]:
+                    - /url: /apps/6760842475/distribution/accessibility
+                    - generic [ref=e143]: App Accessibility
+                - listitem [ref=e144]:
+                  - link "Ratings and Reviews" [ref=e145] [cursor=pointer]:
+                    - /url: /apps/6760842475/distribution/ratings/ios
+                    - generic [ref=e146]: Ratings and Reviews
+            - generic [ref=e147]:
+              - heading "Growth & Marketing" [level=3] [ref=e149]
+              - list [ref=e150]:
+                - listitem [ref=e151]:
+                  - link "In-App Events" [ref=e152] [cursor=pointer]:
+                    - /url: /apps/6760842475/distribution/events
+                    - generic [ref=e153]: In-App Events
+                - listitem [ref=e154]:
+                  - link "Custom Product Pages" [ref=e155] [cursor=pointer]:
+                    - /url: /apps/6760842475/distribution/productpages
+                    - generic [ref=e156]: Custom Product Pages
+                - listitem [ref=e157]:
+                  - link "Product Page Optimization" [ref=e158] [cursor=pointer]:
+                    - /url: /apps/6760842475/distribution/optimization
+                    - generic [ref=e159]: Product Page Optimization
+                - listitem [ref=e160]:
+                  - link "Promo Codes" [ref=e161] [cursor=pointer]:
+                    - /url: /apps/6760842475/distribution/promo_codes/generate
+                    - generic [ref=e162]: Promo Codes
+                - listitem [ref=e163]:
+                  - link "Game Center" [ref=e164] [cursor=pointer]:
+                    - /url: /apps/6760842475/distribution/gamecenter
+                    - generic [ref=e165]: Game Center
+            - generic [ref=e166]:
+              - heading "Monetization" [level=3] [ref=e168]
+              - list [ref=e169]:
+                - listitem [ref=e170]:
+                  - link "Pricing and Availability" [ref=e171] [cursor=pointer]:
+                    - /url: /apps/6760842475/distribution/pricing
+                    - generic [ref=e172]: Pricing and Availability
+                - listitem [ref=e173]:
+                  - link "In-App Purchases" [ref=e174] [cursor=pointer]:
+                    - /url: /apps/6760842475/distribution/iaps
+                    - generic [ref=e175]: In-App Purchases
+                - listitem [ref=e176]:
+                  - link "Subscriptions" [ref=e177] [cursor=pointer]:
+                    - /url: /apps/6760842475/distribution/subscriptions
+                    - generic [ref=e178]: Subscriptions
+            - generic [ref=e179]:
+              - heading "Featuring" [level=3] [ref=e181]
+              - list [ref=e182]:
+                - listitem [ref=e183]:
+                  - link "Nominations" [ref=e184] [cursor=pointer]:
+                    - /url: /apps/6760842475/distribution/nominations
+                    - generic [ref=e185]: Nominations
+      - generic [ref=e188]:
+        - generic [ref=e189]:
+          - generic [ref=e190]:
+            - heading "iOS App Version 1.6.1" [level=2] [ref=e193]
+            - generic [ref=e194]:
+              - button "Save" [disabled] [ref=e195]
+              - button "Add for Review" [ref=e196] [cursor=pointer]
+          - separator [ref=e197]
+        - generic [ref=e198]:
+          - generic [ref=e201]:
+            - paragraph [ref=e203]: The assets and metadata below appear on your app’s product page, when users install your app, and will be used for web engine search results once you release your app.
+            - generic [ref=e206]:
+              - button "English (U.S.)" [ref=e207] [cursor=pointer]:
+                - text: English (U.S.)
+                - img [ref=e208]
+              - button "?" [ref=e212] [cursor=pointer]
+          - separator [ref=e213]
+          - generic [ref=e214]:
+            - heading "Previews and Screenshots" [level=3] [ref=e215]
+            - button "More information" [ref=e217] [cursor=pointer]: "?"
+          - paragraph [ref=e218]: Adding accurate screenshots of your app on the newest devices can help you represent the app's user experience. Keep in mind that we'll use these screenshots for all display sizes and localizations. Screenshots are only required for iOS apps, and only the first 3 will be used on the app installation sheets.
+          - generic [ref=e219]:
+            - tablist [ref=e220]:
+              - tab "iPhone" [selected] [ref=e221] [cursor=pointer]:
+                - generic [ref=e222]: iPhone
+              - tab "iPad" [ref=e223] [cursor=pointer]:
+                - generic [ref=e224]: iPad
+              - tab "Apple Watch" [ref=e225] [cursor=pointer]:
+                - generic [ref=e226]: Apple Watch
+            - paragraph [ref=e227]:
+              - link "View All Sizes in Media Manager" [ref=e228] [cursor=pointer]:
+                - /url: /apps/6760842475/distribution/ios/version/inflight/media-manager/iphone
+          - generic [ref=e230]:
+            - generic:
+              - alert
+            - tabpanel "iPhone" [ref=e231]:
+              - generic [ref=e232]:
+                - generic [ref=e233]:
+                  - img [ref=e236]
+                  - generic [ref=e241]:
+                    - generic [ref=e242]: iPhone
+                    - generic [ref=e243]: 6.5" Display
+                - region [ref=e244]:
+                  - tabpanel [ref=e245]:
+                    - generic [ref=e248]:
+                      - list "App Previews from 6.5\" Display"
+                      - list "Screenshots from 6.5\" Display" [ref=e249]:
+                        - listitem [ref=e250]:
+                          - generic [ref=e251]:
+                            - button "Screenshot 02-bots-appstore.png" [ref=e252]:
+                              - img [ref=e254]
+                            - button "Delete" [ref=e255] [cursor=pointer]:
+                              - img [ref=e256]
+                        - listitem [ref=e258]:
+                          - generic [ref=e259]:
+                            - button "Screenshot 01-messages-appstore.png" [ref=e260]:
+                              - img [ref=e262]
+                            - button "Delete" [ref=e263] [cursor=pointer]:
+                              - img [ref=e264]
+                        - listitem [ref=e266]:
+                          - generic [ref=e267]:
+                            - button "Screenshot 03-bot-detail-appstore.png" [ref=e268]:
+                              - img [ref=e270]
+                            - button "Delete" [ref=e271] [cursor=pointer]:
+                              - img [ref=e272]
+                    - generic [ref=e274]:
+                      - paragraph [ref=e276]: 0 of 3 App Previews
+                      - paragraph [ref=e278]: 3 of 10 Screenshots
+                      - paragraph [ref=e281]:
+                        - button "Choose File" [ref=e282] [cursor=pointer]
+                      - paragraph [ref=e284]:
+                        - button "Delete All" [ref=e285] [cursor=pointer]
+          - generic [ref=e286]:
+            - generic [ref=e287]:
+              - generic [ref=e289]:
+                - generic [ref=e290]: Promotional Text
+                - button "More information" [ref=e292] [cursor=pointer]: "?"
+              - textbox "Promotional Text" [ref=e294]: Work with AI agents in the same conversations your team already uses. ANI brings chat, shared context, files, and task flow into one focused workspace.
+              - status "Characters remaining" [ref=e296]: "19"
+            - separator [ref=e298]
+            - generic [ref=e299]:
+              - generic [ref=e301]:
+                - generic [ref=e302]: Description
+                - button "More information" [ref=e304] [cursor=pointer]: "?"
+              - textbox "Description" [ref=e306]: "ANI is an agent-native messaging app built for teams that work with AI every day. Use ANI to chat with people and AI agents in the same workspace, keep conversation context visible, share files directly in-thread, and move work forward with task roadmaps and handoffs. With ANI you can: - Chat with people and AI agents in one conversation - Start direct bot conversations or create focused group threads - Keep prompt, memory, and task context attached to the conversation - Share files and continue work without leaving the thread - Review bot status, capabilities, and active conversations before you act - Switch between themes designed for long-form daily use ANI is designed for teams that want more than a traditional messenger. Conversations become working spaces where AI agents can participate, respond, and help move tasks forward."
+              - status "Characters remaining" [ref=e308]: 3,154
+            - generic [ref=e309]:
+              - generic [ref=e311]:
+                - generic [ref=e312]: Keywords
+                - button "More information" [ref=e314] [cursor=pointer]: "?"
+              - textbox "Keywords" [ref=e316]: ai,agents,teamchat,workspace,assistant,productivity,collaboration,messenger,bot,workflow,tasks,files
+              - status "Characters remaining" [ref=e318]: "0"
+            - generic [ref=e319]:
+              - generic [ref=e321]:
+                - generic [ref=e322]: Support URL
+                - button "More information" [ref=e324] [cursor=pointer]: "?"
+              - textbox "Support URL" [ref=e326]: https://agent-native.im
+            - generic [ref=e327]:
+              - generic [ref=e329]:
+                - generic [ref=e330]: Marketing URL
+                - button "More information" [ref=e332] [cursor=pointer]: "?"
+              - textbox "Marketing URL" [ref=e334]
+            - generic [ref=e335]:
+              - generic [ref=e337]:
+                - generic [ref=e338]: Version
+                - button "More information" [ref=e340] [cursor=pointer]: "?"
+              - textbox "Version" [ref=e342]: 1.6.1
+            - generic [ref=e343]:
+              - generic [ref=e345]:
+                - generic [ref=e346]: Copyright
+                - button "More information" [ref=e348] [cursor=pointer]: "?"
+              - textbox "Copyright" [ref=e350]: © 2026 Shanghai Flagify Intelligent Technology Co., Ltd.
+              - status "Characters remaining" [ref=e352]: "144"
+            - generic [ref=e353]:
+              - generic [ref=e355]:
+                - generic [ref=e356]: Routing App Coverage File
+                - button "More information" [ref=e358] [cursor=pointer]: "?"
+              - generic [ref=e360] [cursor=pointer]:
+                - button "Choose File" [ref=e361]
+                - generic [ref=e363]: Choose File
+          - separator [ref=e364]
+          - button "App Clip" [ref=e366] [cursor=pointer]:
+            - img [ref=e368]
+            - text: App Clip
+          - generic [ref=e371]:
+            - heading "iMessage App" [level=3] [ref=e372]:
+              - button "iMessage App" [ref=e373] [cursor=pointer]:
+                - img [ref=e375]
+                - text: iMessage App
+            - button "More information" [ref=e378] [cursor=pointer]: "?"
+        - generic [ref=e379]:
+          - heading "Build" [level=3] [ref=e381]
+          - generic [ref=e382]:
+            - img [ref=e383]
+            - paragraph [ref=e385]:
+              - generic [ref=e386]:
+                - text: If your app uses encryption, you're required to upload export compliance documentation. You can submit this documentation before you submit your app for review in the
+                - link "App Encryption Documentation section" [ref=e387] [cursor=pointer]:
+                  - /url: /apps/6760842475/distribution/info
+                - text: ", or by uploading your app below."
+          - paragraph [ref=e390]:
+            - generic [ref=e391]:
+              - text: Upload your builds using one of several tools.
+              - link "See Upload Tools" [ref=e392] [cursor=pointer]:
+                - /url: https://developer.apple.com/help/app-store-connect/manage-builds/upload-builds
+        - generic [ref=e398] [cursor=pointer]:
+          - checkbox "Game Center" [ref=e400]
+          - text: Game Center
+        - separator [ref=e402]
+        - generic [ref=e403]:
+          - heading "App Review Information" [level=3] [ref=e404]
+          - generic [ref=e405]:
+            - generic [ref=e406]:
+              - generic [ref=e407]:
+                - generic [ref=e409]:
+                  - generic [ref=e410]: Sign-In Information
+                  - button "More information" [ref=e412] [cursor=pointer]: "?"
+                - paragraph [ref=e413]: Provide a user name and password so we can sign in to your app. We’ll need this to complete your app review.
+                - generic [ref=e415]:
+                  - checkbox "Sign-in required" [checked] [ref=e416]
+                  - generic [ref=e418]: Sign-in required
+              - textbox "User name" [ref=e421]: chris
+              - textbox "Password" [ref=e424]: Admin@123456
+            - generic [ref=e425]:
+              - generic [ref=e427]:
+                - generic [ref=e428]: Contact Information
+                - button "More information" [ref=e430] [cursor=pointer]: "?"
+              - textbox "First name" [ref=e433]: Donald
+              - textbox "Last name" [ref=e436]: Ford
+              - textbox "Phone number" [ref=e439]: +86 18968066099
+              - textbox "Email" [ref=e442]: fukui@wuzhi-ai.com
+            - generic [ref=e443]:
+              - generic [ref=e445]:
+                - generic [ref=e446]: Notes
+                - button "More information" [ref=e448] [cursor=pointer]: "?"
+              - textbox "Notes" [ref=e450]: "Use the ANI service account below for App Review. ANI is a team messaging app with AI agent participation. Review core flows: chat with people and bots, bot detail pages, conversation context, file sharing, and task roadmap views. Some bot behavior depends on the model connected to the account. Native push is not part of the public claims for this release."
+              - status "Characters remaining" [ref=e452]: 3,642
+            - generic [ref=e453]:
+              - generic [ref=e455]:
+                - generic [ref=e456]: Attachment
+                - button "More information" [ref=e458] [cursor=pointer]: "?"
+              - generic [ref=e460] [cursor=pointer]:
+                - button "Choose File (Optional)" [ref=e461]
+                - generic [ref=e463]: Choose File (Optional)
+        - separator [ref=e464]
+        - generic [ref=e465]:
+          - heading "App Store Version Release" [level=3] [ref=e466]
+          - paragraph [ref=e467]: To make your app available on the App Store, you can automatically release it after it’s been approved by App Review. You can also manually release it on the App Store at a later date.
+          - generic [ref=e468]:
+            - generic [ref=e470]:
+              - generic [ref=e471]:
+                - radio "Manually release this version" [ref=e472]
+                - generic [ref=e474]: Manually release this version
+              - generic [ref=e475]:
+                - radio "Automatically release this version" [checked] [ref=e476]
+                - generic [ref=e478]: Automatically release this version
+              - generic [ref=e479]:
+                - radio "Automatically release this version after App Review, no earlier than" [ref=e480]
+                - generic [ref=e482]: Automatically release this version after App Review, no earlier than
+            - paragraph [ref=e484]: Your local date and time.
+            - generic [ref=e487]:
+              - textbox "Automatically release this version after App Review, no earlier than" [disabled] [ref=e488]: Mar 23, 2026 1:00 AM
+              - text: GMT+8
+  - contentinfo [ref=e10]:
+    - generic [ref=e11]:
+      - list [ref=e489]:
+        - listitem [ref=e490]:
+          - link "App Store Connect" [ref=e491] [cursor=pointer]:
+            - /url: /apps
+      - list [ref=e12]:
+        - listitem [ref=e13]: Copyright © 2026 Apple Inc. All rights reserved. |
+        - listitem [ref=e14]:
+          - link "Terms of Service" [ref=e15] [cursor=pointer]:
+            - /url: /WebObjects/iTunesConnect.woa/wa/termsOfService
+          - text: "|"
+        - listitem [ref=e16]:
+          - link "Privacy Policy" [ref=e17] [cursor=pointer]:
+            - /url: https://www.apple.com/legal/privacy
+          - text: "|"
+        - listitem [ref=e18]:
+          - link "Contact Us" [ref=e19] [cursor=pointer]:
+            - /url: /contact-us
+  - log [ref=e492]
+  - log [ref=e493]
