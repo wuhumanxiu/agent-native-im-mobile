@@ -200,7 +200,15 @@ export function BotDetail({
   const accessToken = (rotatedTokenBotId === bot.id ? rotatedToken : null) || (showFullCreds ? createdCredentials?.key : null)
   const gatewayUrl = getGatewayUrl()
   const wsUrl = getWsBaseUrl()
-  const accessText = accessToken ? buildBotAccessText({ gatewayUrl, wsUrl, accessToken }) : ''
+  const accessText = accessToken ? buildBotAccessText({
+    gatewayUrl,
+    wsUrl,
+    accessToken,
+    botName: bot.display_name || bot.name,
+    botID: bot.bot_id,
+    publicID: bot.public_id,
+    roleHint: description || undefined,
+  }) : ''
   const accessUrl = accessToken ? buildBotAccessUrl({ gatewayUrl, accessToken }) : ''
 
   return (
