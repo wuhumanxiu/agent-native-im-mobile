@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react'
-import { View, Text, FlatList, Pressable, ActivityIndicator, StyleSheet, Platform, KeyboardAvoidingView } from 'react-native'
+import { View, Text, FlatList, Pressable, ActivityIndicator, StyleSheet, Platform, KeyboardAvoidingView, RefreshControl } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { ArrowLeft, Users, Settings, Search, ListTodo } from 'lucide-react-native'
 import { MessageBubble } from './MessageBubble'
@@ -35,6 +35,7 @@ interface Props {
   myEntityId: number
   myEntity: Entity
   loading?: boolean
+  refreshing?: boolean
   hasMore?: boolean
   isOnline?: boolean
   wsConnected?: boolean
@@ -48,6 +49,7 @@ interface Props {
   onSettings?: () => void
   onToggleTasks?: () => void
   onLoadMore?: () => void
+  onRefresh?: () => Promise<void> | void
   onEntityPress?: (entity: Entity) => void
   onSend: (text: string, attachments?: UploadedAttachment[], mentions?: number[], replyToId?: number) => void
   onAudioSend?: (blob: any, duration: number) => void
@@ -71,6 +73,7 @@ export function ChatThread({
   myEntityId,
   myEntity,
   loading = false,
+  refreshing = false,
   hasMore = true,
   isOnline = false,
   wsConnected = true,
@@ -84,6 +87,7 @@ export function ChatThread({
   onSettings,
   onToggleTasks,
   onLoadMore,
+  onRefresh,
   onEntityPress,
   onSend,
   onAudioSend,
@@ -442,6 +446,15 @@ export function ChatThread({
           renderItem={renderMessage}
           keyExtractor={keyExtractor}
           inverted
+          refreshControl={
+            onRefresh ? (
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={() => void onRefresh()}
+                tintColor={colors.accent}
+              />
+            ) : undefined
+          }
           contentContainerStyle={styles.messageList}
           ListHeaderComponent={renderHeader}
           ListFooterComponent={renderFooter}

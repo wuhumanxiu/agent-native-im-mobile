@@ -54,6 +54,7 @@ export default function ChatDetailScreen() {
   const revokeStoreMessage = useMessagesStore((s) => s.revokeMessage)
   const updateReactions = useMessagesStore((s) => s.updateMessageReactions)
   const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
   const [hasMore, setHasMore] = useState(true)
   const [showSettings, setShowSettings] = useState(false)
   const [showTasks, setShowTasks] = useState(false)
@@ -225,12 +226,22 @@ export default function ChatDetailScreen() {
     }
   }, [token, convId, conversations])
 
-  // Load messages
-  useEffect(() => {
+  const refreshMessages = useCallback(async (options?: { hydrateCache?: boolean; showSpinner?: boolean }) => {
     if (!token || !convId) return
-    hydrateCachedMessages()
-    setLoading(true)
-    api.listMessages(token, convId).then((res) => {
+    const hydrateCache = options?.hydrateCache ?? false
+    const showSpinner = options?.showSpinner ?? false
+
+    if (showSpinner) {
+      setRefreshing(true)
+    } else {
+      setLoading(true)
+    }
+
+    try {
+      if (hydrateCache) {
+        hydrateCachedMessages()
+      }
+      const res = await api.listMessages(token, convId)
       if (res.ok && res.data) {
         const data = res.data
         const raw = Array.isArray(data) ? data : data?.messages || []
@@ -240,9 +251,16 @@ export default function ChatDetailScreen() {
         cacheMessages(convId, msgs)
         setHasMore(Array.isArray(data) ? raw.length >= 30 : !!data?.has_more)
       }
+    } finally {
       setLoading(false)
-    }).catch(() => setLoading(false))
+      setRefreshing(false)
+    }
   }, [token, convId, hydrateCachedMessages, setStoreMessages])
+
+  // Load messages
+  useEffect(() => {
+    void refreshMessages({ hydrateCache: true })
+  }, [refreshMessages])
 
   useEffect(() => {
     if (!otherParticipant) {
@@ -560,6 +578,7 @@ export default function ChatDetailScreen() {
           myEntityId={entity?.id || 0}
           myEntity={entity || { id: 0, entity_type: 'user', name: 'me', display_name: 'Me', status: 'active', metadata: {}, created_at: '', updated_at: '' }}
           loading={loading}
+          refreshing={refreshing}
           hasMore={hasMore}
           isOnline={isDirectOtherOnline}
           wsConnected={wsConnected}
@@ -583,6 +602,7 @@ export default function ChatDetailScreen() {
           onSettings={() => setShowSettings(true)}
           onToggleTasks={() => setShowTasks(true)}
           onLoadMore={handleLoadMore}
+          onRefresh={() => refreshMessages({ showSpinner: true })}
           onSend={handleSend}
           onRevoke={handleRevoke}
           onReact={handleReact}
