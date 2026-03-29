@@ -8,6 +8,7 @@ This app is no longer just a parity prototype for web.
 It now carries the core ANI interaction model on mobile:
 
 - direct / group / channel conversations
+- friends and inbox as first-class tabs
 - `@bot` workflows in group chat
 - interaction cards and task handover rendering
 - conversation prompt / memory visibility
@@ -107,6 +108,8 @@ Important boundary:
 
 - Theme system with multiple visual skins
 - Direct chat and multi-bot group chat
+- Friends tab with discoverable search, incoming requests, and direct-message launch
+- Inbox tab with unread filtering, per-identity scope, friend-request actions, and conversation deep links
 - Typing / processing / streaming feedback
 - Interaction cards and task handover cards
 - Conversation settings with prompt / memory / invite links
@@ -116,6 +119,16 @@ Important boundary:
 - Audio message rendering
 - Bot quick sheet and bot detail with capability boundary messaging
 - About page with version / commit / build info
+
+## Product Alignment
+
+Mobile parity is tracked against the current ANI web/PWA product, not against older one-off checklists.
+
+- product baseline index: [../agent-native-im/docs/PRODUCT_BASELINE.md](/Users/donaldford/code/SuperBody/dev/agent-native-im/docs/PRODUCT_BASELINE.md)
+- mobile product parity baseline: [docs/PRODUCT_PARITY_BASELINE.md](/Users/donaldford/code/SuperBody/dev/agent-native-im-mobile/docs/PRODUCT_PARITY_BASELINE.md)
+- mobile user stories: [docs/USER_STORIES.md](/Users/donaldford/code/SuperBody/dev/agent-native-im-mobile/docs/USER_STORIES.md)
+- mobile test cases: [docs/TEST_CASES.md](/Users/donaldford/code/SuperBody/dev/agent-native-im-mobile/docs/TEST_CASES.md)
+- mobile parity test cases: [docs/MOBILE_PARITY_TEST_CASES_2026-03-29.md](/Users/donaldford/code/SuperBody/dev/agent-native-im-mobile/docs/MOBILE_PARITY_TEST_CASES_2026-03-29.md)
 
 ## Important Product Boundaries
 
@@ -149,8 +162,8 @@ Current truth:
 Useful local checks:
 
 ```bash
-npx expo export --platform web --output-dir /tmp/ani-mobile-check
-npm run test:e2e
+npm test
+expo export --platform ios --platform android --output-dir /tmp/ani-mobile-check
 ```
 
 ## Related Projects
