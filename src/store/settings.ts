@@ -9,9 +9,11 @@ interface SettingsState {
   theme: Theme
   locale: Locale
   devMode: boolean
+  pushEnabled: boolean
   setTheme: (theme: Theme) => void
   setLocale: (locale: Locale) => void
   setDevMode: (devMode: boolean) => void
+  setPushEnabled: (enabled: boolean) => void
   /** Resolve the effective theme based on system preference */
   effectiveTheme: () => 'dark' | 'light'
 }
@@ -20,6 +22,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   theme: loadSetting<Theme>('aim_theme', 'light'),
   locale: loadSetting<Locale>('aim_locale', 'en'),
   devMode: loadSetting<boolean>('aim_dev_mode', false),
+  pushEnabled: loadSetting<boolean>('aim_push_enabled', false),
   setTheme: (theme) => {
     saveSetting('aim_theme', theme)
     set({ theme })
@@ -31,6 +34,10 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   setDevMode: (devMode) => {
     saveSetting('aim_dev_mode', devMode)
     set({ devMode })
+  },
+  setPushEnabled: (pushEnabled) => {
+    saveSetting('aim_push_enabled', pushEnabled)
+    set({ pushEnabled })
   },
   effectiveTheme: () => {
     const { theme } = get()

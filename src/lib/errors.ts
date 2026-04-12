@@ -59,6 +59,20 @@ export function reportApiError(res: APIResponse) {
   }
 }
 
+export function isRetryableNetworkResponse(res: APIResponse): boolean {
+  return extractError(res).category === 'network'
+}
+
+export function isRetryableNetworkError(error: unknown): boolean {
+  if (error instanceof Error) {
+    return classify({ message: error.message }).category === 'network'
+  }
+  if (typeof error === 'string') {
+    return classify({ message: error }).category === 'network'
+  }
+  return false
+}
+
 function classify(parsed: ParsedError): ParsedError {
   const detail = parsed.detail
   const status = detail?.status

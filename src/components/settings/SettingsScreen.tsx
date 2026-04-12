@@ -13,6 +13,7 @@ import { useAuthStore } from '../../store/auth'
 import { useSettingsStore } from '../../store/settings'
 import * as api from '../../lib/api'
 import { buildInfo } from '../../lib/build-info'
+import { isNativePushSupported, registerNativePush, unregisterNativePush } from '../../lib/push'
 import { EntityAvatar } from '../ui/EntityAvatar'
 import { resolveThemeColors, themePreviews, useThemeColors } from '../../lib/theme'
 
@@ -56,6 +57,10 @@ export function SettingsScreen({ onBack }: Props) {
   const selectedTheme = useSettingsStore((s) => s.theme)
   const setSelectedTheme = useSettingsStore((s) => s.setTheme)
   const effectiveTheme = useSettingsStore((s) => s.effectiveTheme)
+  const devMode = useSettingsStore((s) => s.devMode)
+  const setDevMode = useSettingsStore((s) => s.setDevMode)
+  const storedPushEnabled = useSettingsStore((s) => s.pushEnabled)
+  const setStoredPushEnabled = useSettingsStore((s) => s.setPushEnabled)
 
   // Language
   const [selectedLocale, setSelectedLocale] = useState(i18n.language || 'en')
@@ -70,7 +75,11 @@ export function SettingsScreen({ onBack }: Props) {
   const [aboutCopied, setAboutCopied] = useState(false)
 
   // Push
-  const [pushEnabled, setPushEnabled] = useState(false)
+  const [pushEnabled, setPushEnabled] = useState(storedPushEnabled)
+
+  useEffect(() => {
+    setPushEnabled(storedPushEnabled)
+  }, [storedPushEnabled])
 
   const handleSaveProfile = async () => {
     if (!editName.trim() || !entity) return
@@ -622,18 +631,54 @@ export function SettingsScreen({ onBack }: Props) {
             <Bell size={18} color={colors.textSecondary} />
             <View style={styles.toggleBody}>
               <Text style={[styles.navItemText, { color: colors.text }]}>{t('settings.pushNotifications')}</Text>
-              <Text style={[styles.navItemMeta, { color: colors.textMuted }]}>{t('settings.pushWebOnly')}</Text>
+              <Text style={[styles.navItemMeta, { color: colors.textMuted }]}>{pushEnabled ? t('settings.pushEnabled') : t('settings.pushDisabled')}</Text>
             </View>
             <Switch
               value={pushEnabled}
-              disabled
-              onValueChange={() => {
-                Alert.alert(
-                  t('settings.pushNotifications'),
-                  t('settings.pushNativePending'),
-                  [{ text: 'OK' }]
-                )
+              onValueChange={async (next) => {
+                if (!isNativePushSupported()) {
+                  Alert.alert(t('settings.pushNotifications'), t('settings.pushUnsupported'), [{ text: 'OK' }])
+                  return
+                }
+                if (next) {
+                  const result = await registerNativePush(token)
+                  if (result.ok) {
+                    setPushEnabled(true)
+                    setStoredPushEnabled(true)
+                    return
+                  }
+                  const message = result.reason === 'denied'
+                    ? t('settings.pushDenied')
+                    : result.reason === 'unsupported'
+                      ? t('settings.pushUnsupported')
+                      : t('settings.pushFailed')
+                  Alert.alert(t('settings.pushNotifications'), message, [{ text: 'OK' }])
+                  return
+                }
+                const removed = await unregisterNativePush(token)
+                if (!removed) {
+                  Alert.alert(t('settings.pushNotifications'), t('settings.pushFailed'), [{ text: 'OK' }])
+                  return
+                }
+                setPushEnabled(false)
+                setStoredPushEnabled(false)
               }}
+              trackColor={{ false: colors.border, true: colors.accent }}
+              thumbColor="#ffffff"
+            />
+          </View>
+        </View>
+
+        <View style={[styles.navGroup, { borderBottomColor: colors.bgTertiary }]}>
+          <View style={styles.toggleRow}>
+            <Info size={18} color={colors.textSecondary} />
+            <View style={styles.toggleBody}>
+              <Text style={[styles.navItemText, { color: colors.text }]}>{t('settings.devMode')}</Text>
+              <Text style={[styles.navItemMeta, { color: colors.textMuted }]}>{t('settings.devModeDesc')}</Text>
+            </View>
+            <Switch
+              value={devMode}
+              onValueChange={setDevMode}
               trackColor={{ false: colors.border, true: colors.accent }}
               thumbColor="#ffffff"
             />

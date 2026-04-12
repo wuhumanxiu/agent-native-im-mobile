@@ -1,5 +1,6 @@
 import { storage as mmkvStorage } from './storage'
 import { AppState, Platform } from 'react-native'
+import { logDebugEvent } from './debug-telemetry'
 import type { WSMessage } from './types'
 import { getWsBaseUrl } from './gateway'
 
@@ -8,6 +9,7 @@ type WSHandler = (msg: WSMessage) => void
 const PING_INTERVAL = 25_000 // 25 seconds
 const PONG_TIMEOUT = 10_000  // 10 seconds to receive pong
 const SEND_QUEUE_MAX = 50
+const wsBearerSubprotocolPrefix = 'ani.bearer.'
 
 const mmkv = mmkvStorage
 
@@ -59,6 +61,7 @@ export class AnimpWebSocket {
   private appStateSubscription: { remove: () => void } | null = null
 
   private deviceId: string
+  private wsProtocol: string | null = null
 
   // Latest message ID for catch-up on reconnect
   private _sinceId: number = 0
@@ -67,6 +70,7 @@ export class AnimpWebSocket {
     this.url = url || getWsBaseUrl()
     this.token = token
     this.deviceId = this.getOrCreateDeviceId()
+    this.wsProtocol = token ? `${wsBearerSubprotocolPrefix}${token}` : null
   }
 
   /** Set the latest known message ID so reconnect can request catch-up. */
@@ -109,11 +113,15 @@ export class AnimpWebSocket {
 
   connect() {
     this.intentionalClose = false
+    if (this.appStateSubscription) {
+      this.appStateSubscription.remove()
+      this.appStateSubscription = null
+    }
     // Listen for app state changes (foreground/background) instead of window online/offline
     this.appStateSubscription = AppState.addEventListener('change', (nextState) => {
       if (nextState === 'active') {
         this.onAppForeground()
-      } else if (nextState === 'background' || nextState === 'inactive') {
+      } else if (nextState === 'background') {
         this.onAppBackground()
       }
     })
@@ -121,9 +129,10 @@ export class AnimpWebSocket {
   }
 
   private doConnect() {
-    if (this.ws) {
-      try { this.ws.close() } catch { /* already closed */ }
+    if (this.ws?.readyState === WebSocket.OPEN || this.ws?.readyState === WebSocket.CONNECTING) {
+      return
     }
+    this.ws = null
     this.stopPing()
 
     const deviceInfo = `${Platform.OS} ${Platform.Version}`
@@ -134,10 +143,13 @@ export class AnimpWebSocket {
     if (this.wasConnected && this._sinceId > 0) {
       wsUrl += `&since_id=${this._sinceId}`
     }
-    const options = this.token
-      ? { headers: { Authorization: `Bearer ${this.token}` } }
-      : undefined
-    this.ws = options ? new WebSocket(wsUrl, undefined, options) : new WebSocket(wsUrl)
+    const protocols = this.wsProtocol ? [this.wsProtocol] : undefined
+    logDebugEvent('ws.connect.attempt', {
+      deviceId: this.deviceId,
+      hasToken: !!this.token,
+      sinceId: this.wasConnected ? this._sinceId : 0,
+    })
+    this.ws = protocols ? new WebSocket(wsUrl, protocols) : new WebSocket(wsUrl)
     let opened = false
 
     this.ws.onopen = () => {
@@ -148,6 +160,10 @@ export class AnimpWebSocket {
       this.reconnectDelay = 1000
       this.startPing()
       this.flushQueue()
+      logDebugEvent('ws.connect.open', {
+        reconnect: isReconnect,
+        queueDepth: this.sendQueue.length,
+      })
       this.connectionChangeHandlers.forEach((h) => h(true))
       this.handlers.forEach((h) => h({ type: 'entity.online', data: { self: true } } as WSMessage))
       if (isReconnect && this.reconnectCallback) {
@@ -167,22 +183,26 @@ export class AnimpWebSocket {
     }
 
     this.ws.onerror = (_ev: any) => {
-      // handled by onclose
+      logDebugEvent('ws.connect.error')
+      this.ws?.close()
     }
 
     this.ws.onclose = (ev: any) => {
       this._connected = false
       this.stopPing()
+      logDebugEvent('ws.connect.close', {
+        code: ev?.code,
+        reason: ev?.reason,
+        intentional: this.intentionalClose,
+        opened,
+      })
       this.connectionChangeHandlers.forEach((h) => h(false))
       this.handlers.forEach((h) => h({ type: 'entity.offline', data: { self: true } } as WSMessage))
       if (!opened && !this.intentionalClose) {
         this.authFailureHandlers.forEach((h) => h())
       }
+      this.ws = null
       if (!this.intentionalClose) this.scheduleReconnect()
-    }
-
-    this.ws.onerror = () => {
-      this.ws?.close()
     }
   }
 
@@ -215,6 +235,7 @@ export class AnimpWebSocket {
 
   private onAppForeground() {
     if (this.intentionalClose) return
+    logDebugEvent('app.foreground')
     // App came to foreground -- reconnect immediately if not connected
     if (!this._connected) {
       if (this.reconnectTimer) clearTimeout(this.reconnectTimer)
@@ -224,6 +245,7 @@ export class AnimpWebSocket {
   }
 
   private onAppBackground() {
+    logDebugEvent('app.background')
     // App went to background -- stop reconnect timer to save resources
     if (this.reconnectTimer) { clearTimeout(this.reconnectTimer); this.reconnectTimer = null }
   }
@@ -235,6 +257,7 @@ export class AnimpWebSocket {
     // Add jitter: delay * (0.8 ~ 1.2)
     const jitter = 0.8 + 0.4 * Math.random()
     const delay = this.reconnectDelay * jitter
+    logDebugEvent('ws.reconnect.scheduled', { delay })
     this.reconnectTimer = setTimeout(() => {
       this.reconnectDelay = Math.min(this.reconnectDelay * 1.5, this.maxReconnectDelay)
       this.doConnect()
@@ -281,5 +304,6 @@ export class AnimpWebSocket {
 
   updateToken(newToken: string) {
     this.token = newToken
+    this.wsProtocol = newToken ? `${wsBearerSubprotocolPrefix}${newToken}` : null
   }
 }

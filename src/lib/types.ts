@@ -4,16 +4,82 @@ export type EntityStatus = 'active' | 'pending' | 'disabled'
 
 export interface Entity {
   id: number
+  online?: boolean
+  public_id?: string
+  bot_id?: string
   entity_type: EntityType
   name: string
   display_name: string
   status: EntityStatus
   avatar_url?: string
   email?: string
+  discoverability?: 'private' | 'platform_public' | 'external_public'
+  friend_request_policy?: 'nobody' | 'platform_entities'
+  direct_message_policy?: 'friends_only' | 'platform_entities'
+  allow_non_friend_chat?: boolean
+  require_access_password?: boolean
   metadata: Record<string, unknown>
   owner_id?: number
   created_at: string
   updated_at: string
+}
+
+export interface BotAccessLink {
+  id: number
+  bot_entity_id: number
+  code: string
+  label?: string
+  expires_at?: string
+  max_uses: number
+  used_count: number
+  created_by_entity_id: number
+  created_at: string
+}
+
+export interface FriendRequest {
+  id: number
+  source_entity_id: number
+  target_entity_id: number
+  status: 'pending' | 'accepted' | 'rejected' | 'canceled'
+  message?: string
+  resolved_by?: number
+  created_at: string
+  updated_at: string
+  source_entity?: Entity
+  target_entity?: Entity
+}
+
+export type NotificationStatus = 'unread' | 'read'
+export type PresenceStateValue = 'online' | 'offline' | 'unknown'
+
+export interface NotificationRecord {
+  id: number
+  recipient_entity_id: number
+  actor_entity_id?: number
+  kind: string
+  status: NotificationStatus
+  title: string
+  body: string
+  data?: Record<string, unknown>
+  read_at?: string
+  created_at: string
+  updated_at: string
+  recipient_entity?: Entity
+  actor_entity?: Entity
+}
+
+export interface InboxSnapshot {
+  tracked_entity_ids: number[]
+  acting_entities: Entity[]
+  pending_friend_requests: FriendRequest[]
+  notifications: NotificationRecord[]
+  generated_at?: string
+  summary?: {
+    tracked_entity_count: number
+    pending_friend_request_count: number
+    notification_unread_count: number
+    notification_total_count: number
+  }
 }
 
 // ─── Conversation ────────────────────────────────────────────────
@@ -162,6 +228,11 @@ export type WSEventType =
   | 'entity.config'
   | 'message.progress'
   | 'typing'
+  | 'friend.request.created'
+  | 'friend.request.updated'
+  | 'notification.new'
+  | 'notification.read'
+  | 'notification.read_all'
   | 'pong'
 
 export interface WSMessage {

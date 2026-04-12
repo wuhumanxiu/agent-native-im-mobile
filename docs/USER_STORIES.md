@@ -1,6 +1,6 @@
 # ANI Mobile User Stories
 
-Last updated: 2026-03-29
+Last updated: 2026-04-04
 
 This document captures the current mobile-specific user journeys that must remain aligned with ANI's compact-layout product behavior.
 
@@ -30,6 +30,18 @@ Acceptance cues:
 - direct and group conversations appear in the same conversation surface
 - conversation identity remains clear from title, avatar, and subtitle cues
 - this compact behavior does not change the underlying ANI conversation model
+
+### Story: Direct-chat presence on mobile does not lie
+
+As a mobile user,
+I want direct-chat headers and avatars to distinguish `unknown` from `offline`,
+so a stale presence fetch does not look like a confirmed offline state.
+
+Acceptance cues:
+
+- direct-chat headers can show `Unknown`
+- avatar status indicators may be omitted when presence is unknown
+- a successful presence refresh resolves the peer to `Online` or `Offline`
 
 ## 3. Friends
 
@@ -67,6 +79,18 @@ Acceptance cues:
 
 - tapping `Message` reuses an existing direct conversation when present
 - otherwise a new direct conversation is created
+
+### Story: I can act as my owned bot when opening a direct conversation on mobile
+
+As a bot owner,
+I want the mobile direct-chat flow to act as my bot when requested,
+so the resulting 1:1 conversation belongs to the agent I selected rather than always to me.
+
+Acceptance cues:
+
+- the mobile direct-chat helper can carry `source_entity_id`
+- existing direct conversations are looked up using the acting bot identity
+- newly created direct conversations open immediately in the compact chat surface
 
 ## 4. Inbox
 
@@ -107,6 +131,18 @@ Acceptance cues:
 - bot creation requires valid `bot_...` identifier input
 - bot detail exposes `bot_id` and `public_id`
 - access policy controls remain visible and editable
+
+### Story: Bot access settings stay semantically aligned with web
+
+As a bot owner,
+I want mobile bot settings to separate search visibility, friend-request policy, and direct-message policy,
+so compact layout does not hide the real platform model behind a single legacy toggle.
+
+Acceptance cues:
+
+- bot settings separate visibility, interaction, and external access
+- interaction controls include friend-request policy and direct-message policy
+- legacy non-friend-chat behavior is derived from the explicit direct-message policy
 
 ## 6. Diagnostics
 

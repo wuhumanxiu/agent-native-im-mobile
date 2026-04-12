@@ -9,7 +9,7 @@ import { usePresenceStore } from '../../store/presence'
 import * as api from '../../lib/api'
 import { getErrorMessage } from '../../lib/errors'
 import { cacheEntities, getCachedEntities } from '../../lib/cache'
-import type { Entity } from '../../lib/types'
+import type { Entity, PresenceStateValue } from '../../lib/types'
 import { EntityAvatar } from '../ui/EntityAvatar'
 import { useThemeColors } from '../../lib/theme'
 import { getEntityPresenceSemantic, getEntityStatusLabel } from '../../lib/entity-status'
@@ -32,8 +32,9 @@ export function BotList({ selectedId, onSelect, onCreatePress, refreshTrigger }:
   const colors = useThemeColors()
   const token = useAuthStore((s) => s.token)
   const sessionChecked = useAuthStore((s) => s.sessionChecked)
-  const onlineSet = usePresenceStore((s) => s.online)
+  const getPresenceState = usePresenceStore((s) => s.getPresenceState)
   const setPresenceBatch = usePresenceStore((s) => s.setPresenceBatch)
+  const setPresenceUnknown = usePresenceStore((s) => s.setPresenceUnknown)
   const [entities, setEntities] = useState<Entity[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
@@ -51,9 +52,18 @@ export function BotList({ selectedId, onSelect, onCreatePress, refreshTrigger }:
           if (isOn) next.push(Number(idStr))
         }
         setPresenceBatch(botIds, next)
+      } else {
+        setPresenceUnknown(botIds)
       }
     }
-  }, [setPresenceBatch, token])
+  }, [setPresenceBatch, setPresenceUnknown, token])
+
+  const rankPresence = useCallback((entity: Entity) => {
+    const presence = getPresenceState(entity.id)
+    if (presence === 'online') return 0
+    if (presence === 'unknown') return 1
+    return 2
+  }, [getPresenceState])
 
   const loadEntities = useCallback(async () => {
     if (!sessionChecked || !token) {
@@ -112,14 +122,14 @@ export function BotList({ selectedId, onSelect, onCreatePress, refreshTrigger }:
 
   const activeBots = filtered
     .filter((e) => e.status !== 'disabled')
-    .sort((a, b) => (onlineSet.has(a.id) ? 0 : 1) - (onlineSet.has(b.id) ? 0 : 1))
+    .sort((a, b) => rankPresence(a) - rankPresence(b))
   const disabledBots = filtered.filter((e) => e.status === 'disabled')
   const allBots = [...activeBots, ...disabledBots]
 
   const renderBotItem = ({ item: entity }: { item: Entity }) => {
-    const isOnline = onlineSet.has(entity.id)
-    const statusSemantic = getEntityPresenceSemantic(entity, isOnline)
-    const statusLabel = getEntityStatusLabel(t, entity, isOnline)
+    const presence: PresenceStateValue = getPresenceState(entity.id)
+    const statusSemantic = getEntityPresenceSemantic(entity, presence)
+    const statusLabel = getEntityStatusLabel(t, entity, presence)
     const isDisabled = statusSemantic === 'disabled'
     const isActive = entity.id === selectedId
     const meta = entity.metadata as Record<string, unknown> | undefined
@@ -131,16 +141,15 @@ export function BotList({ selectedId, onSelect, onCreatePress, refreshTrigger }:
         onPress={() => onSelect(entity.id)}
         style={({ pressed }) => [
           styles.botCard,
-          { borderColor: colors.border },
-          isActive && { borderColor: colors.accent, backgroundColor: colors.accentDim },
+          isActive && { backgroundColor: colors.accentDim },
           isDisabled && styles.botCardDisabled,
           pressed && { backgroundColor: colors.bgHover },
         ]}
       >
         <View style={styles.avatarContainer}>
-          <EntityAvatar entity={entity} size="md" showStatus isOnline={isOnline} />
+          <EntityAvatar entity={entity} size="md" showStatus presenceState={presence} />
         </View>
-        <View style={styles.botInfo}>
+        <View style={[styles.botInfo, { borderBottomColor: isActive ? `${colors.accent}33` : `${colors.border}B3` }]}>
           <View style={styles.nameRow}>
             <Text style={[styles.botName, { color: colors.text }]} numberOfLines={1}>
               {entityDisplayName(entity)}
@@ -340,11 +349,8 @@ const styles = StyleSheet.create({
   botCard: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    padding: 12,
+    paddingHorizontal: 12,
     borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    marginBottom: 8,
     gap: 12,
   },
   botCardActive: {
@@ -359,10 +365,13 @@ const styles = StyleSheet.create({
   },
   avatarContainer: {
     flexShrink: 0,
+    marginTop: 8,
   },
   botInfo: {
     flex: 1,
     minWidth: 0,
+    paddingVertical: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
   nameRow: {
     flexDirection: 'row',

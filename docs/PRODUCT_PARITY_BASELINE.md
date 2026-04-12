@@ -1,6 +1,6 @@
 # ANI Mobile Product Parity Baseline
 
-Last updated: 2026-03-29
+Last updated: 2026-04-04
 
 This document promotes the recent mobile parity decisions from `_experience` into the mobile repository's formal docs.
 
@@ -59,6 +59,16 @@ Mobile must support:
 - conversation deep links
 - friend-request handling from inbox
 
+### 4.1 Presence must be tri-state on compact layout
+
+Mobile must treat direct-peer presence as:
+
+- `online`
+- `offline`
+- `unknown`
+
+Compact layout must not silently collapse `unknown` into `offline`.
+
 ### 5. Bot identity and access policy
 
 Mobile must preserve the current bot contract:
@@ -66,8 +76,18 @@ Mobile must preserve the current bot contract:
 - explicit `bot_id`
 - visible `public_id`
 - discoverability controls
+- explicit `friend_request_policy`
+- explicit `direct_message_policy`
 - external access policy
 - public access link creation / deletion
+
+Mobile bot settings should present these in three grouped concepts:
+
+- Platform Visibility
+- Platform Interaction
+- External Access
+
+Compact layout may use touch-first toggles instead of desktop selects, but it must preserve the same semantics.
 
 ### 6. Debug and runtime diagnostics
 

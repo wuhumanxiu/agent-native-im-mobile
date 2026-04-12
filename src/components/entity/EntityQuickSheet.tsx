@@ -6,13 +6,13 @@ import { EntityAvatar } from '../ui/EntityAvatar'
 import { useThemeColors } from '../../lib/theme'
 import { useAuthStore } from '../../store/auth'
 import * as api from '../../lib/api'
-import type { Entity } from '../../lib/types'
+import type { Entity, PresenceStateValue } from '../../lib/types'
 import { getEntityPresenceSemantic, getEntityStatusLabel } from '../../lib/entity-status'
 import { getEntityCapabilityChips, getEntityCapabilitySummary } from '../../lib/entity-capabilities'
 
 interface Props {
   entity: Entity
-  isOnline: boolean
+  isOnline: PresenceStateValue
   canViewDetails?: boolean
   onClose: () => void
   onStartChat?: (entity: Entity) => void
@@ -68,7 +68,7 @@ export function EntityQuickSheet({
   const isBot = isBotOrService(entity)
   const capabilityChips = useMemo(() => (isBot ? getEntityCapabilityChips(t, entity) : []), [entity, isBot, t])
   const capabilitySummary = useMemo(() => (isBot ? getEntityCapabilitySummary(t, entity) : ''), [entity, isBot, t])
-  const [resolvedOnline, setResolvedOnline] = useState(isOnline)
+  const [resolvedOnline, setResolvedOnline] = useState<PresenceStateValue>(isOnline)
   const [lastSeen, setLastSeen] = useState<string | null>(null)
   const description = useMemo(() => {
     const raw = entity.metadata?.description
@@ -113,7 +113,7 @@ export function EntityQuickSheet({
     let cancelled = false
     api.getEntityStatus(token, entity.id).then((res) => {
       if (cancelled || !res.ok || !res.data) return
-      setResolvedOnline(!!res.data.online)
+      setResolvedOnline(res.data.online ? 'online' : 'offline')
       setLastSeen(res.data.last_seen || null)
     }).catch(() => {})
     return () => { cancelled = true }
@@ -133,7 +133,7 @@ export function EntityQuickSheet({
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={[styles.heroCard, { backgroundColor: colors.bg, borderColor: colors.border }]}>
-          <EntityAvatar entity={entity} size="lg" showStatus isOnline={resolvedOnline} />
+          <EntityAvatar entity={entity} size="lg" showStatus presenceState={resolvedOnline} />
           <View style={styles.heroText}>
             <View style={styles.titleRow}>
               <Text style={[styles.name, { color: colors.text }]} numberOfLines={2}>
@@ -185,7 +185,7 @@ export function EntityQuickSheet({
           <InfoRow label={t('entityPopover.type')} value={typeLabel} colors={colors} />
           {ownerLabel ? <InfoRow label={t('bot.owner')} value={ownerLabel} colors={colors} /> : null}
           <InfoRow label="ID" value={`#${entity.id}`} colors={colors} />
-          {!resolvedOnline && lastSeenLabel ? (
+          {resolvedOnline !== 'online' && lastSeenLabel ? (
             <InfoRow
               label={t('bot.lastSeen')}
               value={lastSeenLabel}

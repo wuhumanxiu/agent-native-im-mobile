@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback, useMemo, useEffect } from 'react'
-import { View, Text, TextInput, Pressable, FlatList, StyleSheet, Platform, KeyboardAvoidingView, ActivityIndicator } from 'react-native'
+import { View, Text, TextInput, Pressable, FlatList, StyleSheet, Platform, KeyboardAvoidingView, ActivityIndicator, Keyboard } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { Send, Paperclip, X, Mic, MicOff, Smile, CornerUpLeft, Loader2, Image as ImageIcon, FileText, CheckCircle, RotateCw } from 'lucide-react-native'
 import * as ImagePicker from 'expo-image-picker'
@@ -255,7 +255,7 @@ export function MessageComposer({
     setMentionQuery(null)
     // Clear draft on send
     if (draftKey) storage.delete(draftKey)
-    textInputRef.current?.focus()
+    Keyboard.dismiss()
   }, [text, uploadedAttachments, hasUploading, mentionIds, onSend, enableMentions])
 
   // Handle text change with @mention detection

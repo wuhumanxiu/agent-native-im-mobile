@@ -1,6 +1,6 @@
 # ANI Mobile Test Cases
 
-Last updated: 2026-03-29
+Last updated: 2026-04-04
 
 This document is the current formal mobile validation baseline.
 
@@ -109,6 +109,24 @@ Expected:
 
 - transient reconnects do not immediately produce repeated `deliver failed`
 - messages do not remain stuck in `sending` indefinitely when the connection recovers
+
+### TC-MOBILE-CHAT-004A: Direct-chat presence can show Unknown before refresh
+
+Preconditions:
+
+- direct conversation exists
+- peer presence has not yet been freshly resolved
+
+Steps:
+
+1. Open the direct conversation
+2. Observe the header before or during a failed/stale presence refresh
+
+Expected:
+
+- the header may show `Unknown`
+- the UI does not force a false `Offline`
+- after a successful presence fetch, the header resolves to `Online` or `Offline`
 
 ### TC-MOBILE-CHAT-005: Chat debug tools are gated behind Developer Mode
 
@@ -240,6 +258,24 @@ Steps:
 Expected:
 
 - existing direct conversation is reused when present
+
+### TC-MOBILE-FRIEND-007: Acting as an owned bot opens a direct chat as that bot
+
+Preconditions:
+
+- logged in user owns at least one bot
+- target entity exists
+
+Steps:
+
+1. Use the mobile direct-chat flow while acting as the owned bot
+2. Open or create the target direct conversation
+
+Expected:
+
+- the request includes `source_entity_id` for the owned bot
+- existing direct conversation is reused when present
+- otherwise a new direct conversation opens in `Chats`
 - otherwise a new direct conversation is created
 - app navigates into that conversation
 
@@ -390,6 +426,61 @@ Expected:
 - link is created successfully
 - copy action provides visible feedback
 - deleted link disappears from the list
+
+### TC-MOBILE-BOT-004: Bot settings expose explicit interaction policies
+
+Preconditions:
+
+- logged in user owns a bot
+
+Steps:
+
+1. Open the bot detail screen
+2. Inspect the policy area
+3. Change visibility, friend-request policy, and direct-message policy
+4. Save the policy
+
+Expected:
+
+- settings are grouped into visibility, interaction, and external access
+- friend-request and direct-message policy can be changed independently
+- save succeeds and the updated state remains visible after refresh
+
+### TC-MOBILE-LISTS-001: Core list rows use content-only dividers
+
+Preconditions:
+
+- app has content in chats, friends, bots, and inbox
+
+Steps:
+
+1. Open Chats
+2. Open Friends
+3. Open Bots
+4. Open Inbox
+
+Expected:
+
+- list rows do not render a full bordered card
+- the avatar/icon column remains visually open
+- the content area renders a subtle bottom divider seam
+- pressed and active states remain readable
+
+### TC-MOBILE-GROUPS-001: Default group avatar matches group navigation semantics
+
+Preconditions:
+
+- at least one group conversation exists without a custom avatar
+
+Steps:
+
+1. Open the chats list
+2. Find a group conversation with the default avatar
+
+Expected:
+
+- the default group avatar uses the double-bubble group icon
+- it no longer uses the generic people/users icon
 
 ## 6. Diagnostics And Release State
 

@@ -7,7 +7,7 @@ import { useAuthStore } from '../../src/store/auth'
 import { useConversationsStore } from '../../src/store/conversations'
 import { useMessagesStore } from '../../src/store/messages'
 import * as api from '../../src/lib/api'
-import type { Message, Conversation, ActiveStream, Entity } from '../../src/lib/types'
+import type { Message, Conversation, ActiveStream, Entity, PresenceStateValue } from '../../src/lib/types'
 import { ChatThread } from '../../src/components/chat/ChatThread'
 import { ConversationSettings } from '../../src/components/conversation/ConversationSettings'
 import { TaskPanel } from '../../src/components/task/TaskPanel'
@@ -17,6 +17,8 @@ import { usePresenceStore } from '../../src/store/presence'
 import { normalizeAttachmentUrl } from '../../src/lib/files'
 import { buildDirectConversationTitle } from '../../src/lib/conversation-title'
 import { cacheMessages, getCachedMessages, deleteOutboxMessage, enqueueOutboxMessage, listOutboxMessagesByConversation, updateOutboxMessage } from '../../src/lib/cache'
+import { logDebugEvent } from '../../src/lib/debug-telemetry'
+import { isRetryableNetworkError, isRetryableNetworkResponse } from '../../src/lib/errors'
 
 export default function ChatDetailScreen() {
   const { t } = useTranslation()
@@ -30,7 +32,7 @@ export default function ChatDetailScreen() {
   const removeConversation = useConversationsStore((s) => s.removeConversation)
   const readReceipts = useConversationsStore((s) => s.readReceipts)
   const wsConnected = usePresenceStore((s) => s.wsConnected)
-  const onlineSet = usePresenceStore((s) => s.online)
+  const getPresenceState = usePresenceStore((s) => s.getPresenceState)
   const lastSyncAt = usePresenceStore((s) => s.lastSyncAt)
 
   // WebSocket context — typing, streams, cancel
@@ -60,8 +62,10 @@ export default function ChatDetailScreen() {
   const [showTasks, setShowTasks] = useState(false)
   const [selectedEntity, setSelectedEntity] = useState<Entity | null>(null)
   const [botThinkingEntity, setBotThinkingEntity] = useState<Entity | null>(null)
-  const [directParticipantOnline, setDirectParticipantOnline] = useState(false)
+  const [directParticipantPresence, setDirectParticipantPresence] = useState<PresenceStateValue>('unknown')
+  const [transportConnected, setTransportConnected] = useState(wsConnected)
   const botThinkingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const transportLossTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Set active conversation for unread count tracking
   const setActive = useConversationsStore((s) => s.setActive)
@@ -70,6 +74,29 @@ export default function ChatDetailScreen() {
     return () => setActive(null)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [convId])
+
+  useEffect(() => {
+    if (wsConnected) {
+      if (transportLossTimerRef.current) {
+        clearTimeout(transportLossTimerRef.current)
+        transportLossTimerRef.current = null
+      }
+      setTransportConnected(true)
+      return
+    }
+
+    transportLossTimerRef.current = setTimeout(() => {
+      setTransportConnected(false)
+      transportLossTimerRef.current = null
+    }, 2500)
+
+    return () => {
+      if (transportLossTimerRef.current) {
+        clearTimeout(transportLossTimerRef.current)
+        transportLossTimerRef.current = null
+      }
+    }
+  }, [wsConnected])
 
   // Active streams for this conversation
   const convStreams = useMemo<ActiveStream[]>(() => {
@@ -91,7 +118,7 @@ export default function ChatDetailScreen() {
       ))
   }, [conversation?.participants, entity?.id])
   const directBotParticipant = !isGroup ? (botParticipants[0] || null) : null
-  const isDirectOtherOnline = otherParticipant ? directParticipantOnline : false
+  const directParticipantState: PresenceStateValue = otherParticipant ? directParticipantPresence : 'unknown'
 
   const stopBotThinking = useCallback(() => {
     if (botThinkingTimerRef.current) {
@@ -264,21 +291,21 @@ export default function ChatDetailScreen() {
 
   useEffect(() => {
     if (!otherParticipant) {
-      setDirectParticipantOnline(false)
+      setDirectParticipantPresence('unknown')
       return
     }
 
-    setDirectParticipantOnline(onlineSet.has(otherParticipant.id))
+    setDirectParticipantPresence(getPresenceState(otherParticipant.id))
 
     if (!token) return
     let cancelled = false
     api.getEntityStatus(token, otherParticipant.id).then((res) => {
       if (cancelled || !res.ok || !res.data) return
-      setDirectParticipantOnline(!!res.data.online)
+      setDirectParticipantPresence(res.data.online ? 'online' : 'offline')
     }).catch(() => {})
 
     return () => { cancelled = true }
-  }, [otherParticipant, onlineSet, token])
+  }, [getPresenceState, otherParticipant, token])
 
   useEffect(() => {
     if (messages.length > 0) {
@@ -358,14 +385,27 @@ export default function ChatDetailScreen() {
     }
 
     try {
+      logDebugEvent('message.send.attempt', {
+        conversationId: convId,
+        hasAttachments: !!attachments?.length,
+        wsConnected,
+      })
       const res = await api.sendMessage(token, msg)
       if (res.ok && res.data) {
+        logDebugEvent('message.send.success', {
+          conversationId: convId,
+          messageId: res.data.id,
+        })
         replaceOptimisticMessage(tempId, res.data)
         cacheMessages(convId, useMessagesStore.getState().byConv[convId] || [])
         startBotThinking(resolveProcessingEntity(mentions))
         return
       }
-      if (canQueueOffline) {
+      if (canQueueOffline && isRetryableNetworkResponse(res)) {
+        logDebugEvent('message.send.queued', {
+          conversationId: convId,
+          error: typeof res.error === 'string' ? res.error : res.error?.message,
+        })
         setOptimisticState(tempId, 'queued')
         enqueueOutboxMessage({
           id: tempId,
@@ -382,9 +422,17 @@ export default function ChatDetailScreen() {
         cacheMessages(convId, useMessagesStore.getState().byConv[convId] || [])
         return
       }
+      logDebugEvent('message.send.failed', {
+        conversationId: convId,
+        error: typeof res.error === 'string' ? res.error : res.error?.message,
+      })
       setOptimisticState(tempId, 'failed')
-    } catch {
-      if (canQueueOffline) {
+    } catch (error) {
+      if (canQueueOffline && isRetryableNetworkError(error)) {
+        logDebugEvent('message.send.queued', {
+          conversationId: convId,
+          error: error instanceof Error ? error.message : 'network_error',
+        })
         setOptimisticState(tempId, 'queued')
         enqueueOutboxMessage({
           id: tempId,
@@ -400,6 +448,10 @@ export default function ChatDetailScreen() {
         cacheMessages(convId, useMessagesStore.getState().byConv[convId] || [])
         return
       }
+      logDebugEvent('message.send.failed', {
+        conversationId: convId,
+        error: error instanceof Error ? error.message : 'unknown_error',
+      })
       setOptimisticState(tempId, 'failed')
     }
   }, [token, convId, entity, wsConnected, addOptimisticMessage, replaceOptimisticMessage, setOptimisticState, startBotThinking, resolveProcessingEntity])
@@ -489,14 +541,24 @@ export default function ChatDetailScreen() {
       reply_to: queued.reply_to,
     })
     if (res.ok && res.data) {
+      logDebugEvent('message.retry.success', {
+        conversationId: convId,
+        messageId: res.data.id,
+      })
       replaceOptimisticMessage(tempId, res.data)
       deleteOutboxMessage(queued.id)
       cacheMessages(convId, useMessagesStore.getState().byConv[convId] || [])
       return
     }
-    setOptimisticState(tempId, 'failed')
+    const nextState = isRetryableNetworkResponse(res) ? 'queued' : 'failed'
+    logDebugEvent('message.retry.result', {
+      conversationId: convId,
+      state: nextState,
+      error: typeof res.error === 'string' ? res.error : res.error?.message,
+    })
+    setOptimisticState(tempId, nextState)
     updateOutboxMessage(queued.id, {
-      sync_state: 'failed',
+      sync_state: nextState,
       last_error: typeof res.error === 'string' ? res.error : 'sync_failed',
       last_attempt_at: new Date().toISOString(),
     })
@@ -564,6 +626,7 @@ export default function ChatDetailScreen() {
   useEffect(() => {
     return () => {
       if (botThinkingTimerRef.current) clearTimeout(botThinkingTimerRef.current)
+      if (transportLossTimerRef.current) clearTimeout(transportLossTimerRef.current)
     }
   }, [])
 
@@ -580,8 +643,8 @@ export default function ChatDetailScreen() {
           loading={loading}
           refreshing={refreshing}
           hasMore={hasMore}
-          isOnline={isDirectOtherOnline}
-          wsConnected={wsConnected}
+          presenceState={directParticipantState}
+          wsConnected={transportConnected}
           lastSyncAt={lastSyncAt}
           typingInfo={typingInfo}
           progress={progress}
@@ -658,7 +721,7 @@ export default function ChatDetailScreen() {
           {selectedEntity ? (
             <EntityQuickSheet
               entity={selectedEntity}
-              isOnline={onlineSet.has(selectedEntity.id)}
+              isOnline={getPresenceState(selectedEntity.id)}
               canViewDetails={
                 (selectedEntity.entity_type === 'bot' || selectedEntity.entity_type === 'service') &&
                 selectedEntity.owner_id === entity?.id

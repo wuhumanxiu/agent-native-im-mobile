@@ -20,13 +20,16 @@ export function CreateBotDialog({ visible, onClose, onCreated }: Props) {
   const { t } = useTranslation()
   const token = useAuthStore((s) => s.token)!
   const [name, setName] = useState('')
+  const [botId, setBotId] = useState('')
   const [description, setDescription] = useState('')
   const [tags, setTags] = useState('')
   const [creating, setCreating] = useState(false)
   const [error, setError] = useState('')
+  const normalizedBotId = botId.trim()
+  const botIdValid = /^bot_[a-z0-9][a-z0-9_-]{2,63}$/.test(normalizedBotId)
 
   const handleCreate = async () => {
-    if (!name.trim()) return
+    if (!name.trim() || !botIdValid) return
     Keyboard.dismiss()
     setCreating(true)
     setError('')
@@ -36,10 +39,11 @@ export function CreateBotDialog({ visible, onClose, onCreated }: Props) {
       if (tags.trim()) meta.tags = tags.split(',').map((v) => v.trim()).filter(Boolean)
       meta.auto_approve = true
 
-      const res = await api.createEntity(
-        token, name.trim(),
-        Object.keys(meta).length > 0 ? meta : undefined,
-      )
+      const res = await api.createEntityWithOptions(token, name.trim(), {
+        bot_id: normalizedBotId,
+        display_name: name.trim(),
+        metadata: Object.keys(meta).length > 0 ? meta : undefined,
+      })
       if (res.ok && res.data) {
         const entity = res.data.entity
         onCreated({
@@ -49,6 +53,7 @@ export function CreateBotDialog({ visible, onClose, onCreated }: Props) {
         })
         // Reset form
         setName('')
+        setBotId('')
         setDescription('')
         setTags('')
       } else {
@@ -64,6 +69,7 @@ export function CreateBotDialog({ visible, onClose, onCreated }: Props) {
 
   const handleClose = () => {
     setName('')
+    setBotId('')
     setDescription('')
     setTags('')
     setError('')
@@ -108,6 +114,23 @@ export function CreateBotDialog({ visible, onClose, onCreated }: Props) {
               />
             </View>
 
+            <View style={styles.field}>
+              <Text style={styles.label}>{t('bot.botIdLabel')} *</Text>
+              <TextInput
+                value={botId}
+                onChangeText={(value) => setBotId(value.trim().toLowerCase())}
+                placeholder={t('bot.botIdPlaceholder')}
+                placeholderTextColor="#94a3b8"
+                style={styles.input}
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+              <Text style={styles.hintText}>{t('bot.botIdHint')}</Text>
+              {botId && !botIdValid ? (
+                <Text style={styles.errorText}>{t('bot.botIdInvalid')}</Text>
+              ) : null}
+            </View>
+
             {/* Description */}
             <View style={styles.field}>
               <Text style={styles.label}>{t('bot.descriptionLabel')}</Text>
@@ -146,8 +169,8 @@ export function CreateBotDialog({ visible, onClose, onCreated }: Props) {
             </Pressable>
             <Pressable
               onPress={handleCreate}
-              disabled={creating || !name.trim()}
-              style={[styles.createBtn, (creating || !name.trim()) && styles.createBtnDisabled]}
+              disabled={creating || !name.trim() || !botIdValid}
+              style={[styles.createBtn, (creating || !name.trim() || !botIdValid) && styles.createBtnDisabled]}
             >
               {creating
                 ? <ActivityIndicator size="small" color="#ffffff" />
@@ -196,6 +219,11 @@ const styles = StyleSheet.create({
   },
   field: {
     gap: 4,
+  },
+  hintText: {
+    fontSize: 11,
+    color: '#94a3b8',
+    lineHeight: 16,
   },
   label: {
     fontSize: 10,

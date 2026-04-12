@@ -1,14 +1,14 @@
 import React, { useState, useMemo } from 'react'
 import { View, Text, Image, StyleSheet, Pressable } from 'react-native'
 import { Bot } from 'lucide-react-native'
-import type { Entity } from '../../lib/types'
+import type { Entity, PresenceStateValue } from '../../lib/types'
 import { getApiBaseUrl } from '../../lib/gateway'
 
 interface Props {
   entity?: Entity | null
   size?: 'xs' | 'sm' | 'md' | 'lg'
   showStatus?: boolean
-  isOnline?: boolean
+  presenceState?: PresenceStateValue
   onPress?: () => void
 }
 
@@ -79,7 +79,7 @@ function resolveAvatarUrl(url?: string): string | null {
   return url
 }
 
-export function EntityAvatar({ entity, size = 'md', showStatus = false, isOnline = false, onPress }: Props) {
+export function EntityAvatar({ entity, size = 'md', showStatus = false, presenceState = 'unknown', onPress }: Props) {
   const dimension = SIZE_MAP[size]
   const fontSize = FONT_SIZE_MAP[size]
   const dotDim = DOT_SIZE_MAP[size]
@@ -119,7 +119,7 @@ export function EntityAvatar({ entity, size = 'md', showStatus = false, isOnline
           </Text>
         )}
       </View>
-      {showStatus && (
+      {showStatus && presenceState !== 'unknown' && (
         <View
           style={[
             styles.statusDot,
@@ -127,7 +127,7 @@ export function EntityAvatar({ entity, size = 'md', showStatus = false, isOnline
               width: dotDim,
               height: dotDim,
               borderRadius: dotDim / 2,
-              backgroundColor: isOnline ? '#22c55e' : '#94a3b8',
+              backgroundColor: presenceState === 'online' ? '#22c55e' : '#94a3b8',
             },
           ]}
         />

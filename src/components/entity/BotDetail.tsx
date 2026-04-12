@@ -1,17 +1,17 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import {
-  View, Text, ScrollView, Pressable, ActivityIndicator, Alert, StyleSheet, Linking,
+  View, Text, ScrollView, Pressable, ActivityIndicator, Alert, StyleSheet, Linking, TextInput,
 } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import * as Clipboard from 'expo-clipboard'
 import {
   ArrowLeft, Wifi, WifiOff, User, MessageSquare, Users,
   ChevronRight, ChevronDown, ChevronUp, Hash, Calendar, Tag, Key, Copy, Check,
-  Clock, PowerOff, RotateCcw, Activity, RefreshCw,
+  Clock, PowerOff, RotateCcw, Activity, RefreshCw, Link,
 } from 'lucide-react-native'
 import { useAuthStore } from '../../store/auth'
 import * as api from '../../lib/api'
-import type { Entity, Conversation } from '../../lib/types'
+import type { Entity, Conversation, BotAccessLink, PresenceStateValue } from '../../lib/types'
 import { EntityAvatar } from '../ui/EntityAvatar'
 import { useThemeColors } from '../../lib/theme'
 import { getEntityPresenceSemantic, getEntityStatusLabel } from '../../lib/entity-status'
@@ -63,7 +63,24 @@ export function BotDetail({
   const [rotatedTokenBotId, setRotatedTokenBotId] = useState<number | null>(null)
   const [opError, setOpError] = useState<string | null>(null)
   const [opInfo, setOpInfo] = useState<string | null>(null)
-  const [isOnline, setIsOnline] = useState(false)
+  const [policyDraft, setPolicyDraft] = useState<{
+    discoverability: 'private' | 'platform_public' | 'external_public'
+    friend_request_policy: 'nobody' | 'platform_entities'
+    direct_message_policy: 'friends_only' | 'platform_entities'
+    require_access_password: boolean
+    access_password: string
+  }>({
+    discoverability: 'private',
+    friend_request_policy: 'platform_entities',
+    direct_message_policy: 'friends_only',
+    require_access_password: false,
+    access_password: '',
+  })
+  const [savingPolicy, setSavingPolicy] = useState(false)
+  const [accessLinks, setAccessLinks] = useState<BotAccessLink[]>([])
+  const [loadingAccessLinks, setLoadingAccessLinks] = useState(false)
+  const [creatingAccessLink, setCreatingAccessLink] = useState(false)
+  const [presence, setPresence] = useState<PresenceStateValue>('unknown')
   const previousBotIdRef = useRef<number | null>(null)
 
   useEffect(() => {
@@ -84,6 +101,14 @@ export function BotDetail({
     setSelfCheck(null)
     setDiagnostics(null)
     setLastSeen(null)
+    setPolicyDraft({
+      discoverability: (bot.discoverability as 'private' | 'platform_public' | 'external_public') || 'private',
+      friend_request_policy: (bot.friend_request_policy as 'nobody' | 'platform_entities') || 'platform_entities',
+      direct_message_policy: (bot.direct_message_policy as 'friends_only' | 'platform_entities') || (bot.allow_non_friend_chat ? 'platform_entities' : 'friends_only'),
+      require_access_password: !!bot.require_access_password,
+      access_password: '',
+    })
+    setAccessLinks([])
   }, [bot?.id])
 
   useEffect(() => {
@@ -107,7 +132,7 @@ export function BotDetail({
     // Fetch presence
     api.batchPresence(token, [bot.id]).then((res) => {
       if (!cancelled && res.ok && res.data?.presence) {
-        setIsOnline(!!res.data.presence[String(bot.id)])
+        setPresence(res.data.presence[String(bot.id)] ? 'online' : 'offline')
       }
     }).catch(() => {})
 
@@ -115,6 +140,19 @@ export function BotDetail({
   }, [bot, token])
 
   const isOwner = !!(bot && myEntity && bot.owner_id === myEntity.id)
+
+  useEffect(() => {
+    if (!bot || !isOwner) return
+    let cancelled = false
+    setLoadingAccessLinks(true)
+    api.listBotAccessLinks(token, bot.id).then((res) => {
+      if (!cancelled && res.ok && res.data) setAccessLinks(res.data)
+      if (!cancelled) setLoadingAccessLinks(false)
+    }).catch(() => {
+      if (!cancelled) setLoadingAccessLinks(false)
+    })
+    return () => { cancelled = true }
+  }, [bot?.id, isOwner, token])
 
   useEffect(() => {
     if (!bot) return
@@ -176,6 +214,76 @@ export function BotDetail({
     )
   }, [bot, rotatingToken, token, t, onRefresh])
 
+  const handleSavePolicy = useCallback(async () => {
+    if (!bot || !isOwner || savingPolicy) return
+    setSavingPolicy(true)
+    setOpError(null)
+    const res = await api.updateEntity(token, bot.id, {
+      discoverability: policyDraft.discoverability,
+      friend_request_policy: policyDraft.friend_request_policy,
+      direct_message_policy: policyDraft.direct_message_policy,
+      allow_non_friend_chat: policyDraft.direct_message_policy === 'platform_entities',
+      require_access_password: policyDraft.require_access_password,
+      access_password: policyDraft.access_password,
+    })
+    if (res.ok && res.data) {
+      setPolicyDraft((draft) => ({ ...draft, access_password: '' }))
+      setOpInfo(t('friends.policySaved'))
+      onRefresh?.()
+    } else {
+      const detail = typeof res.error === 'string'
+        ? res.error
+        : (res.error?.message || t('common.errorUnexpected'))
+      setOpError(detail)
+    }
+    setSavingPolicy(false)
+  }, [bot, isOwner, onRefresh, policyDraft.access_password, policyDraft.direct_message_policy, policyDraft.discoverability, policyDraft.friend_request_policy, policyDraft.require_access_password, savingPolicy, t, token])
+
+  const handleCreateAccessLink = useCallback(async () => {
+    if (!bot || !isOwner || creatingAccessLink) return
+    setCreatingAccessLink(true)
+    setOpError(null)
+    const res = await api.createBotAccessLink(token, bot.id, {})
+    if (res.ok && res.data) {
+      setAccessLinks((prev) => [res.data!, ...prev])
+      const shareUrl = `${getGatewayUrl()}/public/bots/${encodeURIComponent(bot.bot_id || bot.public_id || '')}?code=${encodeURIComponent(res.data.code)}`
+      await Clipboard.setStringAsync(shareUrl)
+      setCopied('public-bot-link')
+      setOpInfo(t('friends.accessLinkCreated'))
+    } else {
+      const detail = typeof res.error === 'string'
+        ? res.error
+        : (res.error?.message || t('common.errorUnexpected'))
+      setOpError(detail)
+    }
+    setCreatingAccessLink(false)
+  }, [bot, creatingAccessLink, isOwner, t, token])
+
+  const handleDeleteAccessLink = useCallback((linkId: number) => {
+    Alert.alert(
+      t('friends.deleteAccessLink'),
+      t('common.confirm'),
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('common.delete'),
+          style: 'destructive',
+          onPress: async () => {
+            const res = await api.deleteBotAccessLink(token, linkId)
+            if (res.ok) {
+              setAccessLinks((prev) => prev.filter((item) => item.id !== linkId))
+            } else {
+              const detail = typeof res.error === 'string'
+                ? res.error
+                : (res.error?.message || t('common.errorUnexpected'))
+              setOpError(detail)
+            }
+          },
+        },
+      ],
+    )
+  }, [t, token])
+
   if (!bot) {
     return (
       <View style={[styles.emptyContainer, { backgroundColor: colors.bgSecondary }]}>
@@ -186,8 +294,8 @@ export function BotDetail({
   }
 
   const isDisabled = bot.status === 'disabled'
-  const statusSemantic = getEntityPresenceSemantic(bot, isOnline)
-  const statusLabel = getEntityStatusLabel(t, bot, isOnline)
+  const statusSemantic = getEntityPresenceSemantic(bot, presence)
+  const statusLabel = getEntityStatusLabel(t, bot, presence)
   const meta = bot.metadata as Record<string, unknown> | undefined
   const description = (meta?.description as string) || ''
   const tags = (meta?.tags as string[]) || []
@@ -200,6 +308,8 @@ export function BotDetail({
   const accessToken = (rotatedTokenBotId === bot.id ? rotatedToken : null) || (showFullCreds ? createdCredentials?.key : null)
   const gatewayUrl = getGatewayUrl()
   const wsUrl = getWsBaseUrl()
+  const publicBotIdentifier = bot.bot_id || bot.public_id || ''
+  const publicBotUrl = publicBotIdentifier ? `${gatewayUrl}/public/bots/${encodeURIComponent(publicBotIdentifier)}` : ''
   const accessText = accessToken ? buildBotAccessText({
     gatewayUrl,
     wsUrl,
@@ -218,7 +328,7 @@ export function BotDetail({
         <Pressable onPress={onBack} style={styles.backButton}>
           <ArrowLeft size={16} color={colors.textMuted} />
         </Pressable>
-        <EntityAvatar entity={bot} size="md" showStatus isOnline={isOnline} />
+        <EntityAvatar entity={bot} size="md" showStatus presenceState={presence} />
         <View style={styles.headerInfo}>
           <Text style={[styles.headerName, { color: colors.text }]} numberOfLines={1}>{entityDisplayName(bot)}</Text>
           <Text style={[styles.headerHandle, { color: colors.textMuted }]}>@{bot.name}</Text>
@@ -456,6 +566,16 @@ export function BotDetail({
             <InfoRow icon={Hash} label="ID" colors={colors}>
               <Text style={[styles.infoValue, styles.mono, { color: colors.text }]}>{bot.id}</Text>
             </InfoRow>
+            {bot.bot_id ? (
+              <InfoRow icon={Hash} label={t('bot.botIdLabel')} colors={colors}>
+                <Text style={[styles.infoValue, styles.mono, { color: colors.text }]}>{bot.bot_id}</Text>
+              </InfoRow>
+            ) : null}
+            {bot.public_id ? (
+              <InfoRow icon={Hash} label="Public UUID" colors={colors}>
+                <Text style={[styles.infoValue, styles.mono, { color: colors.text }]} numberOfLines={1}>{bot.public_id}</Text>
+              </InfoRow>
+            ) : null}
             <InfoRow icon={Calendar} label={t('bot.createdAt')} colors={colors}>
               <Text style={[styles.infoValue, { color: colors.text }]}>
                 {bot.created_at ? new Date(bot.created_at).toLocaleDateString() : '--'}
@@ -495,6 +615,173 @@ export function BotDetail({
               {t('bot.capabilityBoundary')}
             </Text>
           </View>
+
+          {isOwner && (
+            <View style={[styles.policyCard, { backgroundColor: colors.bgTertiary, borderColor: colors.border }]}>
+              <View style={styles.capabilityHeader}>
+                <Link size={16} color={colors.accent} />
+                <Text style={[styles.capabilityTitle, { color: colors.text }]}>{t('friends.botAccessPolicy')}</Text>
+              </View>
+
+              <Text style={[styles.policyLabel, { color: colors.textMuted }]}>{t('friends.discoverability')}</Text>
+              <Text style={[styles.toggleHint, { color: colors.textMuted, marginBottom: 10 }]}>{t('friends.platformVisibilityHint')}</Text>
+              <View style={styles.discoveryRow}>
+                {[
+                  ['private', t('friends.discoveryPrivate')],
+                  ['platform_public', t('friends.discoveryPlatform')],
+                  ['external_public', t('friends.discoveryExternal')],
+                ].map(([value, label]) => {
+                  const active = policyDraft.discoverability === value
+                  return (
+                    <Pressable
+                      key={value}
+                      onPress={() => !isDisabled && setPolicyDraft((draft) => ({ ...draft, discoverability: value as 'private' | 'platform_public' | 'external_public' }))}
+                      style={[
+                        styles.discoveryBtn,
+                        {
+                          backgroundColor: active ? colors.accentDim : colors.bg,
+                          borderColor: active ? `${colors.accent}55` : colors.border,
+                        },
+                        isDisabled && styles.actionBtnDisabled,
+                      ]}
+                    >
+                      <Text style={[styles.discoveryBtnText, { color: active ? colors.accent : colors.textSecondary }]}>{label}</Text>
+                    </Pressable>
+                  )
+                })}
+              </View>
+
+              <Text style={[styles.policyLabel, { color: colors.textMuted, marginTop: 6 }]}>{t('friends.platformInteraction')}</Text>
+              <Pressable
+                onPress={() => !isDisabled && setPolicyDraft((draft) => ({ ...draft, friend_request_policy: draft.friend_request_policy === 'platform_entities' ? 'nobody' : 'platform_entities' }))}
+                style={[styles.toggleRow, { backgroundColor: colors.bg, borderColor: colors.border }, isDisabled && styles.actionBtnDisabled]}
+              >
+                <View style={styles.toggleCopy}>
+                  <Text style={[styles.toggleTitle, { color: colors.text }]}>{t('friends.friendRequestPolicy')}</Text>
+                  <Text style={[styles.toggleHint, { color: colors.textMuted }]}>{t('friends.friendRequestPolicyHint')}</Text>
+                </View>
+                <Text style={[styles.toggleValue, { color: policyDraft.friend_request_policy === 'platform_entities' ? colors.success : colors.textMuted }]}>
+                  {policyDraft.friend_request_policy === 'platform_entities' ? t('friends.friendPolicyPlatformShort') : t('friends.friendPolicyNobodyShort')}
+                </Text>
+              </Pressable>
+
+              <Pressable
+                onPress={() => !isDisabled && setPolicyDraft((draft) => ({ ...draft, direct_message_policy: draft.direct_message_policy === 'platform_entities' ? 'friends_only' : 'platform_entities' }))}
+                style={[styles.toggleRow, { backgroundColor: colors.bg, borderColor: colors.border }, isDisabled && styles.actionBtnDisabled]}
+              >
+                <View style={styles.toggleCopy}>
+                  <Text style={[styles.toggleTitle, { color: colors.text }]}>{t('friends.directMessagePolicy')}</Text>
+                  <Text style={[styles.toggleHint, { color: colors.textMuted }]}>{t('friends.directMessagePolicyHint')}</Text>
+                </View>
+                <Text style={[styles.toggleValue, { color: policyDraft.direct_message_policy === 'platform_entities' ? colors.success : colors.textMuted }]}>
+                  {policyDraft.direct_message_policy === 'platform_entities' ? t('friends.directMessagePolicyPlatformShort') : t('friends.directMessagePolicyFriendsOnlyShort')}
+                </Text>
+              </Pressable>
+
+              <Text style={[styles.policyLabel, { color: colors.textMuted, marginTop: 6 }]}>{t('friends.externalAccess')}</Text>
+              <Pressable
+                onPress={() => {
+                  if (isDisabled || policyDraft.discoverability !== 'external_public') return
+                  setPolicyDraft((draft) => ({ ...draft, require_access_password: !draft.require_access_password }))
+                }}
+                style={[
+                  styles.toggleRow,
+                  { backgroundColor: colors.bg, borderColor: colors.border },
+                  (isDisabled || policyDraft.discoverability !== 'external_public') && styles.actionBtnDisabled,
+                ]}
+              >
+                <View style={styles.toggleCopy}>
+                  <Text style={[styles.toggleTitle, { color: colors.text }]}>{t('friends.requireAccessPassword')}</Text>
+                  <Text style={[styles.toggleHint, { color: colors.textMuted }]}>{t('friends.requireAccessPasswordHint')}</Text>
+                </View>
+                <Text style={[styles.toggleValue, { color: policyDraft.require_access_password ? colors.warning : colors.textMuted }]}>
+                  {policyDraft.require_access_password ? 'ON' : 'OFF'}
+                </Text>
+              </Pressable>
+              {policyDraft.discoverability !== 'external_public' ? (
+                <Text style={[styles.toggleHint, { color: colors.textMuted }]}>{t('friends.externalAccessDisabledHint')}</Text>
+              ) : null}
+
+              {policyDraft.discoverability === 'external_public' && policyDraft.require_access_password ? (
+                <View style={[styles.passwordBox, { backgroundColor: colors.bg, borderColor: colors.border }]}>
+                  <Text style={[styles.policyLabel, { color: colors.textMuted }]}>{t('friends.accessPassword')}</Text>
+                  <TextInput
+                    value={policyDraft.access_password}
+                    onChangeText={(value) => setPolicyDraft((draft) => ({ ...draft, access_password: value }))}
+                    placeholder={t('friends.accessPasswordPlaceholder')}
+                    placeholderTextColor={colors.textMuted}
+                    secureTextEntry
+                    style={[styles.passwordInput, { color: colors.text, borderColor: colors.border, backgroundColor: colors.bgHover }]}
+                  />
+                </View>
+              ) : null}
+
+              {policyDraft.discoverability === 'external_public' && publicBotUrl ? (
+                <View style={[styles.linkCard, { backgroundColor: colors.bg, borderColor: colors.border }]}>
+                  <Text style={[styles.toggleTitle, { color: colors.text }]}>{t('friends.publicBotUrl')}</Text>
+                  <Text style={[styles.linkValue, { color: colors.textMuted }]} numberOfLines={1}>{publicBotUrl}</Text>
+                  <Pressable
+                    onPress={() => handleCopy(publicBotUrl, 'public-bot-url')}
+                    style={[styles.secondaryBtn, { borderColor: colors.border, backgroundColor: colors.bgHover, marginTop: 8 }]}
+                  >
+                    {copied === 'public-bot-url' ? <Check size={12} color={colors.success} /> : <Copy size={12} color={colors.textMuted} />}
+                    <Text style={[styles.secondaryBtnText, { color: colors.textSecondary }]}>
+                      {copied === 'public-bot-url' ? t('common.copied') : t('bot.copyBotUrl')}
+                    </Text>
+                  </Pressable>
+                </View>
+              ) : null}
+
+              {!isDisabled ? (
+                <Pressable onPress={handleSavePolicy} disabled={savingPolicy} style={[styles.primaryBtn, { backgroundColor: colors.accent }]}>
+                  {savingPolicy ? <ActivityIndicator size="small" color="#ffffff" /> : <RefreshCw size={14} color="#ffffff" />}
+                  <Text style={styles.primaryBtnText}>{t('common.save')}</Text>
+                </Pressable>
+              ) : null}
+
+              {!isDisabled && policyDraft.discoverability === 'external_public' ? (
+                <View style={[styles.linkCard, { backgroundColor: colors.bg, borderColor: colors.border }]}>
+                  <View style={styles.linkHeader}>
+                    <View style={styles.toggleCopy}>
+                      <Text style={[styles.toggleTitle, { color: colors.text }]}>{t('friends.publicAccessLinks')}</Text>
+                      <Text style={[styles.toggleHint, { color: colors.textMuted }]}>{t('friends.publicAccessLinksHint')}</Text>
+                    </View>
+                    <Pressable onPress={handleCreateAccessLink} disabled={creatingAccessLink} style={[styles.secondaryBtn, { borderColor: `${colors.accent}33`, backgroundColor: colors.accentDim }]}>
+                      {creatingAccessLink ? <ActivityIndicator size="small" color={colors.accent} /> : <Link size={12} color={colors.accent} />}
+                      <Text style={[styles.secondaryBtnText, { color: colors.accent }]}>{t('friends.createAccessLink')}</Text>
+                    </Pressable>
+                  </View>
+                  {loadingAccessLinks ? (
+                    <ActivityIndicator size="small" color={colors.textMuted} />
+                  ) : accessLinks.length === 0 ? (
+                    <Text style={[styles.toggleHint, { color: colors.textMuted }]}>{t('friends.noAccessLinks')}</Text>
+                  ) : (
+                    <View style={styles.accessLinkList}>
+                      {accessLinks.map((link) => {
+                        const shareUrl = `${publicBotUrl}?code=${encodeURIComponent(link.code)}`
+                        return (
+                          <View key={link.id} style={[styles.accessLinkItem, { backgroundColor: colors.bgHover, borderColor: colors.border }]}>
+                            <View style={styles.accessLinkCopy}>
+                              <Text style={[styles.toggleTitle, { color: colors.text }]} numberOfLines={1}>{link.label || link.code}</Text>
+                              <Text style={[styles.linkValue, { color: colors.textMuted }]} numberOfLines={1}>{shareUrl}</Text>
+                            </View>
+                            <View style={styles.accessLinkActions}>
+                              <Pressable onPress={() => handleCopy(shareUrl, `access-link-${link.id}`)} style={styles.iconBtn}>
+                                {copied === `access-link-${link.id}` ? <Check size={12} color={colors.success} /> : <Copy size={12} color={colors.textMuted} />}
+                              </Pressable>
+                              <Pressable onPress={() => handleDeleteAccessLink(link.id)} style={styles.iconBtn}>
+                                <PowerOff size={12} color={colors.warning} />
+                              </Pressable>
+                            </View>
+                          </View>
+                        )
+                      })}
+                    </View>
+                  )}
+                </View>
+              ) : null}
+            </View>
+          )}
 
           {tags.length > 0 && (
             <View style={styles.tagsRow}>
@@ -944,6 +1231,135 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 17,
     marginTop: 10,
+  },
+  policyCard: {
+    marginTop: 16,
+    borderWidth: 1,
+    borderRadius: 18,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    gap: 12,
+  },
+  policyLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  discoveryRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  discoveryBtn: {
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  discoveryBtnText: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  toggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  toggleCopy: {
+    flex: 1,
+    gap: 4,
+  },
+  toggleTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  toggleHint: {
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  toggleValue: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  passwordBox: {
+    gap: 8,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  passwordInput: {
+    height: 40,
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    fontSize: 14,
+  },
+  linkCard: {
+    gap: 8,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  linkHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  linkValue: {
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  primaryBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  primaryBtnText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#ffffff',
+  },
+  accessLinkList: {
+    gap: 8,
+  },
+  accessLinkItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  accessLinkCopy: {
+    flex: 1,
+    minWidth: 0,
+    gap: 2,
+  },
+  accessLinkActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  iconBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   helpText: {
     fontSize: 12,

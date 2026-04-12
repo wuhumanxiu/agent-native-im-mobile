@@ -1,19 +1,30 @@
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react'
-import { View, Text, FlatList, Pressable, ActivityIndicator, StyleSheet, Platform, KeyboardAvoidingView, RefreshControl } from 'react-native'
+import { View, Text, FlatList, Pressable, ActivityIndicator, StyleSheet, Platform, KeyboardAvoidingView, Alert, RefreshControl, useWindowDimensions, PixelRatio, type LayoutChangeEvent } from 'react-native'
 import { useTranslation } from 'react-i18next'
-import { ArrowLeft, Users, Settings, Search, ListTodo } from 'lucide-react-native'
+import * as Clipboard from 'expo-clipboard'
+import { ArrowLeft, Users, Settings, Search, ListTodo, Bug, Check } from 'lucide-react-native'
 import { MessageBubble } from './MessageBubble'
 import { StreamingBubble } from './StreamingBubble'
 import { ThinkingBubble, ProcessingDots } from './ThinkingBubble'
 import { MessageComposer, type UploadedAttachment } from './MessageComposer'
 import { ConversationContextCard } from './ConversationContextCard'
 import { SkeletonLoader } from '../ui/SkeletonLoader'
+import { ActionSheet } from '../ui/ActionSheet'
 import { EntityAvatar } from '../ui/EntityAvatar'
 import { ConnectionStatusBar } from '../ui/ConnectionStatusBar'
+import {
+  buildDebugReport,
+  buildLayoutDebugReport,
+  buildNetworkDebugReport,
+  clearDebugEvents,
+  logDebugEvent,
+  type DebugLayoutBox,
+} from '../../lib/debug-telemetry'
 import { useThemeColors } from '../../lib/theme'
 import { storage } from '../../lib/storage'
-import type { Conversation, Message, ActiveStream, Entity, Participant } from '../../lib/types'
+import type { Conversation, Message, ActiveStream, Entity, Participant, PresenceStateValue } from '../../lib/types'
 import type { ProgressEntry } from '../../store/messages'
+import { useSettingsStore } from '../../store/settings'
 
 // ─── Utility ─────────────────────────────────────────────────────
 
@@ -37,7 +48,7 @@ interface Props {
   loading?: boolean
   refreshing?: boolean
   hasMore?: boolean
-  isOnline?: boolean
+  presenceState?: PresenceStateValue
   wsConnected?: boolean
   lastSyncAt?: string | null
   typingInfo?: { text: string; isProcessing: boolean } | null
@@ -75,7 +86,7 @@ export function ChatThread({
   loading = false,
   refreshing = false,
   hasMore = true,
-  isOnline = false,
+  presenceState = 'unknown',
   wsConnected = true,
   lastSyncAt,
   typingInfo,
@@ -103,8 +114,15 @@ export function ChatThread({
 }: Props) {
   const { t } = useTranslation()
   const colors = useThemeColors()
+  const window = useWindowDimensions()
+  const devMode = useSettingsStore((s) => s.devMode)
   const flatListRef = useRef<FlatList>(null)
   const [replyTo, setReplyTo] = useState<Message | null>(null)
+  const [debugCopied, setDebugCopied] = useState(false)
+  const [debugCopyError, setDebugCopyError] = useState(false)
+  const [debugSheetVisible, setDebugSheetVisible] = useState(false)
+  const [debugStatusKey, setDebugStatusKey] = useState<string | null>(null)
+  const [layoutRegions, setLayoutRegions] = useState<Record<string, DebugLayoutBox>>({})
 
   const isGroup = conversation?.conv_type === 'group' || conversation?.conv_type === 'channel'
   const otherParticipant = (conversation?.participants || []).find((p) => p.entity_id !== myEntityId)?.entity
@@ -344,14 +362,138 @@ export function ChatThread({
 
   const keyExtractor = useCallback((item: Message) => String(item.id) + (item.temp_id || ''), [])
 
+  const handleOpenDebugSheet = useCallback(() => {
+    setDebugSheetVisible(true)
+    logDebugEvent('debug.sheet.open', {
+      conversationId: conversation.id,
+      messageCount: messages.length,
+    })
+  }, [conversation.id, messages.length])
+
+  const debugContext = useMemo(() => ({
+    conversationId: conversation.id,
+    conversationType: conversation.conv_type,
+    participantCount: conversation.participants?.length || 0,
+    messageCount: messages.length,
+    outboxCount,
+    outboxFailedCount,
+    wsConnected,
+    peerPresence: presenceState,
+    hasStreams: convStreams.length > 0,
+  }), [conversation, convStreams.length, messages.length, outboxCount, outboxFailedCount, presenceState, wsConnected])
+
+  const debugLayout = useMemo(() => ({
+    screen: {
+      width: Math.round(window.width),
+      height: Math.round(window.height),
+      scale: PixelRatio.get(),
+      fontScale: PixelRatio.getFontScale(),
+    },
+    regions: layoutRegions,
+  }), [layoutRegions, window.height, window.width])
+
+  const recordLayout = useCallback((region: string) => (event: LayoutChangeEvent) => {
+    const { x, y, width, height } = event.nativeEvent.layout
+    const next = {
+      x: Math.round(x),
+      y: Math.round(y),
+      width: Math.round(width),
+      height: Math.round(height),
+    }
+    setLayoutRegions((prev) => {
+      const current = prev[region]
+      if (
+        current
+        && current.x === next.x
+        && current.y === next.y
+        && current.width === next.width
+        && current.height === next.height
+      ) {
+        return prev
+      }
+      return { ...prev, [region]: next }
+    })
+  }, [])
+
+  const copyDebugReport = useCallback(async (
+    kind: 'full' | 'network' | 'layout',
+    report: string,
+    successKey: string,
+  ) => {
+    setDebugCopied(true)
+    setDebugCopyError(false)
+    setDebugStatusKey(successKey)
+    logDebugEvent('debug.report.copy.start', {
+      conversationId: conversation.id,
+      messageCount: messages.length,
+      kind,
+    })
+
+    try {
+      await Clipboard.setStringAsync(report)
+      logDebugEvent('debug.report.copy.success', {
+        conversationId: conversation.id,
+        reportLength: report.length,
+        kind,
+      })
+      setDebugSheetVisible(false)
+      Alert.alert(t('settings.devMode'), t(successKey))
+      setTimeout(() => setDebugCopied(false), 2000)
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      logDebugEvent('debug.report.copy.failed', {
+        conversationId: conversation.id,
+        kind,
+        error: errorMessage,
+      })
+      setDebugCopied(false)
+      setDebugCopyError(true)
+      setDebugStatusKey('settings.debugCopyFailed')
+      Alert.alert(t('settings.devMode'), `${t('settings.debugCopyFailed')}\n${errorMessage}`)
+      setTimeout(() => setDebugCopyError(false), 3000)
+    }
+  }, [conversation.id, messages.length, t])
+
+  const handleCopyFullDebug = useCallback(() => copyDebugReport(
+    'full',
+    buildDebugReport(debugContext, debugLayout),
+    'settings.debugCopied',
+  ), [copyDebugReport, debugContext, debugLayout])
+
+  const handleCopyNetworkDebug = useCallback(() => copyDebugReport(
+    'network',
+    buildNetworkDebugReport(debugContext),
+    'settings.debugNetworkCopied',
+  ), [copyDebugReport, debugContext])
+
+  const handleCopyLayoutDebug = useCallback(() => copyDebugReport(
+    'layout',
+    buildLayoutDebugReport(debugLayout),
+    'settings.debugLayoutCopied',
+  ), [copyDebugReport, debugLayout])
+
+  const handleClearDebug = useCallback(() => {
+    clearDebugEvents()
+    logDebugEvent('debug.events.cleared', {
+      conversationId: conversation.id,
+    })
+    setDebugSheetVisible(false)
+    setDebugStatusKey('settings.debugCleared')
+    Alert.alert(t('settings.devMode'), t('settings.debugCleared'))
+  }, [conversation.id, t])
+
   return (
     <KeyboardAvoidingView
       style={[styles.container, { backgroundColor: colors.bg }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+      onLayout={recordLayout('thread')}
     >
       {/* Header */}
-      <View style={[styles.header, { backgroundColor: colors.bgSecondary, borderBottomColor: colors.border }]}>
+      <View
+        style={[styles.header, { backgroundColor: colors.bgSecondary, borderBottomColor: colors.border }]}
+        onLayout={recordLayout('header')}
+      >
         {onBack && (
           <Pressable
             style={({ pressed }) => [
@@ -374,7 +516,7 @@ export function ChatThread({
               <Users size={16} color={colors.accent} />
             </View>
           ) : (
-            <EntityAvatar entity={otherParticipant} size="sm" showStatus isOnline={isOnline} />
+            <EntityAvatar entity={otherParticipant} size="sm" showStatus presenceState={presenceState} />
           )}
 
           <View style={styles.titleContent}>
@@ -384,15 +526,49 @@ export function ChatThread({
             <Text style={[styles.subtitleText, { color: colors.textMuted }]}>
               {isGroup
                 ? t('conversation.participants', { count: conversation.participants?.length || 0 })
-                : isOnline
+                : presenceState === 'online'
                   ? t('common.online')
-                  : t('common.offline')
+                  : presenceState === 'offline'
+                    ? t('common.offline')
+                    : t('common.unknown')
               }
             </Text>
           </View>
         </Pressable>
 
-        <View style={styles.headerActions}>
+        <View style={styles.headerActions} onLayout={recordLayout('headerActions')}>
+          {devMode && (debugCopied || debugCopyError) ? (
+            <Text
+              style={[
+                styles.headerStatusText,
+                { color: debugCopyError ? colors.danger : colors.success },
+              ]}
+              numberOfLines={1}
+            >
+              {debugCopyError ? t('settings.debugCopyFailed') : t(debugStatusKey || 'settings.debugCopied')}
+            </Text>
+          ) : null}
+          {devMode ? (
+            <Pressable
+              style={({ pressed }) => [
+                styles.headerButton,
+                { backgroundColor: colors.bg, borderColor: colors.border },
+                pressed && { backgroundColor: colors.bgHover },
+              ]}
+              onPress={handleOpenDebugSheet}
+              hitSlop={12}
+              accessibilityRole="button"
+              accessibilityLabel={t('message.bugReport')}
+            >
+              {debugCopyError ? (
+                <Bug size={20} color={colors.danger} />
+              ) : debugCopied ? (
+                <Check size={20} color={colors.success} />
+              ) : (
+                <Bug size={20} color={colors.warning} />
+              )}
+            </Pressable>
+          ) : null}
           {onToggleTasks && !isArchived ? (
             <Pressable
               style={({ pressed }) => [
@@ -428,6 +604,32 @@ export function ChatThread({
         lastSyncAt={lastSyncAt}
       />
 
+      <ActionSheet
+        visible={debugSheetVisible}
+        onClose={() => setDebugSheetVisible(false)}
+        title={t('settings.devMode')}
+        options={[
+          {
+            label: t('settings.debugCopyFull'),
+            icon: <Bug size={18} color={colors.warning} />,
+            onPress: () => void handleCopyFullDebug(),
+          },
+          {
+            label: t('settings.debugCopyNetwork'),
+            onPress: () => void handleCopyNetworkDebug(),
+          },
+          {
+            label: t('settings.debugCopyLayout'),
+            onPress: () => void handleCopyLayoutDebug(),
+          },
+          {
+            label: t('settings.debugClear'),
+            icon: <ListTodo size={18} color={colors.textMuted} />,
+            onPress: handleClearDebug,
+          },
+        ]}
+      />
+
       <ConversationContextCard
         conversationId={conversation.id}
         prompt={conversation.prompt}
@@ -446,12 +648,14 @@ export function ChatThread({
           renderItem={renderMessage}
           keyExtractor={keyExtractor}
           inverted
+          onLayout={recordLayout('messageList')}
           refreshControl={
             onRefresh ? (
               <RefreshControl
                 refreshing={refreshing}
                 onRefresh={() => void onRefresh()}
                 tintColor={colors.accent}
+                progressViewOffset={12}
               />
             ) : undefined
           }
@@ -471,21 +675,23 @@ export function ChatThread({
       )}
 
       {/* Composer */}
-      <MessageComposer
-        conversationId={conversation.id}
-        onSend={handleSend}
-        onAudioSend={onAudioSend}
-        onFileUpload={onFileUpload}
-        attachmentsEnabled={wsConnected}
-        onTyping={onTyping}
-        placeholder={t('conversation.typeMessage')}
-        participants={conversation.participants}
-        isObserver={isObserver || isArchived}
-        enableMentions={conversation.conv_type !== 'direct'}
-        replyTo={replyTo}
-        onCancelReply={() => setReplyTo(null)}
-        targetBot={composerTargetBot}
-      />
+      <View onLayout={recordLayout('composer')}>
+        <MessageComposer
+          conversationId={conversation.id}
+          onSend={handleSend}
+          onAudioSend={onAudioSend}
+          onFileUpload={onFileUpload}
+          attachmentsEnabled={wsConnected}
+          onTyping={onTyping}
+          placeholder={t('conversation.typeMessage')}
+          participants={conversation.participants}
+          isObserver={isObserver || isArchived}
+          enableMentions={conversation.conv_type !== 'direct'}
+          replyTo={replyTo}
+          onCancelReply={() => setReplyTo(null)}
+          targetBot={composerTargetBot}
+        />
+      </View>
     </KeyboardAvoidingView>
   )
 }
@@ -520,6 +726,12 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
+  },
+  headerStatusText: {
+    fontSize: 12,
+    fontWeight: '600',
+    maxWidth: 120,
+    textAlign: 'right',
   },
   headerButtonPressed: {
     backgroundColor: '#f1f5f9',

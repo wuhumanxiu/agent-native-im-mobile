@@ -1,7 +1,8 @@
 import type {
   APIResponse, LoginResponse, Entity, Conversation,
   MessagesResponse, SearchResponse, GlobalSearchResponse, Message,
-  Task, ConversationMemory, ChangeRequest, EntitySelfCheck, EntityDiagnostics,
+  Task, ConversationMemory, ChangeRequest, EntitySelfCheck, EntityDiagnostics, BotAccessLink,
+  FriendRequest, NotificationRecord, InboxSnapshot,
 } from './types'
 import { Platform } from 'react-native'
 import * as FileSystem from 'expo-file-system/legacy'
@@ -143,7 +144,7 @@ export const getConversation = (token: string, id: number) =>
 export const getConversationByPublicId = (token: string, publicId: string) =>
   request<Conversation>('GET', `/api/v1/conversations/public/${encodeURIComponent(publicId)}`, token)
 
-export const createConversation = (token: string, data: { title: string; conv_type?: string; participant_ids?: number[] }) =>
+export const createConversation = (token: string, data: { title: string; conv_type?: string; participant_ids?: number[]; source_entity_id?: number }) =>
   request<Conversation>('POST', '/api/v1/conversations', token, data)
 
 export const updateConversation = (token: string, id: number, data: { title?: string; description?: string; prompt?: string }) =>
@@ -197,10 +198,29 @@ export const searchGlobal = (token: string, query: string, limit = 20, offset = 
 export const listEntities = (token: string) =>
   request<Entity[]>('GET', '/api/v1/entities', token)
 
+export const searchDiscoverableEntities = (token: string, query: string, limit = 20) =>
+  request<Entity[]>('GET', `/api/v1/entities/discover?q=${encodeURIComponent(query)}&limit=${limit}`, token)
+
 export const createEntity = (token: string, name: string, metadata?: Record<string, unknown>) =>
   request<{ entity: Entity; api_key: string; bootstrap_key?: string; markdown_doc: string }>('POST', '/api/v1/entities', token, {
     name,
     ...(metadata && Object.keys(metadata).length > 0 ? { metadata } : {}),
+  })
+
+export const createEntityWithOptions = (
+  token: string,
+  name: string,
+  options?: {
+    bot_id?: string
+    display_name?: string
+    metadata?: Record<string, unknown>
+  },
+) =>
+  request<{ entity: Entity; api_key: string; bootstrap_key?: string; markdown_doc: string }>('POST', '/api/v1/entities', token, {
+    name,
+    ...(options?.bot_id ? { bot_id: options.bot_id } : {}),
+    ...(options?.display_name ? { display_name: options.display_name } : {}),
+    ...(options?.metadata && Object.keys(options.metadata).length > 0 ? { metadata: options.metadata } : {}),
   })
 
 export const deleteEntity = (token: string, id: number) =>
@@ -212,8 +232,64 @@ export const approveConnection = (token: string, id: number) =>
 export const reactivateEntity = (token: string, id: number) =>
   request<Entity>('POST', `/api/v1/entities/${id}/reactivate`, token)
 
-export const updateEntity = (token: string, id: number, data: { display_name?: string; avatar_url?: string; metadata?: Record<string, unknown> }) =>
+export const updateEntity = (token: string, id: number, data: {
+  display_name?: string
+  avatar_url?: string
+  metadata?: Record<string, unknown>
+  discoverability?: 'private' | 'platform_public' | 'external_public'
+  friend_request_policy?: 'nobody' | 'platform_entities'
+  direct_message_policy?: 'friends_only' | 'platform_entities'
+  allow_non_friend_chat?: boolean
+  require_access_password?: boolean
+  access_password?: string
+}) =>
   request<Entity>('PUT', `/api/v1/entities/${id}`, token, data)
+
+// Friends
+export const listFriends = (token: string, entityId?: number) =>
+  request<Entity[]>('GET', `/api/v1/friends${entityId ? `?entity_id=${entityId}` : ''}`, token)
+
+export const listFriendRequests = (token: string, options?: { entityId?: number; direction?: 'incoming' | 'outgoing'; status?: string }) => {
+  const params = new URLSearchParams()
+  if (options?.entityId) params.set('entity_id', String(options.entityId))
+  if (options?.direction) params.set('direction', options.direction)
+  if (options?.status) params.set('status', options.status)
+  const qs = params.toString()
+  return request<FriendRequest[]>('GET', `/api/v1/friends/requests${qs ? `?${qs}` : ''}`, token)
+}
+
+export const createFriendRequest = (token: string, data: { target_entity_id: number; source_entity_id?: number; message?: string }) =>
+  request<FriendRequest>('POST', '/api/v1/friends/requests', token, data)
+
+export const acceptFriendRequest = (token: string, id: number, entityId?: number) =>
+  request('POST', `/api/v1/friends/requests/${id}/accept${entityId ? `?entity_id=${entityId}` : ''}`, token)
+
+export const rejectFriendRequest = (token: string, id: number, entityId?: number) =>
+  request('POST', `/api/v1/friends/requests/${id}/reject${entityId ? `?entity_id=${entityId}` : ''}`, token)
+
+export const cancelFriendRequest = (token: string, id: number, entityId?: number) =>
+  request('POST', `/api/v1/friends/requests/${id}/cancel${entityId ? `?entity_id=${entityId}` : ''}`, token)
+
+export const deleteFriend = (token: string, targetEntityId: number, entityId?: number) =>
+  request('DELETE', `/api/v1/friends/${targetEntityId}${entityId ? `?entity_id=${entityId}` : ''}`, token)
+
+export const listNotifications = (token: string, options?: { entityId?: number; status?: 'unread' | 'read'; limit?: number }) => {
+  const params = new URLSearchParams()
+  if (options?.entityId) params.set('entity_id', String(options.entityId))
+  if (options?.status) params.set('status', options.status)
+  if (options?.limit) params.set('limit', String(options.limit))
+  const qs = params.toString()
+  return request<NotificationRecord[]>('GET', `/api/v1/notifications${qs ? `?${qs}` : ''}`, token)
+}
+
+export const getInboxSnapshot = (token: string) =>
+  request<InboxSnapshot>('GET', '/api/v1/inbox/snapshot', token)
+
+export const markNotificationRead = (token: string, id: number, entityId?: number) =>
+  request<NotificationRecord>('POST', `/api/v1/notifications/${id}/read${entityId ? `?entity_id=${entityId}` : ''}`, token)
+
+export const markAllNotificationsRead = (token: string, entityId?: number) =>
+  request('POST', `/api/v1/notifications/read-all${entityId ? `?entity_id=${entityId}` : ''}`, token)
 
 export const getEntityStatus = (token: string, id: number) =>
   request<{ online: boolean; last_seen?: string }>('GET', `/api/v1/entities/${id}/status`, token)
@@ -238,6 +314,15 @@ export const regenerateEntityToken = (token: string, id: number) =>
 
 export const batchPresence = (token: string, entityIds: number[]) =>
   request<{ presence: Record<string, boolean> }>('POST', '/api/v1/presence/batch', token, { entity_ids: entityIds })
+
+export const listBotAccessLinks = (token: string, botId: number) =>
+  request<BotAccessLink[]>('GET', `/api/v1/bots/${botId}/access-links`, token)
+
+export const createBotAccessLink = (token: string, botId: number, data?: { label?: string; expires_at?: string; max_uses?: number }) =>
+  request<BotAccessLink>('POST', `/api/v1/bots/${botId}/access-links`, token, data ?? {})
+
+export const deleteBotAccessLink = (token: string, id: number) =>
+  request('DELETE', `/api/v1/bot-access-links/${id}`, token)
 
 export const updateProfile = (token: string, data: { display_name?: string; avatar_url?: string; email?: string }) =>
   request<Entity>('PUT', '/api/v1/me', token, data)
@@ -304,11 +389,11 @@ export async function uploadFile(token: string, uri: string, filename: string, m
 export const getVapidKey = () =>
   requestQuiet<{ public_key: string }>('GET', '/api/v1/push/vapid-key')
 
-export const registerPush = (token: string, data: { endpoint: string; key_p256dh: string; key_auth: string }) =>
+export const registerPush = (token: string, data: { provider?: string; platform?: string; device_id?: string; endpoint: string; key_p256dh?: string; key_auth?: string }) =>
   request('POST', '/api/v1/push/subscribe', token, data)
 
-export const unregisterPush = (token: string, endpoint: string) =>
-  request('POST', '/api/v1/push/unsubscribe', token, { endpoint })
+export const unregisterPush = (token: string, endpoint: string, provider?: string) =>
+  request('POST', '/api/v1/push/unsubscribe', token, provider ? { endpoint, provider } : { endpoint })
 
 // Conversation lifecycle
 export const leaveConversation = (token: string, convId: number) =>

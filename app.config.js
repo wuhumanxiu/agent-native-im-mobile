@@ -1,11 +1,23 @@
 const pkg = require('./package.json')
+const { execSync } = require('node:child_process')
 
 const appVersion = pkg.version
 const runtimeVersion = 'native-2026-03-27.1'
+function resolveGitCommit() {
+  const fromEnv =
+    process.env.EAS_BUILD_GIT_COMMIT_HASH ||
+    process.env.EAS_UPDATE_GIT_COMMIT_HASH ||
+    process.env.GIT_COMMIT_HASH
+  if (fromEnv && fromEnv.trim()) return fromEnv.trim()
+  try {
+    return execSync('git rev-parse HEAD', { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim()
+  } catch {
+    return 'local'
+  }
+}
+
 const buildCommit =
-  process.env.EAS_BUILD_GIT_COMMIT_HASH ||
-  process.env.GIT_COMMIT_HASH ||
-  'local'
+  resolveGitCommit()
 const buildTime = process.env.BUILD_TIME || new Date().toISOString()
 
 module.exports = {
@@ -48,7 +60,7 @@ module.exports = {
       bundler: 'metro',
       favicon: './assets/favicon.png',
     },
-    plugins: ['expo-router'],
+    plugins: ['expo-router', 'expo-notifications'],
     extra: {
       apiBaseUrl: 'https://agent-native.im',
       eas: {
@@ -56,6 +68,7 @@ module.exports = {
       },
       router: {},
       release: {
+        version: appVersion,
         appVersion,
         runtimeVersion,
         commit: buildCommit,

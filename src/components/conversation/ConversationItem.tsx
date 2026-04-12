@@ -1,6 +1,6 @@
 import React, { useCallback, useRef, useState } from 'react'
 import { View, Text, Pressable, StyleSheet } from 'react-native'
-import { Users, VolumeX, Pin } from 'lucide-react-native'
+import { MessagesSquare, VolumeX, Pin } from 'lucide-react-native'
 import * as Haptics from 'expo-haptics'
 import { EntityAvatar } from '../ui/EntityAvatar'
 import { ActionSheet, type ActionSheetOption } from '../ui/ActionSheet'
@@ -24,12 +24,17 @@ function formatRelativeTime(iso: string): string {
   const now = new Date()
   const diffMs = now.getTime() - date.getTime()
   const diffMin = Math.floor(diffMs / 60000)
-  const diffHr = Math.floor(diffMs / 3600000)
   const diffDay = Math.floor(diffMs / 86400000)
 
   if (diffMin < 1) return 'now'
   if (diffMin < 60) return `${diffMin}m`
-  if (diffHr < 24) return `${diffHr}h`
+  if (diffDay === 0) {
+    return date.toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true,
+    })
+  }
   if (diffDay < 7) return `${diffDay}d`
   return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
 }
@@ -140,7 +145,6 @@ export function ConversationItem({
           styles.container,
           {
             backgroundColor: active ? colors.accentDim : colors.bgSecondary,
-            borderColor: active ? colors.accent : colors.border,
           },
           pressed && !active && { backgroundColor: colors.bgHover },
         ]}
@@ -149,15 +153,17 @@ export function ConversationItem({
         {isGroup ? (
           <View style={styles.groupAvatarContainer}>
             <View style={[styles.groupAvatar, { backgroundColor: colors.accentDim, borderColor: colors.border }]}>
-              <Users size={18} color={colors.accent} />
+              <MessagesSquare size={18} color={colors.accent} />
             </View>
           </View>
         ) : (
-          <EntityAvatar entity={otherParticipant} size="md" />
+          <View style={styles.avatarContainer}>
+            <EntityAvatar entity={otherParticipant} size="md" />
+          </View>
         )}
 
         {/* Content */}
-        <View style={styles.content}>
+        <View style={[styles.content, { borderBottomColor: active ? `${colors.accent}33` : `${colors.border}B3` }]}>
           <View style={styles.topRow}>
             <View style={styles.titleRow}>
               <Text
@@ -175,12 +181,12 @@ export function ConversationItem({
               </Text>
             )}
           </View>
-          {lastText ? (
-            <Text
-              style={[styles.preview, { color: colors.textMuted }, hasUnread && { color: colors.textSecondary, fontWeight: '500' }]}
-              numberOfLines={1}
-            >
-              {lastMsgSenderName ? (
+          <Text
+            style={[styles.preview, { color: colors.textMuted }, hasUnread && { color: colors.textSecondary, fontWeight: '500' }]}
+            numberOfLines={1}
+          >
+            {lastText ? (
+              lastMsgSenderName ? (
                 <>
                   <Text style={{ color: hasUnread ? colors.text : colors.textSecondary }}>
                     {lastMsgSenderName}:{' '}
@@ -189,11 +195,11 @@ export function ConversationItem({
                 </>
               ) : (
                 truncate(lastText, 45)
-              )}
-            </Text>
-          ) : (
-            <Text style={styles.previewEmpty}> </Text>
-          )}
+              )
+            ) : (
+              ' '
+            )}
+          </Text>
         </View>
 
         {/* Unread badge */}
@@ -221,13 +227,11 @@ export function ConversationItem({
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'stretch',
     gap: 12,
     paddingHorizontal: 12,
-    paddingVertical: 11,
     borderRadius: 16,
     marginHorizontal: 8,
-    borderWidth: 1,
   },
   active: {
     backgroundColor: '#eff6ff',
@@ -240,6 +244,11 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     flexShrink: 0,
+    marginTop: 0,
+  },
+  avatarContainer: {
+    flexShrink: 0,
+    marginTop: 0,
   },
   groupAvatar: {
     width: 40,
@@ -253,15 +262,18 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     minWidth: 0,
+    paddingVertical: 0,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
   topRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
     gap: 8,
+    minHeight: 22,
   },
   titleRow: {
     flex: 1,
+    minWidth: 0,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
@@ -279,21 +291,19 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: '#94a3b8',
     flexShrink: 0,
+    width: 64,
+    textAlign: 'right',
   },
   preview: {
     fontSize: 12,
     color: '#94a3b8',
     marginTop: 2,
     lineHeight: 18,
+    minHeight: 18,
   },
   previewUnread: {
     color: '#64748b',
     fontWeight: '500',
-  },
-  previewEmpty: {
-    fontSize: 12,
-    color: 'transparent',
-    marginTop: 2,
   },
   senderPrefix: {
     color: '#64748b',

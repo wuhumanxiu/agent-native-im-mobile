@@ -9,6 +9,11 @@ export function buildBotAccessText(params: {
 }) {
   const { gatewayUrl, wsUrl, accessToken, botName, botID, publicID, roleHint } = params
   return [
+    '# Recommended install',
+    'npx -y openclaw-ani-installer install',
+    'npx -y openclaw-ani-installer update',
+    'npx -y openclaw-ani-installer doctor',
+    '',
     '# ANI OpenClaw channel',
     `openclaw config set channels.ani.serverUrl "${gatewayUrl}"`,
     `openclaw config set channels.ani.apiKey "${accessToken}"`,

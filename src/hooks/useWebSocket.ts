@@ -6,12 +6,63 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import { useAuthStore } from '../store/auth'
 import { useConversationsStore } from '../store/conversations'
 import { useMessagesStore } from '../store/messages'
+import { useNotificationsStore } from '../store/notifications'
 import { usePresenceStore } from '../store/presence'
 import { useTasksStore } from '../store/tasks'
 import { AnimpWebSocket } from '../lib/ws-client'
+import { logDebugEvent } from '../lib/debug-telemetry'
 import { getWsBaseUrl } from '../lib/gateway'
 import * as api from '../lib/api'
 import type { WSMessage, Message, Task } from '../lib/types'
+
+const WS_RELEASE_DELAY_MS = 5000
+
+type SharedSocket = {
+  token: string
+  ws: AnimpWebSocket
+  refs: number
+  releaseTimer: ReturnType<typeof setTimeout> | null
+}
+
+let sharedSocket: SharedSocket | null = null
+
+function acquireSharedSocket(token: string): AnimpWebSocket {
+  if (sharedSocket && sharedSocket.token === token) {
+    if (sharedSocket.releaseTimer) {
+      clearTimeout(sharedSocket.releaseTimer)
+      sharedSocket.releaseTimer = null
+    }
+    sharedSocket.refs += 1
+    return sharedSocket.ws
+  }
+
+  if (sharedSocket) {
+    if (sharedSocket.releaseTimer) clearTimeout(sharedSocket.releaseTimer)
+    sharedSocket.ws.disconnect()
+    sharedSocket = null
+  }
+
+  const wsUrl = getWsBaseUrl() || 'wss://agent-native.im'
+  sharedSocket = {
+    token,
+    ws: new AnimpWebSocket(wsUrl, token),
+    refs: 1,
+    releaseTimer: null,
+  }
+  sharedSocket.ws.connect()
+  return sharedSocket.ws
+}
+
+function releaseSharedSocket(ws: AnimpWebSocket) {
+  if (!sharedSocket || sharedSocket.ws !== ws) return
+  sharedSocket.refs = Math.max(0, sharedSocket.refs - 1)
+  if (sharedSocket.refs > 0) return
+  sharedSocket.releaseTimer = setTimeout(() => {
+    if (!sharedSocket || sharedSocket.ws !== ws || sharedSocket.refs > 0) return
+    sharedSocket.ws.disconnect()
+    sharedSocket = null
+  }, WS_RELEASE_DELAY_MS)
+}
 
 // ─── Typing Map ──────────────────────────────────────────────────
 
@@ -28,8 +79,11 @@ export type TypingMap = Map<number, Map<number, TypingEntry>>
 
 export function useWebSocket() {
   const token = useAuthStore((s) => s.token)
-  const entity = useAuthStore((s) => s.entity)
+  const entityId = useAuthStore((s) => s.entity?.id)
+  const setToken = useAuthStore((s) => s.setToken)
+  const logout = useAuthStore((s) => s.logout)
   const wsRef = useRef<AnimpWebSocket | null>(null)
+  const lastWSRefreshAttemptRef = useRef(0)
   const [typingMap, setTypingMap] = useState<TypingMap>(new Map())
 
   const addMessage = useMessagesStore((s) => s.addMessage)
@@ -48,12 +102,58 @@ export function useWebSocket() {
 
   const setOnline = usePresenceStore((s) => s.setOnline)
   const setWsConnected = usePresenceStore((s) => s.setWsConnected)
+  const upsertNotification = useNotificationsStore((s) => s.upsertNotification)
+  const applyNotificationReadById = useNotificationsStore((s) => s.applyNotificationReadById)
+  const applyNotificationReadAll = useNotificationsStore((s) => s.applyNotificationReadAll)
+  const upsertFriendRequest = useNotificationsStore((s) => s.upsertFriendRequest)
+  const removeFriendRequest = useNotificationsStore((s) => s.removeFriendRequest)
+
+  const decodeJwtExp = useCallback((jwtToken: string): number | null => {
+    const parts = jwtToken.split('.')
+    if (parts.length < 2) return null
+    try {
+      if (typeof atob !== 'function') return null
+      const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/')
+      const padded = base64 + '='.repeat((4 - (base64.length % 4)) % 4)
+      const payload = JSON.parse(atob(padded))
+      return typeof payload.exp === 'number' ? payload.exp : null
+    } catch {
+      return null
+    }
+  }, [])
 
   useEffect(() => {
-    if (!token || !entity) return
+    if (!token || !entityId) return
 
-    const wsUrl = getWsBaseUrl() || 'wss://agent-native.im'
-    const ws = new AnimpWebSocket(wsUrl, token)
+    const refreshIfNeeded = async () => {
+      const exp = decodeJwtExp(useAuthStore.getState().token || '')
+      if (!exp) return
+      const nowSec = Math.floor(Date.now() / 1000)
+      if (exp - nowSec > 1800) return
+      const currentToken = useAuthStore.getState().token
+      if (!currentToken) return
+      logDebugEvent('auth.refresh.proactive.attempt', { exp })
+      const res = await api.refreshToken(currentToken)
+      if (res.ok && res.data?.token) {
+        logDebugEvent('auth.refresh.proactive.success')
+        setToken(res.data.token)
+      } else {
+        logDebugEvent('auth.refresh.proactive.failed', {
+          error: typeof res.error === 'string' ? res.error : res.error?.message,
+        })
+        logout()
+      }
+    }
+
+    const timer = setInterval(refreshIfNeeded, 5 * 60 * 1000)
+    void refreshIfNeeded()
+    return () => clearInterval(timer)
+  }, [decodeJwtExp, entityId, logout, setToken, token])
+
+  useEffect(() => {
+    if (!token || !entityId) return
+
+    const ws = acquireSharedSocket(token)
     wsRef.current = ws
 
     const unsub = ws.onMessage((msg: WSMessage) => {
@@ -62,6 +162,7 @@ export function useWebSocket() {
         case 'entity.online': {
           const data = msg.data as { self?: boolean; entity_id?: number }
           if (data?.self) {
+            logDebugEvent('ws.self.online')
             setWsConnected(true)
           } else if (data?.entity_id) {
             setOnline(data.entity_id, true)
@@ -71,6 +172,7 @@ export function useWebSocket() {
         case 'entity.offline': {
           const data = msg.data as { self?: boolean; entity_id?: number }
           if (data?.self) {
+            logDebugEvent('ws.self.offline')
             setWsConnected(false)
           } else if (data?.entity_id) {
             setOnline(data.entity_id, false)
@@ -87,7 +189,7 @@ export function useWebSocket() {
 
             const currentActiveId = useConversationsStore.getState().activeId
             const isActive = message.conversation_id === currentActiveId
-            const isSelf = message.sender_id === entity?.id
+            const isSelf = message.sender_id === entityId
             if (!isActive && !isSelf) {
               const conv = useConversationsStore.getState().conversations.find(
                 (c) => c.id === message.conversation_id,
@@ -159,7 +261,7 @@ export function useWebSocket() {
           if (convId) {
             if (
               (convData.action === 'member_removed' || convData.action === 'member_left') &&
-              convData.entity_id === entity?.id
+              convData.entity_id === entityId
             ) {
               const convs = useConversationsStore.getState().conversations.filter(
                 (c) => c.id !== convId,
@@ -236,7 +338,7 @@ export function useWebSocket() {
             is_processing?: boolean
             phase?: string
           }
-          if (typData?.conversation_id && typData?.entity_id && typData.entity_id !== entity?.id) {
+          if (typData?.conversation_id && typData?.entity_id && typData.entity_id !== entityId) {
             setTypingMap((prev) => {
               const next = new Map(prev)
               const convTyping = new Map(next.get(typData.conversation_id!) || [])
@@ -278,6 +380,38 @@ export function useWebSocket() {
         case 'entity.config':
           break
 
+        case 'friend.request.created': {
+          const request = msg.data as import('../lib/types').FriendRequest
+          if (request?.id) upsertFriendRequest(request)
+          break
+        }
+
+        case 'friend.request.updated': {
+          const request = msg.data as import('../lib/types').FriendRequest
+          if (!request?.id) break
+          if (request.status === 'pending') upsertFriendRequest(request)
+          else removeFriendRequest(request.id)
+          break
+        }
+
+        case 'notification.new': {
+          const notification = msg.data as import('../lib/types').NotificationRecord
+          if (notification?.id) upsertNotification(notification)
+          break
+        }
+
+        case 'notification.read': {
+          const data = msg.data as { notification_id?: number; recipient_entity_id?: number }
+          if (data?.notification_id) applyNotificationReadById(data.notification_id, data.recipient_entity_id)
+          break
+        }
+
+        case 'notification.read_all': {
+          const data = msg.data as { recipient_entity_id?: number }
+          applyNotificationReadAll(data?.recipient_entity_id)
+          break
+        }
+
         default:
           break
       }
@@ -292,6 +426,7 @@ export function useWebSocket() {
 
     // On reconnect, refresh conversation list
     ws.onReconnect(() => {
+      logDebugEvent('ws.reconnect', { sinceId: useMessagesStore.getState().latestMessageId })
       syncSinceId()
       api.listConversations(token).then((res) => {
         if (res.ok && res.data) {
@@ -302,10 +437,42 @@ export function useWebSocket() {
     })
 
     const unsubConn = ws.onConnectionChange((connected) => {
+      logDebugEvent('ws.connection.change', { connected })
       setWsConnected(connected)
     })
 
-    ws.connect()
+    const unsubAuthFailure = ws.onAuthFailure(async () => {
+      logDebugEvent('ws.auth.failure')
+      const now = Date.now()
+      if (now - lastWSRefreshAttemptRef.current < 15000) return
+      lastWSRefreshAttemptRef.current = now
+
+      const currentToken = useAuthStore.getState().token
+      if (!currentToken) return
+      const exp = decodeJwtExp(currentToken)
+      const nowSec = Math.floor(now / 1000)
+      if (exp && exp - nowSec > 300) return
+
+      const res = await api.refreshToken(currentToken)
+      if (res.ok && res.data?.token) {
+        logDebugEvent('ws.auth.refresh.success')
+        setToken(res.data.token)
+        return
+      }
+
+      const errMsg = typeof res.error === 'string'
+        ? res.error
+        : (res.error?.message || '')
+      logDebugEvent('ws.auth.refresh.failed', { error: errMsg || 'unknown' })
+      if (errMsg && (
+        errMsg.toLowerCase().includes('invalid token') ||
+        errMsg.toLowerCase().includes('missing authorization') ||
+        errMsg.toLowerCase().includes('disabled') ||
+        errMsg.toLowerCase().includes('forbidden')
+      )) {
+        logout()
+      }
+    })
 
     // Stale stream & progress cleanup
     const cleanupInterval = setInterval(() => {
@@ -316,13 +483,13 @@ export function useWebSocket() {
     return () => {
       unsub()
       unsubConn()
+      unsubAuthFailure()
       clearInterval(sinceIdInterval)
       clearInterval(cleanupInterval)
-      ws.disconnect()
       wsRef.current = null
-      setWsConnected(false)
+      releaseSharedSocket(ws)
     }
-  }, [token, entity])
+  }, [addMessage, applyNotificationReadAll, applyNotificationReadById, clearProgressBySender, decodeJwtExp, endStream, entityId, logout, removeFriendRequest, revokeMessage, setConversations, setOnline, setProgress, setReadReceipt, setToken, setWsConnected, startStream, token, updateConversation, updateMessageReactions, updateStream, upsertFriendRequest, upsertNotification])
 
   // ─── Typing indicator sender ───
   const sendTyping = useCallback((conversationId: number) => {

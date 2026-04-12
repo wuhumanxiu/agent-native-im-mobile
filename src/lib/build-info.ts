@@ -15,7 +15,12 @@ const release =
     {}) as Partial<BuildInfo>
 
 export const buildInfo: BuildInfo = {
-  version: typeof release.version === 'string' ? release.version : '1.6.2',
+  version:
+    typeof release.version === 'string'
+      ? release.version
+      : typeof (release as any).appVersion === 'string'
+        ? (release as any).appVersion
+        : '1.6.2',
   runtimeVersion:
     typeof Updates.runtimeVersion === 'string' && Updates.runtimeVersion
       ? Updates.runtimeVersion
@@ -26,5 +31,7 @@ export const buildInfo: BuildInfo = {
   buildTime:
     typeof release.buildTime === 'string'
       ? release.buildTime
+      : Updates.createdAt instanceof Date
+        ? Updates.createdAt.toISOString()
       : new Date(0).toISOString(),
 }
