@@ -73,6 +73,7 @@ Important:
 - `production` is for store-ready builds
 - Expo Go is useful for development, but it is not the public release target
 - versioning policy is documented in [docs/VERSIONING.md](/Users/donaldford/code/SuperBody/dev/agent-native-im-mobile/docs/VERSIONING.md)
+- iOS App Store / OTA operational guidance is documented in [docs/IOS_RELEASE_AND_OTA_TROUBLESHOOTING_2026-04.md](/Users/donaldford/code/SuperBody/dev/agent-native-im-mobile/docs/IOS_RELEASE_AND_OTA_TROUBLESHOOTING_2026-04.md)
 
 ## EAS Update
 
