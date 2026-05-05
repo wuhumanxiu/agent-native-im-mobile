@@ -2,6 +2,11 @@ const pkg = require('./package.json')
 const { execSync } = require('node:child_process')
 
 const appVersion = pkg.version
+const releaseVersion =
+  process.env.RELEASE_VERSION ||
+  process.env.OTA_RELEASE_VERSION ||
+  process.env.APP_RELEASE_VERSION ||
+  appVersion
 const runtimeVersion = 'native-2026-03-27.1'
 function resolveGitCommit() {
   const fromEnv =
@@ -68,7 +73,8 @@ module.exports = {
       },
       router: {},
       release: {
-        version: appVersion,
+        version: releaseVersion,
+        releaseVersion,
         appVersion,
         runtimeVersion,
         commit: buildCommit,

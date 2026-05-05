@@ -536,7 +536,8 @@ export function SettingsScreen({ onBack }: Props) {
               <View style={[styles.aboutCard, { borderColor: colors.border, backgroundColor: colors.bg }]}>
                 {[
                   { label: t('settings.appName'), value: 'ANI' },
-                  { label: t('settings.version'), value: buildInfo.version, mono: true },
+                  { label: t('settings.releaseVersion'), value: buildInfo.releaseVersion, mono: true },
+                  { label: t('settings.appVersion'), value: buildInfo.appVersion, mono: true },
                   { label: t('settings.runtimeVersion'), value: buildInfo.runtimeVersion, mono: true },
                   { label: t('settings.commit'), value: buildInfo.commit, mono: true },
                   { label: t('settings.buildTime'), value: new Date(buildInfo.buildTime).toLocaleString() },
@@ -559,7 +560,8 @@ export function SettingsScreen({ onBack }: Props) {
                 onPress={async () => {
                   await Clipboard.setStringAsync([
                     'app=ANI',
-                    `version=${buildInfo.version}`,
+                    `release_version=${buildInfo.releaseVersion}`,
+                    `app_version=${buildInfo.appVersion}`,
                     `runtime_version=${buildInfo.runtimeVersion}`,
                     `commit=${buildInfo.commit}`,
                     `build_time=${buildInfo.buildTime}`,

@@ -3,24 +3,34 @@ import * as Updates from 'expo-updates'
 
 export interface BuildInfo {
   version: string
+  releaseVersion: string
+  appVersion: string
   runtimeVersion: string
   commit: string
   buildTime: string
 }
 
 const release =
-  ((Constants.expoConfig as any)?.extra?.release ??
-    (Updates.manifest as any)?.extra?.release ??
+  ((Updates.manifest as any)?.extra?.release ??
     (Updates.manifest2 as any)?.extra?.release ??
+    (Constants.expoConfig as any)?.extra?.release ??
     {}) as Partial<BuildInfo>
 
-export const buildInfo: BuildInfo = {
-  version:
-    typeof release.version === 'string'
+const appVersion =
+  typeof release.appVersion === 'string'
+    ? release.appVersion
+    : '1.6.3'
+const releaseVersion =
+  typeof release.releaseVersion === 'string'
+    ? release.releaseVersion
+    : typeof release.version === 'string'
       ? release.version
-      : typeof (release as any).appVersion === 'string'
-        ? (release as any).appVersion
-        : '1.6.2',
+      : appVersion
+
+export const buildInfo: BuildInfo = {
+  version: releaseVersion,
+  releaseVersion,
+  appVersion,
   runtimeVersion:
     typeof Updates.runtimeVersion === 'string' && Updates.runtimeVersion
       ? Updates.runtimeVersion
