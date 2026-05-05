@@ -910,20 +910,20 @@ const styles = StyleSheet.create({
     color: '#94a3b8',
   },
   bubble: {
-    borderRadius: 20,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    borderRadius: 7,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
     maxWidth: '100%',
   },
   bubbleSelf: {
     backgroundColor: '#eef2ff',
-    borderTopRightRadius: 6,
+    borderTopRightRadius: 2,
   },
   bubbleOther: {
     backgroundColor: '#f8fafc',
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: '#e2e8f0',
-    borderTopLeftRadius: 6,
+    borderTopLeftRadius: 2,
   },
   bubbleMentioned: {
     borderLeftWidth: 2,

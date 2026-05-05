@@ -228,10 +228,11 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'stretch',
-    gap: 12,
+    gap: 10,
+    minHeight: 64,
     paddingHorizontal: 12,
-    borderRadius: 16,
-    marginHorizontal: 8,
+    borderRadius: 0,
+    marginHorizontal: 0,
   },
   active: {
     backgroundColor: '#eff6ff',
@@ -244,11 +245,11 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     flexShrink: 0,
-    marginTop: 0,
+    marginTop: 8,
   },
   avatarContainer: {
     flexShrink: 0,
-    marginTop: 0,
+    marginTop: 8,
   },
   groupAvatar: {
     width: 40,
@@ -262,7 +263,7 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     minWidth: 0,
-    paddingVertical: 0,
+    paddingVertical: 8,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   topRow: {
