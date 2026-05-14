@@ -2,7 +2,7 @@ import type {
   APIResponse, LoginResponse, Entity, Conversation,
   MessagesResponse, SearchResponse, GlobalSearchResponse, Message,
   Task, ConversationMemory, ChangeRequest, EntitySelfCheck, EntityDiagnostics, BotAccessLink,
-  FriendRequest, NotificationRecord, InboxSnapshot,
+  FriendRequest, NotificationRecord, InboxSnapshot, LatestReleaseResponse, ReleaseListResponse,
 } from './types'
 import { Platform } from 'react-native'
 import * as FileSystem from 'expo-file-system/legacy'
@@ -494,6 +494,23 @@ export const listDevices = (token: string) =>
 
 export const kickDevice = (token: string, deviceId: string) =>
   request('DELETE', `/api/v1/me/devices/${encodeURIComponent(deviceId)}`, token)
+
+// Releases
+export const listReleases = (token: string, options?: { channel?: string; component?: string; limit?: number; offset?: number }) => {
+  const params = new URLSearchParams()
+  if (options?.channel) params.set('channel', options.channel)
+  if (options?.component) params.set('component', options.component)
+  if (options?.limit) params.set('limit', String(options.limit))
+  if (options?.offset) params.set('offset', String(options.offset))
+  const query = params.toString()
+  return request<ReleaseListResponse>('GET', `/api/v1/releases${query ? `?${query}` : ''}`, token)
+}
+
+export const getLatestRelease = (token: string, channel = 'production') =>
+  request<LatestReleaseResponse>('GET', `/api/v1/releases/latest?channel=${encodeURIComponent(channel)}`, token)
+
+export const markReleaseRead = (token: string, releaseId: number) =>
+  request('POST', `/api/v1/releases/${releaseId}/read`, token)
 
 // Updates (long polling fallback)
 export const getUpdates = (token: string, since?: string) =>

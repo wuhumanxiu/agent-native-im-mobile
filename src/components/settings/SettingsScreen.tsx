@@ -7,7 +7,7 @@ import { useTranslation } from 'react-i18next'
 import * as Clipboard from 'expo-clipboard'
 import {
   User, Lock, Palette, Globe, ChevronRight, Bell,
-  Check, Eye, EyeOff, Smartphone, LogOut, Info, ArrowLeft, Copy,
+  Check, Eye, EyeOff, Smartphone, LogOut, Info, ArrowLeft, Copy, Megaphone,
 } from 'lucide-react-native'
 import { useAuthStore } from '../../store/auth'
 import { useSettingsStore } from '../../store/settings'
@@ -16,6 +16,7 @@ import { buildInfo } from '../../lib/build-info'
 import { isNativePushSupported, registerNativePush, unregisterNativePush } from '../../lib/push'
 import { EntityAvatar } from '../ui/EntityAvatar'
 import { resolveThemeColors, themePreviews, useThemeColors } from '../../lib/theme'
+import type { ReleaseItem } from '../../lib/types'
 
 type Section = 'profile' | 'security' | 'devices' | 'theme' | 'language' | 'about' | null
 
@@ -73,6 +74,10 @@ export function SettingsScreen({ onBack }: Props) {
 
   // About
   const [aboutCopied, setAboutCopied] = useState(false)
+  const [releases, setReleases] = useState<ReleaseItem[]>([])
+  const [releaseUnreadCount, setReleaseUnreadCount] = useState(0)
+  const [releasesLoading, setReleasesLoading] = useState(false)
+  const [releaseError, setReleaseError] = useState('')
 
   // Push
   const [pushEnabled, setPushEnabled] = useState(storedPushEnabled)
@@ -147,6 +152,41 @@ export function SettingsScreen({ onBack }: Props) {
       loadDevices()
     }
   }, [section, loadDevices])
+
+  useEffect(() => {
+    if (section !== 'about') return
+    let cancelled = false
+
+    async function loadReleases() {
+      setReleasesLoading(true)
+      setReleaseError('')
+      const res = await api.listReleases(token, { channel: 'production', limit: 3 })
+      if (cancelled) return
+      if (res.ok && res.data) {
+        setReleases(res.data.releases || [])
+        setReleaseUnreadCount(res.data.unread_count || 0)
+      } else {
+        setReleases([])
+        setReleaseUnreadCount(0)
+        setReleaseError(t('settings.releasesLoadError'))
+      }
+      setReleasesLoading(false)
+    }
+
+    loadReleases()
+    return () => {
+      cancelled = true
+    }
+  }, [section, token, t])
+
+  const handleMarkReleaseRead = async (release: ReleaseItem) => {
+    if (release.is_read) return
+    const res = await api.markReleaseRead(token, release.id)
+    if (res.ok) {
+      setReleases((items) => items.map((item) => item.id === release.id ? { ...item, is_read: true } : item))
+      setReleaseUnreadCount((count) => Math.max(0, count - 1))
+    }
+  }
 
   const handleKickDevice = async (deviceId: string) => {
     const res = await api.kickDevice(token, deviceId)
@@ -554,6 +594,55 @@ export function SettingsScreen({ onBack }: Props) {
                     <Text style={[styles.aboutValue, { color: colors.text }, mono && styles.aboutValueMono]}>{value}</Text>
                   </View>
                 ))}
+              </View>
+
+              <View style={[styles.releasePanel, { borderColor: colors.border, backgroundColor: colors.bg }]}>
+                <View style={styles.releaseHeader}>
+                  <View style={styles.releaseTitleRow}>
+                    <Megaphone size={16} color={colors.accent} />
+                    <Text style={[styles.releaseTitle, { color: colors.text }]}>{t('settings.releasesTitle')}</Text>
+                  </View>
+                  {releaseUnreadCount > 0 ? (
+                    <Text style={[styles.releaseUnread, { color: colors.accent }]}>
+                      {t('settings.releasesUnread', { count: releaseUnreadCount })}
+                    </Text>
+                  ) : null}
+                </View>
+                <Text style={[styles.releaseDesc, { color: colors.textMuted }]}>{t('settings.releasesDesc')}</Text>
+
+                {releasesLoading ? (
+                  <ActivityIndicator size="small" color={colors.accent} style={{ marginVertical: 12 }} />
+                ) : releaseError ? (
+                  <Text style={[styles.errorText, { color: colors.error }]}>{releaseError}</Text>
+                ) : releases.length === 0 ? (
+                  <Text style={[styles.emptyText, { color: colors.textMuted }]}>{t('settings.releasesEmpty')}</Text>
+                ) : (
+                  <View style={styles.releaseList}>
+                    {releases.map((release) => (
+                      <Pressable
+                        key={release.id}
+                        onPress={() => handleMarkReleaseRead(release)}
+                        style={[styles.releaseItem, { borderTopColor: colors.border }]}
+                      >
+                        <View style={styles.releaseItemTop}>
+                          <Text style={[styles.releaseVersion, { color: colors.accent }]}>{release.version}</Text>
+                          {!release.is_read ? <View style={[styles.releaseDot, { backgroundColor: colors.accent }]} /> : null}
+                        </View>
+                        <Text style={[styles.releaseItemTitle, { color: colors.text }]}>{release.title}</Text>
+                        {release.summary ? (
+                          <Text style={[styles.releaseSummary, { color: colors.textMuted }]} numberOfLines={3}>
+                            {release.summary}
+                          </Text>
+                        ) : null}
+                        {release.required_actions?.length ? (
+                          <Text style={[styles.releaseActionText, { color: colors.textSecondary }]}>
+                            {t('settings.releaseActionRequired', { count: release.required_actions.length })}
+                          </Text>
+                        ) : null}
+                      </Pressable>
+                    ))}
+                  </View>
+                )}
               </View>
 
               <Pressable
@@ -1077,6 +1166,74 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     overflow: 'hidden',
     paddingVertical: 2,
+  },
+  releasePanel: {
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 14,
+    gap: 10,
+  },
+  releaseHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  releaseTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+  },
+  releaseTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  releaseUnread: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  releaseDesc: {
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  releaseList: {
+    gap: 0,
+  },
+  releaseItem: {
+    borderTopWidth: 1,
+    paddingTop: 12,
+    paddingBottom: 2,
+    gap: 5,
+  },
+  releaseItemTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  releaseVersion: {
+    fontSize: 12,
+    fontWeight: '700',
+    fontFamily: 'monospace',
+  },
+  releaseDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  releaseItemTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    lineHeight: 20,
+  },
+  releaseSummary: {
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  releaseActionText: {
+    fontSize: 12,
+    fontWeight: '600',
   },
   copyBtn: {
     alignSelf: 'stretch',

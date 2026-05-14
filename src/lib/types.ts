@@ -304,6 +304,55 @@ export interface GlobalSearchResponse {
   query: string
 }
 
+// ─── Releases ───────────────────────────────────────────────────
+export type ReleaseComponent = 'platform' | 'web' | 'mobile' | 'openclaw' | 'zebra' | 'hermes' | 'sdk' | 'docs'
+export type ReleasePlatform = 'all' | 'web' | 'ios' | 'android' | 'desktop' | 'agent'
+export type ReleaseChannel = 'production' | 'beta' | 'internal'
+export type ReleaseSectionKind = 'feature' | 'fix' | 'breaking' | 'security' | 'developer' | 'known_issue'
+
+export interface ReleaseSection {
+  kind: ReleaseSectionKind
+  title: string
+  items: string[]
+}
+
+export interface ReleaseAction {
+  title: string
+  description?: string
+  command?: string
+  url?: string
+  required?: boolean
+}
+
+export interface ReleaseItem {
+  id: number
+  public_id?: string
+  version: string
+  title: string
+  summary?: string
+  component: ReleaseComponent
+  platform: ReleasePlatform
+  channel: ReleaseChannel
+  sections?: ReleaseSection[]
+  required_actions?: ReleaseAction[]
+  known_issues?: string[]
+  published_at?: string
+  created_at: string
+  updated_at: string
+  is_read?: boolean
+  unread_count?: number
+}
+
+export interface ReleaseListResponse {
+  releases: ReleaseItem[]
+  unread_count: number
+}
+
+export interface LatestReleaseResponse {
+  release?: ReleaseItem
+  unread_count: number
+}
+
 // ─── Task ────────────────────────────────────────────────────────
 export type TaskStatus = 'pending' | 'in_progress' | 'done' | 'cancelled' | 'handed_over'
 export type TaskPriority = 'low' | 'medium' | 'high'
