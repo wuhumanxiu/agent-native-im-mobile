@@ -177,11 +177,15 @@ export const listMessages = (token: string, convId: number, before?: number, lim
 }
 
 export const sendMessage = (token: string, msg: {
-  conversation_id: number
+  conversation_id?: number
+  conversation_public_id?: string
   content_type?: string
   layers: Record<string, unknown>
   attachments?: unknown[]
   mentions?: number[]
+  mention_public_ids?: string[]
+  mention_refs?: import('./types').MentionRef[]
+  assigned_public_ids?: string[]
   reply_to?: number
 }) => request<Message>('POST', '/api/v1/messages/send', token, msg)
 

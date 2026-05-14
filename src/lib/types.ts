@@ -91,6 +91,7 @@ export interface Participant {
   id: number
   conversation_id: number
   entity_id: number
+  entity_public_id?: string
   role: ParticipantRole
   subscription_mode: SubscriptionMode
   context_window?: number
@@ -101,6 +102,7 @@ export interface Participant {
 
 export interface Conversation {
   id: number
+  public_id?: string
   public_id?: string
   conv_type: ConvType
   title: string
@@ -162,7 +164,9 @@ export interface ReactionSummary {
 export interface Message {
   id: number
   conversation_id: number
+  conversation_public_id?: string
   sender_id: number
+  sender_public_id?: string
   temp_id?: string
   client_state?: 'sending' | 'sent' | 'queued' | 'failed'
   sender_type?: string
@@ -172,10 +176,21 @@ export interface Message {
   layers: MessageLayers
   attachments?: Attachment[]
   mentions?: number[]
+  mention_public_ids?: string[]
+  mention_refs?: MentionRef[]
+  assigned_public_ids?: string[]
   reply_to?: number
   reactions?: ReactionSummary[]
   revoked_at?: string
   created_at: string
+}
+
+export interface MentionRef {
+  public_id?: string
+  handle?: string
+  display_name?: string
+  entity_type?: EntityType
+  text?: string
 }
 
 export interface EntitySelfCheck {
