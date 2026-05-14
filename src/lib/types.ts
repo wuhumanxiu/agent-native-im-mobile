@@ -308,7 +308,7 @@ export interface GlobalSearchResponse {
 export type ReleaseComponent = 'platform' | 'web' | 'mobile' | 'openclaw' | 'zebra' | 'hermes' | 'sdk' | 'docs'
 export type ReleasePlatform = 'all' | 'web' | 'ios' | 'android' | 'desktop' | 'agent'
 export type ReleaseChannel = 'production' | 'beta' | 'internal'
-export type ReleaseSectionKind = 'feature' | 'fix' | 'breaking' | 'security' | 'developer' | 'known_issue'
+export type ReleaseSectionKind = 'new' | 'improved' | 'fixed' | 'security' | 'known_issue' | string
 
 export interface ReleaseSection {
   kind: ReleaseSectionKind
