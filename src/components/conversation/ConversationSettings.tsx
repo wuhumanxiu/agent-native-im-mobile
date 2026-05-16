@@ -13,7 +13,7 @@ import {
 import { useAuthStore } from '../../store/auth'
 import * as api from '../../lib/api'
 import { getApiBaseUrl } from '../../lib/gateway'
-import type { Conversation, Entity, ConversationMemory, SubscriptionMode } from '../../lib/types'
+import type { Conversation, Entity, ConversationMemory, Participant, SubscriptionMode } from '../../lib/types'
 import { EntityAvatar } from '../ui/EntityAvatar'
 import { useThemeColors } from '../../lib/theme'
 
@@ -179,13 +179,17 @@ export function ConversationSettings({ conversation, onClose, onLeave, onUpdated
 
   const handleAddMember = async (entityId: number) => {
     setAddMemberLoading(true)
-    await api.addParticipant(token, conversation.id, entityId, 'member')
+    const entity = entities.find((item) => item.id === entityId)
+    await api.addParticipant(token, conversation.id, entityId, 'member', entity?.public_id)
     setShowAddMember(false)
     setAddMemberSearch('')
     setAddMemberLoading(false)
   }
 
-  const handleRemoveMember = (entityId: number, name: string) => {
+  const participantPublicId = (participant?: Participant) => participant?.entity_public_id || participant?.entity?.public_id
+
+  const handleRemoveMember = (participant: Participant) => {
+    const name = entityDisplayName(participant.entity)
     Alert.alert(
       t('common.removeMember'),
       t('settings.removeMemberConfirm', { name }),
@@ -194,7 +198,7 @@ export function ConversationSettings({ conversation, onClose, onLeave, onUpdated
         {
           text: t('common.removeMember'),
           style: 'destructive',
-          onPress: () => api.removeParticipant(token, conversation.id, entityId),
+          onPress: () => api.removeParticipant(token, conversation.id, participant.entity_id, participantPublicId(participant)),
         },
       ]
     )
@@ -565,7 +569,7 @@ export function ConversationSettings({ conversation, onClose, onLeave, onUpdated
                 </View>
                 {canManage && p.entity_id !== myEntity.id && p.role !== 'owner' && !isArchived && (
                   <Pressable
-                    onPress={() => handleRemoveMember(p.entity_id, entityDisplayName(p.entity))}
+                    onPress={() => handleRemoveMember(p)}
                     style={styles.removeMemberBtn}
                   >
                     <UserMinus size={12} color={colors.textMuted} />

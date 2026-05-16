@@ -151,14 +151,17 @@ export const updateConversation = (token: string, id: number, data: { title?: st
   request<Conversation>('PUT', `/api/v1/conversations/${id}`, token, data)
 
 // Participants
-export const addParticipant = (token: string, convId: number, entityId: number, role?: string) =>
-  request('POST', `/api/v1/conversations/${convId}/participants`, token, { entity_id: entityId, role })
+export const addParticipant = (token: string, convId: number, entityId: number, role?: string, entityPublicId?: string) =>
+  request('POST', `/api/v1/conversations/${convId}/participants`, token, { entity_id: entityId, entity_public_id: entityPublicId, role })
 
-export const removeParticipant = (token: string, convId: number, entityId: number) =>
-  request('DELETE', `/api/v1/conversations/${convId}/participants/${entityId}`, token)
+const participantRef = (entityId: number, entityPublicId?: string) =>
+  encodeURIComponent(entityPublicId || String(entityId))
 
-export const updateParticipantRole = (token: string, convId: number, entityId: number, role: string) =>
-  request('PUT', `/api/v1/conversations/${convId}/participants/${entityId}`, token, { role })
+export const removeParticipant = (token: string, convId: number, entityId: number, entityPublicId?: string) =>
+  request('DELETE', `/api/v1/conversations/${convId}/participants/${participantRef(entityId, entityPublicId)}`, token)
+
+export const updateParticipantRole = (token: string, convId: number, entityId: number, role: string, entityPublicId?: string) =>
+  request('PUT', `/api/v1/conversations/${convId}/participants/${participantRef(entityId, entityPublicId)}`, token, { role })
 
 export const updateSubscription = (token: string, convId: number, mode: string, contextWindow?: number) =>
   request('PUT', `/api/v1/conversations/${convId}/subscription`, token, {
