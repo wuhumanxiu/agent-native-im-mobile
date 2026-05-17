@@ -14,7 +14,7 @@ It is not expected to be pixel-identical to web/PWA desktop, but it is expected 
 
 Primary comparison targets:
 
-- `dev/agent-native-im-web`
+- `~/code/agent-native-im/agent-native-im-web`
 - current production PWA behavior on `agent-native.im`
 
 ## Current Alignment Decisions
@@ -110,11 +110,11 @@ The following do not count as parity failures by themselves:
 Before shipping a mobile parity change:
 
 ```bash
-cd dev/agent-native-im-mobile
+cd ~/code/agent-native-im/agent-native-im-mobile
 npm test
 expo export --platform ios --platform android --output-dir /tmp/ani-mobile-check
 ```
 
-Use [MOBILE_PARITY_TEST_CASES_2026-03-29.md](dev/agent-native-im-mobile/docs/MOBILE_PARITY_TEST_CASES_2026-03-29.md) as the current execution checklist.
+Use [MOBILE_PARITY_TEST_CASES_2026-03-29.md](MOBILE_PARITY_TEST_CASES_2026-03-29.md) as the current execution checklist.
 
-For the longer-lived canonical validation set, also use [TEST_CASES.md](dev/agent-native-im-mobile/docs/TEST_CASES.md).
+For the longer-lived canonical validation set, also use [TEST_CASES.md](TEST_CASES.md).

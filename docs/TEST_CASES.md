@@ -502,7 +502,7 @@ Expected:
 Required local validation before OTA:
 
 ```bash
-cd dev/agent-native-im-mobile
+cd ~/code/agent-native-im/agent-native-im-mobile
 npm test
 expo export --platform ios --platform android --output-dir /tmp/ani-mobile-check
 ```

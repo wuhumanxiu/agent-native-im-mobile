@@ -134,6 +134,6 @@ Keep `runtimeVersion` unchanged for JS-only updates.
 
 ## Related Docs
 
-- [VERSIONING.md](dev/agent-native-im-mobile/docs/VERSIONING.md)
-- [IOS_RELEASE_AND_OTA_TROUBLESHOOTING_2026-04.md](dev/agent-native-im-mobile/docs/IOS_RELEASE_AND_OTA_TROUBLESHOOTING_2026-04.md)
-- [APP_STORE_RELEASE_1.6.2.md](dev/agent-native-im-mobile/docs/APP_STORE_RELEASE_1.6.2.md)
+- [VERSIONING.md](VERSIONING.md)
+- [IOS_RELEASE_AND_OTA_TROUBLESHOOTING_2026-04.md](IOS_RELEASE_AND_OTA_TROUBLESHOOTING_2026-04.md)
+- [APP_STORE_RELEASE_1.6.2.md](APP_STORE_RELEASE_1.6.2.md)
