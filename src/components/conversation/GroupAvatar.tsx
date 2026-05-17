@@ -51,12 +51,13 @@ export function GroupAvatar({ participants = [], size = 40 }: Props) {
   const [failedUrls, setFailedUrls] = useState<Set<string>>(() => new Set())
   const members = useMemo(() => participants.slice(0, 9), [participants])
   const cols = gridColumns(members.length)
-  const gap = cols === 1 ? 0 : 2
-  const innerSize = size - 6
+  const gap = cols === 1 ? 0 : 1
+  const padding = 2
+  const innerSize = size - padding * 2
   const tileSize = (innerSize - gap * (cols - 1)) / cols
 
   return (
-    <View style={[styles.outer, { width: size, height: size, borderRadius: size / 2, padding: 3 }]}>
+    <View style={[styles.outer, { width: size, height: size, borderRadius: size / 2, padding }]}>
       <View style={[styles.grid, { gap, width: innerSize, height: innerSize }]}>
         {members.length > 0 ? members.map((participant, index) => {
           const entity = participant.entity
@@ -105,7 +106,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: '#d7dee8',
-    backgroundColor: '#f1f5f9',
+    backgroundColor: 'transparent',
   },
   grid: {
     flexDirection: 'row',
