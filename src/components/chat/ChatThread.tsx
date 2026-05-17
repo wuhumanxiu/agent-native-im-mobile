@@ -1,8 +1,8 @@
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react'
-import { View, Text, FlatList, Pressable, ActivityIndicator, StyleSheet, Platform, KeyboardAvoidingView, Alert, RefreshControl, useWindowDimensions, PixelRatio, type LayoutChangeEvent } from 'react-native'
+import { View, Text, FlatList, Pressable, ActivityIndicator, StyleSheet, Platform, KeyboardAvoidingView, Alert, RefreshControl, useWindowDimensions, PixelRatio, Modal, TextInput, ScrollView, type LayoutChangeEvent } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import * as Clipboard from 'expo-clipboard'
-import { ArrowLeft, Settings, Search, ListTodo, Bug, Check } from 'lucide-react-native'
+import { ArrowLeft, Settings, Search, ListTodo, Bug, Check, Forward, CheckSquare, Send, X } from 'lucide-react-native'
 import { MessageBubble } from './MessageBubble'
 import { StreamingBubble } from './StreamingBubble'
 import { ThinkingBubble, ProcessingDots } from './ThinkingBubble'
@@ -42,6 +42,7 @@ function isBotOrService(entity?: { entity_type?: string } | null): boolean {
 
 interface Props {
   conversation: Conversation
+  conversations?: Conversation[]
   messages: Message[]
   streams?: ActiveStream[]
   myEntityId: number
@@ -74,12 +75,15 @@ interface Props {
   onRetryOutbox?: (tempId: string) => void
   onCancelStream?: (streamId: string, conversationId: number) => void
   onMarkAsRead?: (conversationId: number, messageId: number) => void
+  onForwardMessages?: (target: Conversation, bodies: string[], mentions: number[]) => Promise<void> | void
 }
+type ForwardMode = 'merged' | 'separate'
 
 // ─── Component ───────────────────────────────────────────────────
 
 export function ChatThread({
   conversation,
+  conversations = [],
   messages,
   streams,
   myEntityId,
@@ -112,6 +116,7 @@ export function ChatThread({
   onRetryOutbox,
   onCancelStream,
   onMarkAsRead,
+  onForwardMessages,
 }: Props) {
   const { t } = useTranslation()
   const colors = useThemeColors()
@@ -124,6 +129,13 @@ export function ChatThread({
   const [debugSheetVisible, setDebugSheetVisible] = useState(false)
   const [debugStatusKey, setDebugStatusKey] = useState<string | null>(null)
   const [layoutRegions, setLayoutRegions] = useState<Record<string, DebugLayoutBox>>({})
+  const [selectionMode, setSelectionMode] = useState(false)
+  const [selectedMessageIds, setSelectedMessageIds] = useState<Set<number>>(new Set())
+  const [forwardingMessages, setForwardingMessages] = useState<Message[] | null>(null)
+  const [forwardMode, setForwardMode] = useState<ForwardMode>('merged')
+  const [forwardNote, setForwardNote] = useState('')
+  const [forwardTargetId, setForwardTargetId] = useState<number | null>(null)
+  const [forwardSending, setForwardSending] = useState(false)
 
   const isGroup = conversation?.conv_type === 'group' || conversation?.conv_type === 'channel'
   const otherParticipant = (conversation?.participants || []).find((p) => p.entity_id !== myEntityId)?.entity
@@ -150,6 +162,88 @@ export function ChatThread({
     () => messages.filter((msg) => msg.temp_id && msg.client_state === 'failed').length,
     [messages],
   )
+
+  const getMessageForwardText = useCallback((msg: Message) => {
+    const body = (msg.layers?.data?.body as string) || msg.layers?.summary || ''
+    if (body.trim()) return body.trim()
+    if (msg.content_type === 'audio') return t('message.forwardAudio')
+    if (msg.attachments?.length) {
+      return msg.attachments.map((att) => att.filename || att.type || t('message.forwardAttachment')).join(', ')
+    }
+    return t('message.forwardUnsupported')
+  }, [t])
+
+  const buildForwardBodies = useCallback((items: Message[], mode: ForwardMode, note: string) => {
+    const cleanNote = note.trim()
+    if (mode === 'merged') {
+      const merged = items.map((msg) => `${entityDisplayName(msg.sender)}: ${getMessageForwardText(msg)}`).join('\n\n')
+      return [cleanNote ? `${merged}\n\n${cleanNote}` : merged]
+    }
+    const bodies = items.map(getMessageForwardText)
+    return cleanNote ? [...bodies, cleanNote] : bodies
+  }, [getMessageForwardText])
+
+  const resolveForwardMentionIds = useCallback((target: Conversation | undefined, note: string) => {
+    if (!target || !note.includes('@')) return []
+    const ids = new Set<number>()
+    for (const participant of target.participants || []) {
+      const entity = participant.entity
+      if (!entity) continue
+      const names = [entity.display_name, entity.name, entity.bot_id].filter(Boolean) as string[]
+      if (names.some((name) => note.includes(`@${name}`))) ids.add(participant.entity_id)
+    }
+    return [...ids]
+  }, [])
+
+  const startForward = useCallback((items: Message[]) => {
+    if (items.length === 0) return
+    setForwardingMessages(items)
+    setForwardMode(items.length > 1 ? 'merged' : 'separate')
+    setForwardNote('')
+    setForwardTargetId(conversation.id)
+  }, [conversation.id])
+
+  const handleSelectMessage = useCallback((msg: Message) => {
+    setSelectionMode(true)
+    setSelectedMessageIds(new Set([msg.id]))
+  }, [])
+
+  const toggleSelectedMessage = useCallback((msg: Message) => {
+    setSelectedMessageIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(msg.id)) next.delete(msg.id)
+      else next.add(msg.id)
+      return next
+    })
+  }, [])
+
+  const clearSelection = useCallback(() => {
+    setSelectionMode(false)
+    setSelectedMessageIds(new Set())
+  }, [])
+
+  const handleForwardSelected = useCallback(() => {
+    startForward(messages.filter((msg) => selectedMessageIds.has(msg.id)))
+  }, [messages, selectedMessageIds, startForward])
+
+  const submitForward = useCallback(async () => {
+    if (!forwardingMessages || !forwardTargetId || forwardSending || !onForwardMessages) return
+    const target = conversations.find((item) => item.id === forwardTargetId)
+    if (!target) return
+    setForwardSending(true)
+    try {
+      await onForwardMessages(
+        target,
+        buildForwardBodies(forwardingMessages, forwardMode, forwardNote),
+        resolveForwardMentionIds(target, forwardNote),
+      )
+      setForwardingMessages(null)
+      setForwardNote('')
+      clearSelection()
+    } finally {
+      setForwardSending(false)
+    }
+  }, [buildForwardBodies, clearSelection, conversations, forwardMode, forwardNote, forwardSending, forwardingMessages, forwardTargetId, onForwardMessages, resolveForwardMentionIds])
 
   // Active streams for this conversation
   const convStreams = useMemo<ActiveStream[]>(
@@ -297,10 +391,15 @@ export function ChatThread({
           onReact={isArchived ? undefined : onReact}
           onRespondInteraction={isArchived ? undefined : onRespondInteraction}
           onRetryOutbox={isArchived ? undefined : onRetryOutbox}
+          onForward={isArchived || !onForwardMessages ? undefined : (msg) => startForward([msg])}
+          onSelect={isArchived || !onForwardMessages ? undefined : handleSelectMessage}
+          selectionMode={selectionMode}
+          selected={selectedMessageIds.has(item.id)}
+          onToggleSelected={toggleSelectedMessage}
         />
       </View>
     )
-  }, [myEntityId, isGroup, shouldShowSender, invertedMessages, messageMap, interactionResponseMap, participantMap, isMessageRead, isArchived, onEntityPress, onRevoke, handleReply, onReact, onRespondInteraction, onRetryOutbox, colors, formatDateSeparator])
+  }, [myEntityId, isGroup, shouldShowSender, invertedMessages, messageMap, interactionResponseMap, participantMap, isMessageRead, isArchived, onEntityPress, onRevoke, handleReply, onReact, onRespondInteraction, onRetryOutbox, onForwardMessages, startForward, handleSelectMessage, selectionMode, selectedMessageIds, toggleSelectedMessage, colors, formatDateSeparator])
 
   // Render streaming bubbles at the top (bottom visually in inverted list)
   const renderHeader = useCallback(() => {
@@ -603,6 +702,26 @@ export function ChatThread({
         lastSyncAt={lastSyncAt}
       />
 
+      {selectionMode ? (
+        <View style={[styles.selectionBar, { backgroundColor: colors.bgSecondary, borderBottomColor: colors.border }]}>
+          <CheckSquare size={18} color={colors.accent} />
+          <Text style={[styles.selectionText, { color: colors.text }]} numberOfLines={1}>
+            {t('message.selectedCount', { count: selectedMessageIds.size })}
+          </Text>
+          <Pressable
+            style={[styles.selectionAction, { backgroundColor: colors.accent }, selectedMessageIds.size === 0 && styles.actionDisabled]}
+            onPress={handleForwardSelected}
+            disabled={selectedMessageIds.size === 0}
+          >
+            <Forward size={14} color="#ffffff" />
+            <Text style={styles.selectionActionText}>{t('message.forward')}</Text>
+          </Pressable>
+          <Pressable style={styles.selectionCancel} onPress={clearSelection}>
+            <Text style={[styles.selectionCancelText, { color: colors.textSecondary }]}>{t('common.cancel')}</Text>
+          </Pressable>
+        </View>
+      ) : null}
+
       <ActionSheet
         visible={debugSheetVisible}
         onClose={() => setDebugSheetVisible(false)}
@@ -628,6 +747,84 @@ export function ChatThread({
           },
         ]}
       />
+
+      <Modal
+        visible={!!forwardingMessages}
+        transparent
+        animationType="fade"
+        onRequestClose={() => !forwardSending && setForwardingMessages(null)}
+      >
+        <View style={styles.forwardOverlay}>
+          <View style={[styles.forwardDialog, { backgroundColor: colors.bgSecondary, borderColor: colors.border }]}>
+            <View style={[styles.forwardHeader, { borderBottomColor: colors.border }]}>
+              <Forward size={18} color={colors.accent} />
+              <View style={styles.forwardTitleArea}>
+                <Text style={[styles.forwardTitle, { color: colors.text }]}>{t('message.forwardMessages')}</Text>
+                <Text style={[styles.forwardSubtitle, { color: colors.textMuted }]}>
+                  {t('message.selectedCount', { count: forwardingMessages?.length || 0 })}
+                </Text>
+              </View>
+              <Pressable onPress={() => setForwardingMessages(null)} disabled={forwardSending} style={styles.forwardClose}>
+                <X size={18} color={colors.textMuted} />
+              </Pressable>
+            </View>
+
+            <View style={styles.forwardBody}>
+              <View style={[styles.modeSwitch, { backgroundColor: colors.bgHover }]}>
+                {(['merged', 'separate'] as ForwardMode[]).map((mode) => (
+                  <Pressable
+                    key={mode}
+                    onPress={() => setForwardMode(mode)}
+                    style={[styles.modeButton, forwardMode === mode && { backgroundColor: colors.bgSecondary }]}
+                  >
+                    <Text style={[styles.modeButtonText, { color: forwardMode === mode ? colors.text : colors.textMuted }]}>
+                      {t(`message.forwardMode.${mode}`)}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+
+              <ScrollView style={[styles.targetList, { borderColor: colors.border }]} keyboardShouldPersistTaps="handled">
+                {conversations.map((item) => (
+                  <Pressable
+                    key={item.id}
+                    style={[styles.targetRow, { borderBottomColor: colors.border }, forwardTargetId === item.id && { backgroundColor: colors.accentDim }]}
+                    onPress={() => setForwardTargetId(item.id)}
+                  >
+                    <Text style={[styles.targetTitle, { color: colors.text }]} numberOfLines={1}>
+                      {item.title || `#${item.id}`}
+                    </Text>
+                    {forwardTargetId === item.id ? <Check size={16} color={colors.accent} /> : null}
+                  </Pressable>
+                ))}
+              </ScrollView>
+
+              <TextInput
+                value={forwardNote}
+                onChangeText={setForwardNote}
+                placeholder={t('message.forwardNotePlaceholder')}
+                placeholderTextColor={colors.textMuted}
+                multiline
+                style={[styles.forwardInput, { color: colors.text, borderColor: colors.border, backgroundColor: colors.bg }]}
+              />
+            </View>
+
+            <View style={[styles.forwardFooter, { borderTopColor: colors.border }]}>
+              <Pressable style={styles.footerButton} onPress={() => setForwardingMessages(null)} disabled={forwardSending}>
+                <Text style={[styles.footerButtonText, { color: colors.textSecondary }]}>{t('common.cancel')}</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.footerPrimary, { backgroundColor: colors.accent }, (!forwardTargetId || forwardSending) && styles.actionDisabled]}
+                onPress={() => void submitForward()}
+                disabled={!forwardTargetId || forwardSending}
+              >
+                <Send size={14} color="#ffffff" />
+                <Text style={styles.footerPrimaryText}>{t('message.forwardSend')}</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       <ConversationContextCard
         conversationId={conversation.id}
@@ -764,6 +961,158 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
     paddingVertical: 10,
     gap: 4,
+  },
+  selectionBar: {
+    minHeight: 48,
+    borderBottomWidth: 1,
+    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  selectionText: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  selectionAction: {
+    minHeight: 34,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  selectionActionText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  selectionCancel: {
+    minHeight: 34,
+    justifyContent: 'center',
+    paddingHorizontal: 8,
+  },
+  selectionCancelText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  actionDisabled: {
+    opacity: 0.5,
+  },
+  forwardOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.55)',
+    justifyContent: 'center',
+    padding: 18,
+  },
+  forwardDialog: {
+    maxHeight: '82%',
+    borderRadius: 18,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  forwardHeader: {
+    minHeight: 58,
+    borderBottomWidth: 1,
+    paddingHorizontal: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  forwardTitleArea: {
+    flex: 1,
+    minWidth: 0,
+  },
+  forwardTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  forwardSubtitle: {
+    marginTop: 2,
+    fontSize: 12,
+  },
+  forwardClose: {
+    width: 34,
+    height: 34,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  forwardBody: {
+    padding: 14,
+    gap: 12,
+  },
+  modeSwitch: {
+    flexDirection: 'row',
+    borderRadius: 12,
+    padding: 4,
+  },
+  modeButton: {
+    flex: 1,
+    minHeight: 34,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modeButtonText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  targetList: {
+    maxHeight: 180,
+    borderWidth: 1,
+    borderRadius: 12,
+  },
+  targetRow: {
+    minHeight: 44,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  targetTitle: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  forwardInput: {
+    minHeight: 86,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+    textAlignVertical: 'top',
+  },
+  forwardFooter: {
+    borderTopWidth: 1,
+    padding: 12,
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 10,
+  },
+  footerButton: {
+    minHeight: 36,
+    justifyContent: 'center',
+    paddingHorizontal: 12,
+  },
+  footerButtonText: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  footerPrimary: {
+    minHeight: 36,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  footerPrimaryText: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '700',
   },
 })
 

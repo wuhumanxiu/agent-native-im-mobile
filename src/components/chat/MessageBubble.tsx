@@ -388,6 +388,11 @@ interface Props {
   onReact?: (msgId: number, emoji: string) => void
   onRespondInteraction?: (msgId: number, value: string, label: string) => void
   onRetryOutbox?: (tempId: string) => void
+  onForward?: (msg: Message) => void
+  onSelect?: (msg: Message) => void
+  selectionMode?: boolean
+  selected?: boolean
+  onToggleSelected?: (msg: Message) => void
   showSender?: boolean
   isRead?: boolean
 }
@@ -407,6 +412,11 @@ export function MessageBubble({
   onReact,
   onRespondInteraction,
   onRetryOutbox,
+  onForward,
+  onSelect,
+  selectionMode = false,
+  selected = false,
+  onToggleSelected,
   showSender = true,
   isRead,
 }: Props) {
@@ -453,6 +463,18 @@ export function MessageBubble({
     actionOptions.push({
       label: t('chat.reply'),
       onPress: () => onReply!(message),
+    })
+  }
+  if (!isRevoked && onForward) {
+    actionOptions.push({
+      label: t('message.forward'),
+      onPress: () => onForward(message),
+    })
+  }
+  if (!isRevoked && onSelect) {
+    actionOptions.push({
+      label: t('message.multiSelect'),
+      onPress: () => onSelect(message),
     })
   }
   if (canReact) {
@@ -647,6 +669,17 @@ export function MessageBubble({
   return (
     <>
       <View style={[styles.row, isSelf && styles.rowSelf]}>
+        {selectionMode ? (
+          <Pressable
+            style={[
+              styles.selectBox,
+              { borderColor: selected ? colors.accent : colors.border, backgroundColor: selected ? colors.accent : colors.bgSecondary },
+            ]}
+            onPress={() => onToggleSelected?.(message)}
+          >
+            {selected ? <Check size={14} color="#ffffff" /> : null}
+          </Pressable>
+        ) : null}
         {/* Avatar */}
         {!isSelf && (
           showSender ? (
@@ -834,6 +867,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 8,
     paddingHorizontal: 12,
+  },
+  selectBox: {
+    width: 24,
+    height: 24,
+    borderRadius: 8,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'center',
+    flexShrink: 0,
   },
   rowSelf: {
     flexDirection: 'row-reverse',

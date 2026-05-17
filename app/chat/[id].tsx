@@ -564,6 +564,29 @@ export default function ChatDetailScreen() {
     })
   }, [token, convId, replaceOptimisticMessage, setOptimisticState])
 
+  const handleForwardMessages = useCallback(async (target: Conversation, bodies: string[], mentions: number[]) => {
+    if (!token) return
+    for (const body of bodies) {
+      const res = await api.sendMessage(token, {
+        conversation_id: target.id,
+        conversation_public_id: target.public_id || (typeof target.metadata?.public_id === 'string' ? target.metadata.public_id : undefined),
+        content_type: 'text',
+        layers: {
+          summary: body,
+          data: { body, forwarded: { source_conversation_id: convId } },
+        },
+        mentions,
+      })
+      if (res.ok && res.data) {
+        addStoreMessage(res.data)
+        updateConversation(target.id, {
+          last_message: res.data,
+          updated_at: res.data.created_at,
+        })
+      }
+    }
+  }, [addStoreMessage, convId, token, updateConversation])
+
   // File upload handler
   const handleFileUpload = useCallback(async (file: { uri: string; name: string; type: string; size: number }): Promise<string | null> => {
     if (!token) return null
@@ -636,6 +659,7 @@ export default function ChatDetailScreen() {
       <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
         <ChatThread
           conversation={displayConv}
+          conversations={conversations}
           messages={messages}
           streams={convStreams}
           myEntityId={entity?.id || 0}
@@ -671,6 +695,7 @@ export default function ChatDetailScreen() {
           onReact={handleReact}
           onRespondInteraction={handleRespondInteraction}
           onRetryOutbox={handleRetryOutbox}
+          onForwardMessages={handleForwardMessages}
           onMarkAsRead={handleMarkAsRead}
           onFileUpload={handleFileUpload}
           onTyping={handleTyping}
