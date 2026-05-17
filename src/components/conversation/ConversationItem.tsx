@@ -1,8 +1,9 @@
 import React, { useCallback, useRef, useState } from 'react'
 import { View, Text, Pressable, StyleSheet } from 'react-native'
-import { MessagesSquare, VolumeX, Pin } from 'lucide-react-native'
+import { VolumeX, Pin } from 'lucide-react-native'
 import * as Haptics from 'expo-haptics'
 import { EntityAvatar } from '../ui/EntityAvatar'
+import { GroupAvatar } from './GroupAvatar'
 import { ActionSheet, type ActionSheetOption } from '../ui/ActionSheet'
 import { useThemeColors } from '../../lib/theme'
 import type { Conversation, Entity } from '../../lib/types'
@@ -152,9 +153,7 @@ export function ConversationItem({
         {/* Avatar */}
         {isGroup ? (
           <View style={styles.groupAvatarContainer}>
-            <View style={[styles.groupAvatar, { backgroundColor: colors.accentDim, borderColor: colors.border }]}>
-              <MessagesSquare size={18} color={colors.accent} />
-            </View>
+            <GroupAvatar participants={conv.participants} />
           </View>
         ) : (
           <View style={styles.avatarContainer}>
@@ -250,15 +249,6 @@ const styles = StyleSheet.create({
   avatarContainer: {
     flexShrink: 0,
     marginTop: 8,
-  },
-  groupAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 9999,
-    backgroundColor: '#eef2ff',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
   },
   content: {
     flex: 1,

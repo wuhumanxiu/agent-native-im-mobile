@@ -2,7 +2,7 @@ import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import { View, Text, FlatList, Pressable, ActivityIndicator, StyleSheet, Platform, KeyboardAvoidingView, Alert, RefreshControl, useWindowDimensions, PixelRatio, type LayoutChangeEvent } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import * as Clipboard from 'expo-clipboard'
-import { ArrowLeft, Users, Settings, Search, ListTodo, Bug, Check } from 'lucide-react-native'
+import { ArrowLeft, Settings, Search, ListTodo, Bug, Check } from 'lucide-react-native'
 import { MessageBubble } from './MessageBubble'
 import { StreamingBubble } from './StreamingBubble'
 import { ThinkingBubble, ProcessingDots } from './ThinkingBubble'
@@ -11,6 +11,7 @@ import { ConversationContextCard } from './ConversationContextCard'
 import { SkeletonLoader } from '../ui/SkeletonLoader'
 import { ActionSheet } from '../ui/ActionSheet'
 import { EntityAvatar } from '../ui/EntityAvatar'
+import { GroupAvatar } from '../conversation/GroupAvatar'
 import { ConnectionStatusBar } from '../ui/ConnectionStatusBar'
 import {
   buildDebugReport,
@@ -512,9 +513,7 @@ export function ChatThread({
         {/* Title area */}
         <Pressable style={styles.titleArea} onPress={onSettings}>
           {isGroup ? (
-            <View style={[styles.groupIconContainer, { backgroundColor: colors.accentDim }]}>
-              <Users size={16} color={colors.accent} />
-            </View>
+            <GroupAvatar participants={conversation.participants} size={36} />
           ) : (
             <EntityAvatar entity={otherParticipant} size="sm" showStatus presenceState={presenceState} />
           )}
@@ -742,15 +741,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 10,
     minWidth: 0,
-  },
-  groupIconContainer: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#eef2ff',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
   },
   titleContent: {
     flex: 1,
