@@ -242,7 +242,20 @@
     "tapToRetry": "Tap to retry",
     "bugReport": "Copy debug report",
     "copyText": "Copy text",
-    "read": "Read"
+    "read": "Read",
+    "forward": "Forward",
+    "multiSelect": "Select",
+    "selectedCount": "{{count}} selected",
+    "forwardMessages": "Forward messages",
+    "forwardSend": "Send",
+    "forwardNotePlaceholder": "Add a message or @mention",
+    "forwardAudio": "[Voice message]",
+    "forwardAttachment": "[Attachment]",
+    "forwardUnsupported": "[Unsupported message]",
+    "forwardMode": {
+      "merged": "Merged",
+      "separate": "One by one"
+    }
   },
   "chat": {
     "reply": "Reply",

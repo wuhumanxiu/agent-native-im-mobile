@@ -242,7 +242,20 @@
     "tapToRetry": "点击重试",
     "bugReport": "复制调试报告",
     "copyText": "复制文本",
-    "read": "已读"
+    "read": "已读",
+    "forward": "转发",
+    "multiSelect": "多选",
+    "selectedCount": "已选 {{count}} 条",
+    "forwardMessages": "转发消息",
+    "forwardSend": "发送",
+    "forwardNotePlaceholder": "追加文字或 @提及",
+    "forwardAudio": "[语音消息]",
+    "forwardAttachment": "[附件]",
+    "forwardUnsupported": "[不支持的消息]",
+    "forwardMode": {
+      "merged": "合并转发",
+      "separate": "逐条转发"
+    }
   },
   "chat": {
     "reply": "回复",
