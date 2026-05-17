@@ -214,6 +214,6 @@ Use the following release policy going forward:
 
 ## Related Docs
 
-- [VERSIONING.md](/Users/donaldford/code/SuperBody/dev/agent-native-im-mobile/docs/VERSIONING.md)
-- [APP_STORE_CURRENT.md](/Users/donaldford/code/SuperBody/dev/agent-native-im-mobile/docs/APP_STORE_CURRENT.md)
-- [APP_STORE_RELEASE_1.6.2.md](/Users/donaldford/code/SuperBody/dev/agent-native-im-mobile/docs/APP_STORE_RELEASE_1.6.2.md)
+- [VERSIONING.md](dev/agent-native-im-mobile/docs/VERSIONING.md)
+- [APP_STORE_CURRENT.md](dev/agent-native-im-mobile/docs/APP_STORE_CURRENT.md)
+- [APP_STORE_RELEASE_1.6.2.md](dev/agent-native-im-mobile/docs/APP_STORE_RELEASE_1.6.2.md)

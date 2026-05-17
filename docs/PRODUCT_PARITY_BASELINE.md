@@ -115,6 +115,6 @@ npm test
 expo export --platform ios --platform android --output-dir /tmp/ani-mobile-check
 ```
 
-Use [MOBILE_PARITY_TEST_CASES_2026-03-29.md](/Users/donaldford/code/SuperBody/dev/agent-native-im-mobile/docs/MOBILE_PARITY_TEST_CASES_2026-03-29.md) as the current execution checklist.
+Use [MOBILE_PARITY_TEST_CASES_2026-03-29.md](dev/agent-native-im-mobile/docs/MOBILE_PARITY_TEST_CASES_2026-03-29.md) as the current execution checklist.
 
-For the longer-lived canonical validation set, also use [TEST_CASES.md](/Users/donaldford/code/SuperBody/dev/agent-native-im-mobile/docs/TEST_CASES.md).
+For the longer-lived canonical validation set, also use [TEST_CASES.md](dev/agent-native-im-mobile/docs/TEST_CASES.md).

@@ -332,7 +332,7 @@
               - textbox "First name" [ref=e433]: Donald
               - textbox "Last name" [ref=e436]: Ford
               - textbox "Phone number" [ref=e439]: +86 18968066099
-              - textbox "Email" [ref=e442]: fukui@wuzhi-ai.com
+              - textbox "Email" [ref=e442]: manxiu-dev@wuhumanxiu.com
             - generic [ref=e443]:
               - generic [ref=e445]:
                 - generic [ref=e446]: Notes

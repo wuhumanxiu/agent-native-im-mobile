@@ -49,7 +49,7 @@ This document defines the release contract for the ANI mobile app.
 
 ## Source Of Truth
 
-The release values are defined in [app.config.js](/Users/donaldford/code/SuperBody/dev/agent-native-im-mobile/app.config.js):
+The release values are defined in [app.config.js](dev/agent-native-im-mobile/app.config.js):
 
 - `package.json` -> app version
 - `runtimeVersion` constant -> OTA compatibility boundary

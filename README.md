@@ -72,9 +72,9 @@ Important:
 - `preview` is for internal / ad hoc distribution
 - `production` is for store-ready builds
 - Expo Go is useful for development, but it is not the public release target
-- versioning policy is documented in [docs/VERSIONING.md](/Users/donaldford/code/SuperBody/dev/agent-native-im-mobile/docs/VERSIONING.md)
-- iOS App Store / OTA operational guidance is documented in [docs/IOS_RELEASE_AND_OTA_TROUBLESHOOTING_2026-04.md](/Users/donaldford/code/SuperBody/dev/agent-native-im-mobile/docs/IOS_RELEASE_AND_OTA_TROUBLESHOOTING_2026-04.md)
-- Android APK / OTA operational guidance is documented in [docs/ANDROID_RELEASE_AND_OTA_2026-05.md](/Users/donaldford/code/SuperBody/dev/agent-native-im-mobile/docs/ANDROID_RELEASE_AND_OTA_2026-05.md)
+- versioning policy is documented in [docs/VERSIONING.md](dev/agent-native-im-mobile/docs/VERSIONING.md)
+- iOS App Store / OTA operational guidance is documented in [docs/IOS_RELEASE_AND_OTA_TROUBLESHOOTING_2026-04.md](dev/agent-native-im-mobile/docs/IOS_RELEASE_AND_OTA_TROUBLESHOOTING_2026-04.md)
+- Android APK / OTA operational guidance is documented in [docs/ANDROID_RELEASE_AND_OTA_2026-05.md](dev/agent-native-im-mobile/docs/ANDROID_RELEASE_AND_OTA_2026-05.md)
 
 ## EAS Update
 
@@ -104,7 +104,7 @@ Important boundary:
 - runtime version is for native generation boundaries only
 - JS / asset hotfixes should continue publishing on the same runtime until a native-breaking change is introduced
 - only bump `runtimeVersion` when a native-breaking change is introduced
-- current App Store release note draft lives in [docs/APP_STORE_RELEASE_1.6.2.md](/Users/donaldford/code/SuperBody/dev/agent-native-im-mobile/docs/APP_STORE_RELEASE_1.6.2.md)
+- current App Store release note draft lives in [docs/APP_STORE_RELEASE_1.6.2.md](dev/agent-native-im-mobile/docs/APP_STORE_RELEASE_1.6.2.md)
 
 ## Features
 
@@ -126,11 +126,11 @@ Important boundary:
 
 Mobile parity is tracked against the current ANI web/PWA product, not against older one-off checklists.
 
-- product baseline index: [../agent-native-im/docs/PRODUCT_BASELINE.md](/Users/donaldford/code/SuperBody/dev/agent-native-im/docs/PRODUCT_BASELINE.md)
-- mobile product parity baseline: [docs/PRODUCT_PARITY_BASELINE.md](/Users/donaldford/code/SuperBody/dev/agent-native-im-mobile/docs/PRODUCT_PARITY_BASELINE.md)
-- mobile user stories: [docs/USER_STORIES.md](/Users/donaldford/code/SuperBody/dev/agent-native-im-mobile/docs/USER_STORIES.md)
-- mobile test cases: [docs/TEST_CASES.md](/Users/donaldford/code/SuperBody/dev/agent-native-im-mobile/docs/TEST_CASES.md)
-- mobile parity test cases: [docs/MOBILE_PARITY_TEST_CASES_2026-03-29.md](/Users/donaldford/code/SuperBody/dev/agent-native-im-mobile/docs/MOBILE_PARITY_TEST_CASES_2026-03-29.md)
+- product baseline index: [../agent-native-im/docs/PRODUCT_BASELINE.md](dev/agent-native-im/docs/PRODUCT_BASELINE.md)
+- mobile product parity baseline: [docs/PRODUCT_PARITY_BASELINE.md](dev/agent-native-im-mobile/docs/PRODUCT_PARITY_BASELINE.md)
+- mobile user stories: [docs/USER_STORIES.md](dev/agent-native-im-mobile/docs/USER_STORIES.md)
+- mobile test cases: [docs/TEST_CASES.md](dev/agent-native-im-mobile/docs/TEST_CASES.md)
+- mobile parity test cases: [docs/MOBILE_PARITY_TEST_CASES_2026-03-29.md](dev/agent-native-im-mobile/docs/MOBILE_PARITY_TEST_CASES_2026-03-29.md)
 
 ## Important Product Boundaries
 
@@ -172,8 +172,8 @@ expo export --platform ios --platform android --output-dir /tmp/ani-mobile-check
 
 | Project | Description |
 | --- | --- |
-| [agent-native-im](https://github.com/wzfukui/agent-native-im) | Go backend |
-| [agent-native-im-web](https://github.com/wzfukui/agent-native-im-web) | PWA / web client |
+| [agent-native-im](https://github.com/wuhumanxiu/agent-native-im) | Go backend |
+| [agent-native-im-web](https://github.com/wuhumanxiu/agent-native-im-web) | PWA / web client |
 | [@openclaw/ani](../openclaw/extensions/ani/) | OpenClaw ANI bridge |
 
 ## License
