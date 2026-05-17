@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef, useMemo } from 'react'
-import { View, Text, Pressable, Image, StyleSheet, Modal, TextInput } from 'react-native'
+import { View, Text, Pressable, Image, StyleSheet, Modal, TextInput, ScrollView } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import Markdown from 'react-native-markdown-display'
 import { ArtifactRenderer } from './ArtifactRenderer'
@@ -7,7 +7,7 @@ import * as Haptics from 'expo-haptics'
 import * as Clipboard from 'expo-clipboard'
 import {
   FileText, Download, Play, Pause, Ban, Clock, RotateCcw, CloudOff,
-  Check, CornerUpLeft, ChevronDown, ChevronUp, Brain, Send, X, ArrowRight, Package, Bug, Eye, BarChart3,
+  Check, CornerUpLeft, ChevronDown, ChevronUp, Brain, Send, X, ArrowRight, Package, Bug, Eye, BarChart3, MessageSquare,
 } from 'lucide-react-native'
 import { EntityAvatar } from '../ui/EntityAvatar'
 import { ActionSheet, type ActionSheetOption } from '../ui/ActionSheet'
@@ -46,6 +46,44 @@ function getInteractionReplyLabel(message?: Message): string | null {
   if (typeof reply?.choice === 'string' && reply.choice.trim()) return reply.choice.trim()
   if (typeof reply?.value === 'string' && reply.value.trim()) return reply.value.trim()
   return null
+}
+
+interface ForwardedRecord {
+  message_id?: number
+  sender_id?: number
+  sender_name: string
+  sender_avatar_url?: string
+  text: string
+  created_at?: string
+  is_self?: boolean
+}
+
+interface ForwardedPayload {
+  title?: string
+  mode?: 'merged' | 'separate'
+  records?: ForwardedRecord[]
+}
+
+function parseForwardedPayload(raw: unknown, body: string): ForwardedPayload | null {
+  if (!raw || typeof raw !== 'object') return null
+  const payload = raw as ForwardedPayload
+  if (payload.mode !== 'merged') return null
+
+  const records = Array.isArray(payload.records)
+    ? payload.records.filter((item): item is ForwardedRecord => (
+      !!item && typeof item === 'object' && typeof item.sender_name === 'string' && typeof item.text === 'string'
+    ))
+    : []
+  if (records.length > 0) return { ...payload, records }
+
+  const parsed: ForwardedRecord[] = body.split(/\n{2,}/).flatMap((line, index) => {
+    const [name, ...rest] = line.split(': ')
+    const text = rest.join(': ').trim()
+    if (!name || !text) return []
+    return [{ message_id: index, sender_name: name.trim(), text }]
+  })
+
+  return parsed.length > 0 ? { ...payload, records: parsed } : null
 }
 
 interface HandoverData {
@@ -428,6 +466,7 @@ export function MessageBubble({
   const [showThinking, setShowThinking] = useState(false)
   const [lightboxSource, setLightboxSource] = useState<{ uri: string; headers?: Record<string, string> } | null>(null)
   const [showActionSheet, setShowActionSheet] = useState(false)
+  const [forwardedOpen, setForwardedOpen] = useState(false)
 
   const layers = message?.layers || {}
   const isRevoked = !!message?.revoked_at
@@ -517,10 +556,44 @@ export function MessageBubble({
   }
 
   // ─── Content renderer ────────────────────────────────────
+  const forwardedPayloadForDialog = parseForwardedPayload(
+    layers?.data?.forwarded,
+    (layers?.data?.body as string) || layers?.summary || '',
+  )
 
   const renderContent = () => {
     const body = (layers?.data?.body as string) || layers?.summary || ''
+    const forwardedPayload = forwardedPayloadForDialog
     const effectiveType = (message?.content_type === 'text' && isBot) ? 'markdown' : (message?.content_type || 'text')
+
+    if (forwardedPayload) {
+      return (
+        <Pressable
+          style={[contentStyles.forwardedCard, { borderColor: colors.border, backgroundColor: colors.bg }]}
+          onPress={() => setForwardedOpen(true)}
+        >
+          <View style={[contentStyles.forwardedHeader, { borderBottomColor: colors.border }]}>
+            <View style={[contentStyles.forwardedIcon, { backgroundColor: colors.accentDim }]}>
+              <MessageSquare size={17} color={colors.accent} />
+            </View>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={[contentStyles.forwardedTitle, { color: colors.text }]} numberOfLines={1}>
+                {forwardedPayload.title || t('message.forwardChatRecord')}
+              </Text>
+              <Text style={[contentStyles.forwardedSubtitle, { color: colors.textMuted }]}>
+                {t('message.forwardOpenRecord')}
+              </Text>
+            </View>
+          </View>
+          {(forwardedPayload.records || []).slice(0, 3).map((item, index) => (
+            <View key={`${item.message_id ?? index}`} style={[contentStyles.forwardedPreviewRow, { borderBottomColor: colors.border }]}>
+              <Text style={[contentStyles.forwardedSender, { color: colors.textSecondary }]} numberOfLines={1}>{item.sender_name}</Text>
+              <Text style={[contentStyles.forwardedPreviewText, { color: colors.textMuted }]} numberOfLines={1}>{item.text}</Text>
+            </View>
+          ))}
+        </Pressable>
+      )
+    }
 
     switch (effectiveType) {
       case 'markdown':
@@ -849,6 +922,61 @@ export function MessageBubble({
       {lightboxSource && (
         <AuthenticatedImageLightbox source={lightboxSource} onClose={() => setLightboxSource(null)} />
       )}
+
+      {forwardedOpen && forwardedPayloadForDialog ? (
+        <Modal visible transparent animationType="fade" onRequestClose={() => setForwardedOpen(false)}>
+          <View style={contentStyles.forwardedOverlay}>
+            <View style={[contentStyles.forwardedDialog, { backgroundColor: colors.bgSecondary, borderColor: colors.border }]}>
+              <View style={[contentStyles.forwardedDialogHeader, { borderBottomColor: colors.border }]}>
+                <MessageSquare size={18} color={colors.accent} />
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text style={[contentStyles.forwardedDialogTitle, { color: colors.text }]} numberOfLines={1}>
+                    {forwardedPayloadForDialog.title || t('message.forwardChatRecord')}
+                  </Text>
+                  <Text style={[contentStyles.forwardedSubtitle, { color: colors.textMuted }]}>
+                    {t('message.selectedCount', { count: forwardedPayloadForDialog.records?.length || 0 })}
+                  </Text>
+                </View>
+                <Pressable style={contentStyles.forwardedClose} onPress={() => setForwardedOpen(false)}>
+                  <X size={18} color={colors.textMuted} />
+                </Pressable>
+              </View>
+              <ScrollView style={[contentStyles.forwardedHistory, { backgroundColor: colors.bg }]}>
+                {(forwardedPayloadForDialog.records || []).map((item, index) => {
+                  const avatarEntity = {
+                    id: item.sender_id || index,
+                    entity_type: 'user' as const,
+                    name: item.sender_name,
+                    display_name: item.sender_name,
+                    status: 'active' as const,
+                    avatar_url: item.sender_avatar_url,
+                    metadata: {},
+                    created_at: '',
+                    updated_at: '',
+                  }
+                  return (
+                    <View key={`${item.message_id ?? index}`} style={[contentStyles.historyRow, item.is_self && contentStyles.historyRowSelf]}>
+                      <EntityAvatar entity={avatarEntity} size="sm" />
+                      <View style={[contentStyles.historyContent, item.is_self && contentStyles.historyContentSelf]}>
+                        <View style={[contentStyles.historyMeta, item.is_self && contentStyles.historyMetaSelf]}>
+                          <Text style={[contentStyles.historySender, { color: colors.textSecondary }]} numberOfLines={1}>{item.sender_name}</Text>
+                          {item.created_at ? <Text style={[contentStyles.historyTime, { color: colors.textMuted }]}>{formatTime(item.created_at)}</Text> : null}
+                        </View>
+                        <Text style={[
+                          contentStyles.historyBubble,
+                          { color: colors.text, backgroundColor: item.is_self ? colors.bubbleSelf : colors.bubbleOther, borderColor: colors.border },
+                        ]}>
+                          {item.text}
+                        </Text>
+                      </View>
+                    </View>
+                  )
+                })}
+              </ScrollView>
+            </View>
+          </View>
+        </Modal>
+      ) : null}
 
       {/* Action sheet */}
       <ActionSheet
@@ -1303,6 +1431,123 @@ const contentStyles = StyleSheet.create({
   fileSize: {
     fontSize: 10,
     color: '#94a3b8',
+  },
+  forwardedCard: {
+    minWidth: 240,
+    maxWidth: 320,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 10,
+    overflow: 'hidden',
+  },
+  forwardedHeader: {
+    minHeight: 54,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  forwardedIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  forwardedTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  forwardedSubtitle: {
+    marginTop: 2,
+    fontSize: 11,
+  },
+  forwardedPreviewRow: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  forwardedSender: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  forwardedPreviewText: {
+    marginTop: 2,
+    fontSize: 12,
+  },
+  forwardedOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.58)',
+    justifyContent: 'center',
+    padding: 18,
+  },
+  forwardedDialog: {
+    maxHeight: '82%',
+    borderRadius: 18,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  forwardedDialogHeader: {
+    minHeight: 58,
+    paddingHorizontal: 14,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  forwardedDialogTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  forwardedClose: {
+    width: 34,
+    height: 34,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  forwardedHistory: {
+    maxHeight: 520,
+    padding: 14,
+  },
+  historyRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 12,
+  },
+  historyRowSelf: {
+    flexDirection: 'row-reverse',
+  },
+  historyContent: {
+    maxWidth: '78%',
+  },
+  historyContentSelf: {
+    alignItems: 'flex-end',
+  },
+  historyMeta: {
+    marginBottom: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  historyMetaSelf: {
+    justifyContent: 'flex-end',
+  },
+  historySender: {
+    flexShrink: 1,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  historyTime: {
+    fontSize: 10,
+  },
+  historyBubble: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 10,
+    paddingHorizontal: 11,
+    paddingVertical: 8,
+    fontSize: 14,
+    lineHeight: 20,
   },
 })
 

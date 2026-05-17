@@ -252,6 +252,8 @@
     "forwardAudio": "[Voice message]",
     "forwardAttachment": "[Attachment]",
     "forwardUnsupported": "[Unsupported message]",
+    "forwardChatRecord": "ANI chat history",
+    "forwardOpenRecord": "View chat history",
     "forwardMode": {
       "merged": "Merged",
       "separate": "One by one"

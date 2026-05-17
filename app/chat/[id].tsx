@@ -564,16 +564,16 @@ export default function ChatDetailScreen() {
     })
   }, [token, convId, replaceOptimisticMessage, setOptimisticState])
 
-  const handleForwardMessages = useCallback(async (target: Conversation, bodies: string[], mentions: number[]) => {
+  const handleForwardMessages = useCallback(async (target: Conversation, bodies: string[], mentions: number[], forwardedPayloads: unknown[]) => {
     if (!token) return
-    for (const body of bodies) {
+    for (const [index, body] of bodies.entries()) {
       const res = await api.sendMessage(token, {
         conversation_id: target.id,
         conversation_public_id: target.public_id || (typeof target.metadata?.public_id === 'string' ? target.metadata.public_id : undefined),
         content_type: 'text',
         layers: {
           summary: body,
-          data: { body, forwarded: { source_conversation_id: convId } },
+          data: { body, forwarded: forwardedPayloads[index] || { source_conversation_id: convId } },
         },
         mentions,
       })

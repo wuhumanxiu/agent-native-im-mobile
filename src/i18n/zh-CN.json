@@ -252,6 +252,8 @@
     "forwardAudio": "[语音消息]",
     "forwardAttachment": "[附件]",
     "forwardUnsupported": "[不支持的消息]",
+    "forwardChatRecord": "ANI聊天记录",
+    "forwardOpenRecord": "查看聊天记录",
     "forwardMode": {
       "merged": "合并转发",
       "separate": "逐条转发"

@@ -34,6 +34,10 @@ function entityDisplayName(entity?: Entity | null): string {
   return entity.display_name || entity.name
 }
 
+function formatForwardPreviewTime(iso: string): string {
+  return new Date(iso).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
+}
+
 function isBotOrService(entity?: { entity_type?: string } | null): boolean {
   return entity?.entity_type === 'bot' || entity?.entity_type === 'service'
 }
@@ -75,9 +79,28 @@ interface Props {
   onRetryOutbox?: (tempId: string) => void
   onCancelStream?: (streamId: string, conversationId: number) => void
   onMarkAsRead?: (conversationId: number, messageId: number) => void
-  onForwardMessages?: (target: Conversation, bodies: string[], mentions: number[]) => Promise<void> | void
+  onForwardMessages?: (target: Conversation, bodies: string[], mentions: number[], forwarded: ForwardPayload[]) => Promise<void> | void
 }
 type ForwardMode = 'merged' | 'separate'
+
+interface ForwardRecord {
+  message_id: number
+  sender_id: number
+  sender_name: string
+  sender_avatar_url?: string
+  text: string
+  created_at: string
+  is_self: boolean
+}
+
+interface ForwardPayload {
+  title: string
+  source_conversation_id: number
+  message_ids: number[]
+  mode: ForwardMode
+  records: ForwardRecord[]
+  note?: string
+}
 
 // ─── Component ───────────────────────────────────────────────────
 
@@ -183,6 +206,30 @@ export function ChatThread({
     return cleanNote ? [...bodies, cleanNote] : bodies
   }, [getMessageForwardText])
 
+  const buildForwardRecords = useCallback((items: Message[]): ForwardRecord[] => items.map((msg) => ({
+    message_id: msg.id,
+    sender_id: msg.sender_id,
+    sender_name: entityDisplayName(msg.sender),
+    sender_avatar_url: msg.sender?.avatar_url,
+    text: getMessageForwardText(msg),
+    created_at: msg.created_at,
+    is_self: msg.sender_id === myEntityId,
+  })), [getMessageForwardText, myEntityId])
+
+  const buildForwardPayloads = useCallback((items: Message[], mode: ForwardMode, note: string): ForwardPayload[] => {
+    const records = buildForwardRecords(items)
+    const base = {
+      title: t('message.forwardChatRecord'),
+      source_conversation_id: conversation.id,
+      message_ids: items.map((msg) => msg.id),
+      mode,
+    }
+    if (mode === 'merged') {
+      return [{ ...base, records, note: note.trim() || undefined }]
+    }
+    return records.map((record) => ({ ...base, records: [record] }))
+  }, [buildForwardRecords, conversation.id, t])
+
   const resolveForwardMentionIds = useCallback((target: Conversation | undefined, note: string) => {
     if (!target || !note.includes('@')) return []
     const ids = new Set<number>()
@@ -236,6 +283,7 @@ export function ChatThread({
         target,
         buildForwardBodies(forwardingMessages, forwardMode, forwardNote),
         resolveForwardMentionIds(target, forwardNote),
+        buildForwardPayloads(forwardingMessages, forwardMode, forwardNote),
       )
       setForwardingMessages(null)
       setForwardNote('')
@@ -243,7 +291,7 @@ export function ChatThread({
     } finally {
       setForwardSending(false)
     }
-  }, [buildForwardBodies, clearSelection, conversations, forwardMode, forwardNote, forwardSending, forwardingMessages, forwardTargetId, onForwardMessages, resolveForwardMentionIds])
+  }, [buildForwardBodies, buildForwardPayloads, clearSelection, conversations, forwardMode, forwardNote, forwardSending, forwardingMessages, forwardTargetId, onForwardMessages, resolveForwardMentionIds])
 
   // Active streams for this conversation
   const convStreams = useMemo<ActiveStream[]>(
@@ -770,19 +818,33 @@ export function ChatThread({
             </View>
 
             <View style={styles.forwardBody}>
-              <View style={[styles.modeSwitch, { backgroundColor: colors.bgHover }]}>
+              <View style={[styles.modeSwitch, { backgroundColor: colors.bg, borderColor: colors.border }]}>
                 {(['merged', 'separate'] as ForwardMode[]).map((mode) => (
                   <Pressable
                     key={mode}
                     onPress={() => setForwardMode(mode)}
-                    style={[styles.modeButton, forwardMode === mode && { backgroundColor: colors.bgSecondary }]}
+                    style={[styles.modeButton, forwardMode === mode && { backgroundColor: colors.accent }]}
                   >
-                    <Text style={[styles.modeButtonText, { color: forwardMode === mode ? colors.text : colors.textMuted }]}>
+                    <Text style={[styles.modeButtonText, { color: forwardMode === mode ? '#ffffff' : colors.textSecondary }]}>
                       {t(`message.forwardMode.${mode}`)}
                     </Text>
                   </Pressable>
                 ))}
               </View>
+
+              <ScrollView style={[styles.forwardPreview, { borderColor: colors.border, backgroundColor: colors.bg }]} keyboardShouldPersistTaps="handled">
+                {forwardingMessages?.map((msg) => (
+                  <View key={msg.id} style={[styles.previewRow, { borderBottomColor: colors.border }]}>
+                    <View style={styles.previewMeta}>
+                      <Text style={[styles.previewSender, { color: colors.text }]} numberOfLines={1}>{entityDisplayName(msg.sender)}</Text>
+                      <Text style={[styles.previewTime, { color: colors.textMuted }]}>{formatForwardPreviewTime(msg.created_at)}</Text>
+                    </View>
+                    <Text style={[styles.previewText, { color: colors.textSecondary }]} numberOfLines={2}>
+                      {getMessageForwardText(msg)}
+                    </Text>
+                  </View>
+                ))}
+              </ScrollView>
 
               <ScrollView style={[styles.targetList, { borderColor: colors.border }]} keyboardShouldPersistTaps="handled">
                 {conversations.map((item) => (
@@ -1045,6 +1107,7 @@ const styles = StyleSheet.create({
   modeSwitch: {
     flexDirection: 'row',
     borderRadius: 12,
+    borderWidth: 1,
     padding: 4,
   },
   modeButton: {
@@ -1057,6 +1120,34 @@ const styles = StyleSheet.create({
   modeButtonText: {
     fontSize: 12,
     fontWeight: '700',
+  },
+  forwardPreview: {
+    maxHeight: 130,
+    borderWidth: 1,
+    borderRadius: 12,
+  },
+  previewRow: {
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  previewMeta: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  previewSender: {
+    flex: 1,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  previewTime: {
+    fontSize: 10,
+  },
+  previewText: {
+    marginTop: 4,
+    fontSize: 12,
+    lineHeight: 18,
   },
   targetList: {
     maxHeight: 180,
