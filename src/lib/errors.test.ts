@@ -11,13 +11,29 @@ describe('retryable network classification', () => {
     expect(
       isRetryableNetworkResponse({
         ok: false,
-        error: { code: 'PERM_DENIED', message: 'forbidden', status: 403, path: '/api/v1/messages/send' },
+        error: {
+          code: 'PERM_DENIED',
+          message: 'forbidden',
+          request_id: 'req-1',
+          status: 403,
+          timestamp: new Date(0).toISOString(),
+          method: 'POST',
+          path: '/api/v1/messages/send',
+        },
       }),
     ).toBe(false)
     expect(
       isRetryableNetworkResponse({
         ok: false,
-        error: { code: 'RATE_LIMITED', message: 'too many requests', status: 429, path: '/api/v1/messages/send' },
+        error: {
+          code: 'RATE_LIMITED',
+          message: 'too many requests',
+          request_id: 'req-2',
+          status: 429,
+          timestamp: new Date(0).toISOString(),
+          method: 'POST',
+          path: '/api/v1/messages/send',
+        },
       }),
     ).toBe(false)
   })

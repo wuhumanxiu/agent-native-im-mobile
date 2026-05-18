@@ -20,8 +20,8 @@ export function OnboardingCard({ onNewChat, onManageBots, compact = false }: Pro
       icon: Bot,
       title: t('onboarding.stepMentionTitle'),
       description: t('onboarding.stepMentionDescription'),
-      iconColor: colors.bot,
-      iconBg: `${colors.bot}22`,
+      iconColor: colors.accent,
+      iconBg: colors.accentDim,
     },
     {
       key: 'context',

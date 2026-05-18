@@ -98,6 +98,7 @@ export function NewConversation({ visible, onClose, onCreated, preselectedEntity
   }
 
   const handleChatWithBot = async (bot: Entity) => {
+    if (!token) return
     setCreating(true)
     const res = await api.createConversation(token, {
       title: buildDirectConversationTitle(t, bot),
@@ -124,7 +125,7 @@ export function NewConversation({ visible, onClose, onCreated, preselectedEntity
   }
 
   const handleCreateGroup = async () => {
-    if (selected.size === 0) return
+    if (!token || selected.size === 0) return
     setCreating(true)
     const title = groupTitle || `Group (${selected.size + 1} members)`
     const res = await api.createConversation(token, {

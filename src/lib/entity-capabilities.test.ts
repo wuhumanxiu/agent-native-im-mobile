@@ -17,6 +17,7 @@ function makeBot(capabilities: string[]): Entity {
     name: 'lobster',
     display_name: 'Lobster',
     entity_type: 'bot',
+    status: 'active',
     metadata: { capabilities },
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),

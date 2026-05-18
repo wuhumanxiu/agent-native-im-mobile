@@ -686,7 +686,7 @@ export function ChatThread({
             <Text
               style={[
                 styles.headerStatusText,
-                { color: debugCopyError ? colors.danger : colors.success },
+                { color: debugCopyError ? colors.error : colors.success },
               ]}
               numberOfLines={1}
             >
@@ -706,7 +706,7 @@ export function ChatThread({
               accessibilityLabel={t('message.bugReport')}
             >
               {debugCopyError ? (
-                <Bug size={20} color={colors.danger} />
+                <Bug size={20} color={colors.error} />
               ) : debugCopied ? (
                 <Check size={20} color={colors.success} />
               ) : (

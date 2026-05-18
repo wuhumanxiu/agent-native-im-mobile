@@ -152,7 +152,7 @@ export default function ChatDetailScreen() {
     const now = Date.now()
     const activeNames: string[] = []
     let processingEntry: { name: string; phase?: string } | null = null
-    convTyping.forEach((entry, eid) => {
+    for (const [eid, entry] of convTyping) {
       if (entry.expiresAt > now && eid !== entity?.id) {
         if (entry.isProcessing) {
           processingEntry = { name: entry.name, phase: entry.phase }
@@ -160,7 +160,7 @@ export default function ChatDetailScreen() {
           activeNames.push(entry.name)
         }
       }
-    })
+    }
     if (processingEntry) {
       const phaseKey = processingEntry.phase
       const phaseText = phaseKey

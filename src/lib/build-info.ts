@@ -12,7 +12,7 @@ export interface BuildInfo {
 
 const release =
   ((Updates.manifest as any)?.extra?.release ??
-    (Updates.manifest2 as any)?.extra?.release ??
+    (Updates as any).manifest2?.extra?.release ??
     (Constants.expoConfig as any)?.extra?.release ??
     {}) as Partial<BuildInfo>
 

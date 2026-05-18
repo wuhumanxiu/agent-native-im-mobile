@@ -179,7 +179,7 @@ export function ConversationSettings({ conversation, onClose, onLeave, onUpdated
 
   const handleAddMember = async (entityId: number) => {
     setAddMemberLoading(true)
-    const entity = entities.find((item) => item.id === entityId)
+    const entity = addableEntities.find((item) => item.id === entityId)
     await api.addParticipant(token, conversation.id, entityId, 'member', entity?.public_id)
     setShowAddMember(false)
     setAddMemberSearch('')

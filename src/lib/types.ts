@@ -103,7 +103,6 @@ export interface Participant {
 export interface Conversation {
   id: number
   public_id?: string
-  public_id?: string
   conv_type: ConvType
   title: string
   description: string
