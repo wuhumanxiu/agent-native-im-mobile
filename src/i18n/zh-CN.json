@@ -71,6 +71,7 @@
   },
   "conversation": {
     "messages": "消息",
+    "subtitle": "集中查看你和你的 Bot 参与的会话。",
     "newChat": "新会话",
     "search": "搜索会话...",
     "noConversations": "暂无会话",

@@ -145,9 +145,9 @@ export function ConversationList({
     <View style={[styles.container, { backgroundColor: colors.bg }]}>
       {/* Header */}
       <View style={[styles.header, { borderBottomColor: colors.border }]}>
-        <View>
-          <Text style={[styles.headerEyebrow, { color: colors.textMuted }]}>{t('conversation.messages')}</Text>
+        <View style={styles.headerCopy}>
           <Text style={[styles.headerTitle, { color: colors.text }]}>{t('conversation.messages')}</Text>
+          <Text style={[styles.headerSubtitle, { color: colors.textMuted }]}>{t('conversation.subtitle')}</Text>
         </View>
         <Pressable
           style={({ pressed }) => [
@@ -226,24 +226,26 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingTop: 18,
-    paddingBottom: 12,
+    paddingTop: 12,
+    paddingBottom: 10,
     borderBottomWidth: 1,
+    gap: 12,
   },
-  headerEyebrow: {
-    fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-    marginBottom: 2,
+  headerCopy: {
+    flex: 1,
+    minWidth: 0,
   },
   headerTitle: {
     fontSize: 22,
     fontWeight: '700',
     color: '#1e293b',
+  },
+  headerSubtitle: {
+    fontSize: 13,
+    marginTop: 4,
   },
   headerButton: {
     width: 40,

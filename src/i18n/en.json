@@ -71,6 +71,7 @@
   },
   "conversation": {
     "messages": "Messages",
+    "subtitle": "Review conversations for you and your bots.",
     "newChat": "New Chat",
     "search": "Search conversations...",
     "noConversations": "No conversations yet",
