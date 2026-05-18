@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react'
+import React, { useMemo, useState } from 'react'
 import {
   View, Text, TextInput, ScrollView, Pressable, Switch, Alert,
   ActivityIndicator, StyleSheet,
@@ -8,7 +8,7 @@ import * as Clipboard from 'expo-clipboard'
 import {
   X, UserMinus, UserPlus, Bell, BellOff, Crown, Shield, Eye,
   Pencil, Check, LogOut, Archive, VolumeX, Volume2, ArrowLeft, Search,
-  Terminal, Link2, Plus, Trash2, Loader2, Copy, ChevronRight,
+  Terminal, Link2, Plus, Trash2, Loader2, Copy, ChevronRight, Bot, UserRound,
 } from 'lucide-react-native'
 import { useAuthStore } from '../../store/auth'
 import * as api from '../../lib/api'
@@ -28,6 +28,46 @@ interface Props {
 function entityDisplayName(entity?: Entity | null): string {
   if (!entity) return '?'
   return entity.display_name || entity.name || '?'
+}
+
+function isBotOrService(entity?: Entity | null): boolean {
+  return entity?.entity_type === 'bot' || entity?.entity_type === 'service'
+}
+
+interface GroupMemberOwnerRow {
+  owner: Participant
+  bots: Participant[]
+}
+
+interface GroupMemberSections {
+  owners: GroupMemberOwnerRow[]
+  orphanBots: Participant[]
+}
+
+function buildGroupMemberSections(participants: Participant[]): GroupMemberSections {
+  const humans = participants.filter((participant) => participant.entity?.entity_type === 'user')
+  const bots = participants.filter((participant) => participant.entity && participant.entity.entity_type !== 'user')
+  const humanEntityIds = new Set(humans.map((participant) => participant.entity_id))
+
+  return {
+    owners: humans.map((owner) => ({
+      owner,
+      bots: bots.filter((bot) => bot.entity?.owner_id === owner.entity_id),
+    })),
+    orphanBots: bots.filter((bot) => {
+      const ownerID = bot.entity?.owner_id
+      return !ownerID || !humanEntityIds.has(ownerID)
+    }),
+  }
+}
+
+function entityOwnerName(entity?: Entity): string {
+  if (!entity) return ''
+  const extended = entity as Entity & { owner_display_name?: unknown; owner_name?: unknown }
+  const metadataOwnerName = entity.metadata?.owner_name
+  if (typeof extended.owner_display_name === 'string') return extended.owner_display_name
+  if (typeof extended.owner_name === 'string') return extended.owner_name
+  return typeof metadataOwnerName === 'string' ? metadataOwnerName : ''
 }
 
 interface InviteLink {
@@ -81,6 +121,7 @@ export function ConversationSettings({ conversation, onClose, onLeave, onUpdated
   const [currentSection, setCurrentSection] = useState<SettingsSection>('main')
 
   const participants = conversation?.participants || []
+  const memberSections = useMemo(() => buildGroupMemberSections(participants), [participants])
   const myParticipant = participants.find((p) => p.entity_id === myEntity?.id)
   const canManage = myParticipant?.role === 'owner' || myParticipant?.role === 'admin'
   const canAddOwnBot = Boolean(myParticipant)
@@ -330,6 +371,60 @@ export function ConversationSettings({ conversation, onClose, onLeave, onUpdated
     return null
   }
 
+  const renderMemberRow = (participant: Participant, options?: { nested?: boolean; orphanBot?: boolean }) => {
+    const nested = Boolean(options?.nested)
+    const orphanBot = Boolean(options?.orphanBot)
+    const isBot = isBotOrService(participant.entity)
+    const ownerName = entityOwnerName(participant.entity)
+
+    return (
+      <View
+        key={participant.entity_id}
+        style={[
+          styles.memberItem,
+          nested && styles.memberItemNested,
+        ]}
+      >
+        <View style={styles.memberAvatarWrap}>
+          {nested && <View style={[styles.memberNestedLine, { backgroundColor: colors.border }]} />}
+          <EntityAvatar entity={participant.entity} size="xs" />
+        </View>
+        <View style={styles.memberInfo}>
+          <View style={styles.memberNameRow}>
+            {!nested && roleIcon(participant.role)}
+            {isBot
+              ? <Bot size={12} color="#a78bfa" />
+              : <UserRound size={12} color={colors.textMuted} />}
+            <Text
+              style={[
+                styles.memberName,
+                nested && styles.memberNameNested,
+                { color: colors.text },
+              ]}
+              numberOfLines={1}
+            >
+              {entityDisplayName(participant.entity)}
+            </Text>
+            {participant.entity_id === myEntity.id && (
+              <Text style={[styles.youLabel, { color: colors.textMuted }]}>{t('common.you')}</Text>
+            )}
+          </View>
+          {orphanBot && ownerName && (
+            <Text style={[styles.memberOwnerName, { color: colors.textMuted }]} numberOfLines={1}>{ownerName}</Text>
+          )}
+        </View>
+        {canManage && participant.entity_id !== myEntity.id && participant.role !== 'owner' && !isArchived && (
+          <Pressable
+            onPress={() => handleRemoveMember(participant)}
+            style={styles.removeMemberBtn}
+          >
+            <UserMinus size={12} color={colors.textMuted} />
+          </Pressable>
+        )}
+      </View>
+    )
+  }
+
   const headerTitle =
     currentSection === 'prompt' ? t('agentConfig.prompt') :
     currentSection === 'memories' ? t('memory.memories') :
@@ -553,30 +648,21 @@ export function ConversationSettings({ conversation, onClose, onLeave, onUpdated
             {t('settings.members')} ({participants.length})
           </Text>
           <View style={styles.memberList}>
-            {participants.map((p) => (
-              <View key={p.entity_id} style={styles.memberItem}>
-                <EntityAvatar entity={p.entity} size="xs" />
-                <View style={styles.memberInfo}>
-                  <View style={styles.memberNameRow}>
-                    {roleIcon(p.role)}
-                    <Text style={[styles.memberName, { color: colors.text }]} numberOfLines={1}>
-                      {entityDisplayName(p.entity)}
-                    </Text>
-                    {p.entity_id === myEntity.id && (
-                      <Text style={[styles.youLabel, { color: colors.textMuted }]}>{t('common.you')}</Text>
-                    )}
-                  </View>
-                </View>
-                {canManage && p.entity_id !== myEntity.id && p.role !== 'owner' && !isArchived && (
-                  <Pressable
-                    onPress={() => handleRemoveMember(p)}
-                    style={styles.removeMemberBtn}
-                  >
-                    <UserMinus size={12} color={colors.textMuted} />
-                  </Pressable>
-                )}
+            {memberSections.owners.map(({ owner, bots }) => (
+              <View key={owner.entity_id} style={styles.memberGroup}>
+                {renderMemberRow(owner)}
+                {bots.map((bot) => renderMemberRow(bot, { nested: true }))}
               </View>
             ))}
+            {memberSections.orphanBots.length > 0 && (
+              <View style={styles.orphanBotGroup}>
+                <View style={styles.orphanBotHeader}>
+                  <Text style={[styles.orphanBotHeaderText, { color: colors.textMuted }]}>{t('composer.mentionBots')}</Text>
+                  <View style={[styles.orphanBotHeaderLine, { backgroundColor: colors.border }]} />
+                </View>
+                {memberSections.orphanBots.map((bot) => renderMemberRow(bot, { orphanBot: true }))}
+              </View>
+            )}
           </View>
 
           {/* Add member */}
@@ -1129,11 +1215,28 @@ const styles = StyleSheet.create({
     marginTop: 8,
     gap: 4,
   },
+  memberGroup: {
+    gap: 2,
+  },
   memberItem: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
     paddingVertical: 6,
+  },
+  memberItemNested: {
+    paddingLeft: 26,
+    paddingVertical: 5,
+  },
+  memberAvatarWrap: {
+    position: 'relative',
+  },
+  memberNestedLine: {
+    position: 'absolute',
+    left: -14,
+    top: 13,
+    width: 10,
+    height: 1,
   },
   memberInfo: {
     flex: 1,
@@ -1150,12 +1253,40 @@ const styles = StyleSheet.create({
     color: '#1e293b',
     flexShrink: 1,
   },
+  memberNameNested: {
+    fontSize: 11,
+  },
+  memberOwnerName: {
+    marginTop: 2,
+    fontSize: 9,
+    color: '#94a3b8',
+  },
   youLabel: {
     fontSize: 9,
     color: '#94a3b8',
   },
   removeMemberBtn: {
     padding: 4,
+  },
+  orphanBotGroup: {
+    paddingTop: 4,
+  },
+  orphanBotHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 4,
+  },
+  orphanBotHeaderText: {
+    fontSize: 9,
+    fontWeight: '600',
+    color: '#94a3b8',
+    textTransform: 'uppercase',
+    letterSpacing: 0,
+  },
+  orphanBotHeaderLine: {
+    flex: 1,
+    height: 1,
   },
   addMemberBtn: {
     flexDirection: 'row',
