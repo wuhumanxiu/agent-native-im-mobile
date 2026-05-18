@@ -85,6 +85,8 @@ module.exports = {
     runtimeVersion,
     updates: {
       url: 'https://u.expo.dev/72831474-137d-4003-ba89-592810a97906',
+      checkAutomatically: 'NEVER',
+      fallbackToCacheTimeout: 0,
     },
   },
 }

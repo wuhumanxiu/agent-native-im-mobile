@@ -52,7 +52,7 @@ export default function RootLayout() {
   }, [hydrateAuth])
 
   useEffect(() => {
-    if (__DEV__) return
+    if (__DEV__ || !isReady) return
     let cancelled = false
 
     const syncUpdate = async () => {
@@ -72,7 +72,7 @@ export default function RootLayout() {
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [isReady])
 
   useEffect(() => {
     setSessionHooks({

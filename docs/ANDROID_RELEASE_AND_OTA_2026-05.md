@@ -45,8 +45,15 @@ Current project config:
 
 - `preview` builds an Android `apk`
 - `production` builds an Android `app-bundle`
+- `production-apk` builds an Android `apk` on the `production` update channel
 
 This means the preview profile is the correct path for direct installation on a device.
+
+Use `production-apk` when the APK must exercise the production channel instead of preview:
+
+```bash
+eas build --platform android --profile production-apk
+```
 
 ### Store-ready Android build
 
@@ -67,6 +74,13 @@ Yes, the preview APK supports hot updates as long as all of the following are tr
 - the OTA bundle is published to the matching EAS channel / branch
 
 For this project, Android preview builds are expected to receive JS-only and asset-only updates through EAS Update.
+
+The app config disables native automatic update checks during the first frame:
+
+- `updates.checkAutomatically: NEVER`
+- `updates.fallbackToCacheTimeout: 0`
+
+The root layout still performs a best-effort JS update check after the app has mounted. This keeps OTA support without letting a startup update fetch block launch or look like a blank screen.
 
 ## What Requires A New APK
 

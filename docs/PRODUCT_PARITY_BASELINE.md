@@ -1,6 +1,6 @@
 # ANI Mobile Product Parity Baseline
 
-Last updated: 2026-04-04
+Last updated: 2026-05-18
 
 This document promotes the recent mobile parity decisions from `_experience` into the mobile repository's formal docs.
 
@@ -16,6 +16,10 @@ Primary comparison targets:
 
 - `~/code/agent-native-im/agent-native-im-web`
 - current production PWA behavior on `agent-native.im`
+
+Recent review:
+
+- [Web To Mobile Parity Review 2026-05-18](WEB_MOBILE_PARITY_2026-05-18.md)
 
 ## Current Alignment Decisions
 

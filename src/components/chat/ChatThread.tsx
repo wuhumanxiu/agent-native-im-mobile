@@ -7,7 +7,6 @@ import { MessageBubble } from './MessageBubble'
 import { StreamingBubble } from './StreamingBubble'
 import { ThinkingBubble, ProcessingDots } from './ThinkingBubble'
 import { MessageComposer, type UploadedAttachment } from './MessageComposer'
-import { ConversationContextCard } from './ConversationContextCard'
 import { SkeletonLoader } from '../ui/SkeletonLoader'
 import { ActionSheet } from '../ui/ActionSheet'
 import { EntityAvatar } from '../ui/EntityAvatar'
@@ -887,14 +886,6 @@ export function ChatThread({
           </View>
         </View>
       </Modal>
-
-      <ConversationContextCard
-        conversationId={conversation.id}
-        prompt={conversation.prompt}
-        messageCount={messages.length}
-        onOpenSettings={onSettings}
-        onOpenTasks={onToggleTasks}
-      />
 
       {/* Messages */}
       {loading && messages.length === 0 ? (
