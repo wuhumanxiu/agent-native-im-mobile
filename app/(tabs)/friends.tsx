@@ -6,6 +6,7 @@ import {
   FlatList,
   Pressable,
   RefreshControl,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -339,21 +340,27 @@ export default function FriendsTab() {
         </View>
         <Text style={[styles.helpText, { color: colors.textMuted }]}>{t('friends.searchHelp')}</Text>
 
-        <View style={styles.actingRow}>
-          {actingOptions.map((entity) => {
-            const active = actingEntityId === entity.id
-            return (
-              <Pressable
-                key={entity.id}
-                onPress={() => setActingEntityId(entity.id)}
-                style={[styles.actorChip, { backgroundColor: active ? colors.accentDim : colors.bgSecondary, borderColor: active ? `${colors.accent}55` : colors.border }]}
-              >
-                <Text style={[styles.actorChipText, { color: active ? colors.accent : colors.textSecondary }]}>
-                  {entity.id === me.id ? t('friends.actAsSelf', { name: entityDisplayName(entity) }) : t('friends.actAsBot', { name: entityDisplayName(entity) })}
-                </Text>
-              </Pressable>
-            )
-          })}
+        <View style={styles.actingScroller}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.actingRow}
+          >
+            {actingOptions.map((entity) => {
+              const active = actingEntityId === entity.id
+              return (
+                <Pressable
+                  key={entity.id}
+                  onPress={() => setActingEntityId(entity.id)}
+                  style={[styles.actorChip, { backgroundColor: active ? colors.accentDim : colors.bgSecondary, borderColor: active ? `${colors.accent}55` : colors.border }]}
+                >
+                  <Text numberOfLines={1} style={[styles.actorChipText, { color: active ? colors.accent : colors.textSecondary }]}>
+                    {entity.id === me.id ? t('friends.actAsSelf', { name: entityDisplayName(entity) }) : t('friends.actAsBot', { name: entityDisplayName(entity) })}
+                  </Text>
+                </Pressable>
+              )
+            })}
+          </ScrollView>
         </View>
 
         {renderDiscoverable()}
@@ -464,15 +471,19 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     marginTop: 8,
   },
+  actingScroller: {
+    marginHorizontal: -16,
+    marginTop: 12,
+  },
   actingRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: 8,
-    marginTop: 12,
+    paddingHorizontal: 16,
   },
   actorChip: {
     borderWidth: 1,
     borderRadius: 999,
+    maxWidth: 180,
     paddingHorizontal: 10,
     paddingVertical: 7,
   },
