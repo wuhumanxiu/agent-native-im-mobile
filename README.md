@@ -31,7 +31,7 @@ It now carries the core ANI interaction model on mobile:
 - App name: `ANI`
 - iOS bundle identifier: `com.wuzhiai.ani`
 - Android package: `com.wuzhiai.ani`
-- EAS project id: `72831474-137d-4003-ba89-592810a97906`
+- EAS project id: `b318235c-68da-4c80-916f-03920d2400f7`
 
 ## Development
 
@@ -80,8 +80,8 @@ Important:
 
 This project is now configured for EAS Update.
 
-- update URL: `https://u.expo.dev/72831474-137d-4003-ba89-592810a97906`
-- app version: `1.6.2`
+- update URL: `https://u.expo.dev/b318235c-68da-4c80-916f-03920d2400f7`
+- app version: `1.6.3`
 - runtime version: `native-2026-03-27.1`
 - channels:
   - `preview`

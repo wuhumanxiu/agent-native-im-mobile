@@ -69,7 +69,7 @@ module.exports = {
     extra: {
       apiBaseUrl: 'https://agent-native.im',
       eas: {
-        projectId: '72831474-137d-4003-ba89-592810a97906',
+        projectId: 'b318235c-68da-4c80-916f-03920d2400f7',
       },
       router: {},
       release: {
@@ -81,10 +81,10 @@ module.exports = {
         buildTime,
       },
     },
-    owner: 'flagify',
+    owner: 'wuhumanxiu',
     runtimeVersion,
     updates: {
-      url: 'https://u.expo.dev/72831474-137d-4003-ba89-592810a97906',
+      url: 'https://u.expo.dev/b318235c-68da-4c80-916f-03920d2400f7',
       checkAutomatically: 'NEVER',
       fallbackToCacheTimeout: 0,
     },
