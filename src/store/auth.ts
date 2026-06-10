@@ -19,7 +19,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   entity: null,
   sessionChecked: false,
   hydrate: async () => {
-    await hydrateStorage()
+    try {
+      await hydrateStorage()
+    } catch {}
+
     try {
       const token = storage.getString('aim_token') ?? null
       const rawEntity = storage.getString('aim_entity') ?? null

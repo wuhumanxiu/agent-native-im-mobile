@@ -15,6 +15,57 @@ interface StorageAdapter {
 const cache = new Map<string, string>()
 const secureKeys = new Set(['aim_token'])
 let hydratePromise: Promise<void> = Promise.resolve()
+const STARTUP_HYDRATION_KEYS = ['aim_token', 'aim_entity']
+const STORAGE_READ_TIMEOUT_MS = 1500
+
+async function withTimeout<T>(operation: Promise<T> | undefined, fallback: T): Promise<T> {
+  if (!operation) return fallback
+
+  let timeout: ReturnType<typeof setTimeout> | undefined
+  try {
+    return await Promise.race([
+      operation,
+      new Promise<T>((resolve) => {
+        timeout = setTimeout(() => resolve(fallback), STORAGE_READ_TIMEOUT_MS)
+      }),
+    ])
+  } catch {
+    return fallback
+  } finally {
+    if (timeout) clearTimeout(timeout)
+  }
+}
+
+async function hydrateKeys(AsyncStorage: any, SecureStore: any, keys: string[]): Promise<void> {
+  const secureHydrationKeys = SecureStore
+    ? keys.filter((key) => secureKeys.has(key))
+    : []
+  const asyncHydrationKeys = keys.filter((key) => !secureKeys.has(key) || !SecureStore)
+
+  for (const key of secureHydrationKeys) {
+    const value = await withTimeout<string | null | undefined>(SecureStore?.getItemAsync?.(key), undefined)
+    if (value != null) cache.set(key, value)
+  }
+
+  if (asyncHydrationKeys.length > 0) {
+    const pairs = await withTimeout<[string, string | null][] | undefined>(
+      AsyncStorage?.multiGet?.(asyncHydrationKeys),
+      undefined,
+    )
+    for (const [key, value] of pairs ?? []) {
+      if (value != null) cache.set(key, value)
+    }
+  }
+}
+
+async function hydrateAllNonSecureKeys(AsyncStorage: any, SecureStore: any): Promise<void> {
+  const keys = await withTimeout<string[] | undefined>(AsyncStorage?.getAllKeys?.(), undefined)
+  if (!keys?.length) return
+  const asyncHydrationKeys = keys.filter((key) => !secureKeys.has(key) || !SecureStore)
+  if (asyncHydrationKeys.length > 0) {
+    await hydrateKeys(AsyncStorage, SecureStore, asyncHydrationKeys)
+  }
+}
 
 function createStorage(): StorageAdapter {
   if (Platform.OS === 'web') {
@@ -38,31 +89,16 @@ function createStorage(): StorageAdapter {
   try {
     AsyncStorage = require('@react-native-async-storage/async-storage').default
   } catch {}
-  try {
-    SecureStore = require('expo-secure-store')
-  } catch {}
-
-  hydratePromise = (async () => {
+  if (Platform.OS !== 'android') {
     try {
-      for (const key of secureKeys) {
-        const value = await SecureStore?.getItemAsync?.(key)
-        if (value != null) cache.set(key, value)
-      }
+      SecureStore = require('expo-secure-store')
     } catch {}
+  }
 
-    try {
-      const keys = await AsyncStorage?.getAllKeys?.()
-      if (keys?.length) {
-        const nonSecureKeys = keys.filter((key: string) => !secureKeys.has(key))
-        if (nonSecureKeys.length > 0) {
-          const pairs = await AsyncStorage.multiGet(nonSecureKeys)
-          for (const [k, v] of pairs as [string, string | null][]) {
-            if (v != null) cache.set(k, v)
-          }
-        }
-      }
-    } catch {}
-  })()
+  hydratePromise = hydrateKeys(AsyncStorage, SecureStore, STARTUP_HYDRATION_KEYS)
+  setTimeout(() => {
+    void hydrateAllNonSecureKeys(AsyncStorage, SecureStore)
+  }, 750)
 
   return {
     getString: (key) => cache.get(key),

@@ -14,14 +14,16 @@ import { applyGatewayUrl } from '../src/lib/gateway'
 import { extractNotificationTarget, registerNativePush } from '../src/lib/push'
 import '../src/i18n'
 
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowBanner: true,
-    shouldShowList: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-  }),
-})
+try {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowBanner: true,
+      shouldShowList: true,
+      shouldPlaySound: true,
+      shouldSetBadge: false,
+    }),
+  })
+} catch {}
 
 export default function RootLayout() {
   const router = useRouter()
@@ -100,21 +102,24 @@ export default function RootLayout() {
   }, [token, pushEnabled])
 
   useEffect(() => {
-    const responseSubscription = Notifications.addNotificationResponseReceivedListener((response) => {
-      const target = extractNotificationTarget(response.notification.request.content.data as Record<string, unknown>)
-      if (target) {
-        router.push(target as never)
-      }
-    })
+    let responseSubscription: { remove: () => void } | undefined
+    try {
+      responseSubscription = Notifications.addNotificationResponseReceivedListener((response) => {
+        const target = extractNotificationTarget(response.notification.request.content.data as Record<string, unknown>)
+        if (target) {
+          router.push(target as never)
+        }
+      })
+    } catch {}
     void Notifications.getLastNotificationResponseAsync().then((response) => {
       if (!response) return
       const target = extractNotificationTarget(response.notification.request.content.data as Record<string, unknown>)
       if (target) {
         router.push(target as never)
       }
-    })
+    }).catch(() => {})
     return () => {
-      responseSubscription.remove()
+      responseSubscription?.remove()
     }
   }, [router])
 
