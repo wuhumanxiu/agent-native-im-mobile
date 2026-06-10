@@ -39,6 +39,7 @@ module.exports = {
       resizeMode: 'contain',
       backgroundColor: '#ffffff',
     },
+    // Keep legacy IDs stable for App Store/Android upgrades across organization rebrands.
     ios: {
       supportsTablet: true,
       bundleIdentifier: 'com.wuzhiai.ani',

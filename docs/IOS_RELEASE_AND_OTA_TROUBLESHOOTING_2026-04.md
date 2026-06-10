@@ -31,7 +31,7 @@ Current production runtime baseline:
 - runtime version: `native-2026-03-27.1`
 - EAS project: `@wuhumanxiu/agent-native-im-mobile`
 - EAS project id: `b318235c-68da-4c80-916f-03920d2400f7`
-- iOS bundle identifier: `com.wuzhiai.ani`
+- iOS bundle identifier: `com.wuzhiai.ani` (legacy immutable App Store identifier; keep for installed-client upgrades)
 - App Store Connect app id: `6760842475`
 - Apple Team: `95998WP7YU` / `Wuhu Manxiu Technology Co., Ltd`
 
@@ -256,12 +256,11 @@ These are the rules worth preserving:
 
 ## Wuhu Manxiu Account Migration 2026-06-10
 
-The mobile EAS project was re-created under the `wuhumanxiu` Expo organization instead of transferring the old `flagify` project.
+The mobile EAS project was re-created under the `wuhumanxiu` Expo organization instead of transferring the legacy EAS project.
 
 Current migration facts:
 
-- old EAS project: `@flagify/agent-native-im-mobile`
-- old EAS project id: `72831474-137d-4003-ba89-592810a97906`
+- legacy EAS project id: `72831474-137d-4003-ba89-592810a97906`
 - new EAS project: `@wuhumanxiu/agent-native-im-mobile`
 - new EAS project id: `b318235c-68da-4c80-916f-03920d2400f7`
 - new production update group: `7d569bea-7e7d-45c1-b4ab-37200d447e58`
@@ -290,7 +289,7 @@ Credentials verified during migration:
 
 Important boundary:
 
-- builds installed from the old `flagify` EAS project continue to use the old update URL
+- builds installed from the legacy EAS project continue to use the old update URL
 - builds installed from the new `wuhumanxiu` EAS project use `https://u.expo.dev/b318235c-68da-4c80-916f-03920d2400f7`
 - keep the old EAS project available during any transition period for already installed clients
 

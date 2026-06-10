@@ -29,7 +29,7 @@ Current Android release baseline:
 
 - app version: `1.6.4`
 - runtime version: `native-2026-03-27.1`
-- package name: `com.wuzhiai.ani`
+- package name: `com.wuzhiai.ani` (legacy immutable Android application id; keep for installed-client upgrades)
 - EAS project: `@wuhumanxiu/agent-native-im-mobile`
 - EAS project id: `b318235c-68da-4c80-916f-03920d2400f7`
 
@@ -152,8 +152,7 @@ Keep `runtimeVersion` unchanged for JS-only updates.
 
 The Android release path was re-created under the `wuhumanxiu` Expo organization with a new EAS project:
 
-- old EAS project: `@flagify/agent-native-im-mobile`
-- old EAS project id: `72831474-137d-4003-ba89-592810a97906`
+- legacy EAS project id: `72831474-137d-4003-ba89-592810a97906`
 - new EAS project: `@wuhumanxiu/agent-native-im-mobile`
 - new EAS project id: `b318235c-68da-4c80-916f-03920d2400f7`
 - production update group: `7d569bea-7e7d-45c1-b4ab-37200d447e58`

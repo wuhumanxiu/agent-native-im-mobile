@@ -24,10 +24,10 @@
           - listitem [ref=e21]:
             - link "Users and Access" [ref=e22] [cursor=pointer]:
               - /url: /access/users
-      - button "Donald Ford Shanghai Flagify Intelligent Technology Co., Ltd. Account name menu" [ref=e24] [cursor=pointer]:
+      - button "Donald Ford Wuhu Manxiu Account name menu" [ref=e24] [cursor=pointer]:
         - generic:
           - generic: Donald Ford
-          - generic: Shanghai Flagify Intelligent Technology Co., Ltd.
+          - generic: Wuhu Manxiu
           - img [ref=e25]
   - generic [ref=e30]:
     - button "Apps menu, com.wuzhiai.ani, selected" [ref=e35] [cursor=pointer]:

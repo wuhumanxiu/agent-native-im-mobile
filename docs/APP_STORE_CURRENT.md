@@ -24,10 +24,10 @@
           - listitem [ref=e34]:
             - link "Users and Access" [ref=e35] [cursor=pointer]:
               - /url: /access/users
-      - button "Donald Ford Shanghai Flagify Intelligent Technology Co., Ltd. Account name menu" [ref=e37] [cursor=pointer]:
+      - button "Donald Ford Wuhu Manxiu Account name menu" [ref=e37] [cursor=pointer]:
         - generic:
           - generic: Donald Ford
-          - generic: Shanghai Flagify Intelligent Technology Co., Ltd.
+          - generic: Wuhu Manxiu
           - img [ref=e38]
   - generic [ref=e43]:
     - button "Apps menu, com.wuzhiai.ani, selected" [ref=e48] [cursor=pointer]:
@@ -273,7 +273,7 @@
               - generic [ref=e345]:
                 - generic [ref=e346]: Copyright
                 - button "More information" [ref=e348] [cursor=pointer]: "?"
-              - textbox "Copyright" [ref=e350]: © 2026 Shanghai Flagify Intelligent Technology Co., Ltd.
+              - textbox "Copyright" [ref=e350]: © 2026 Wuhu Manxiu
               - status "Characters remaining" [ref=e352]: "144"
             - generic [ref=e353]:
               - generic [ref=e355]:

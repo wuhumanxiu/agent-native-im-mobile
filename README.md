@@ -29,8 +29,8 @@ It now carries the core ANI interaction model on mobile:
 ## App Identity
 
 - App name: `ANI`
-- iOS bundle identifier: `com.wuzhiai.ani`
-- Android package: `com.wuzhiai.ani`
+- iOS bundle identifier: `com.wuzhiai.ani` (legacy immutable App Store identifier; keep for installed-client upgrades)
+- Android package: `com.wuzhiai.ani` (legacy immutable Android application id; keep for installed-client upgrades)
 - EAS project id: `b318235c-68da-4c80-916f-03920d2400f7`
 
 ## Development
