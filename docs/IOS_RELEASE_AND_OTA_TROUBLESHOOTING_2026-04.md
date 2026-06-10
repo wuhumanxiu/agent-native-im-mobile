@@ -27,7 +27,7 @@ The correct mental model is:
 
 Current production runtime baseline:
 
-- app version: `1.6.3`
+- app version: `1.6.4`
 - runtime version: `native-2026-03-27.1`
 - EAS project: `@wuhumanxiu/agent-native-im-mobile`
 - EAS project id: `b318235c-68da-4c80-916f-03920d2400f7`
@@ -212,6 +212,7 @@ These are the rules worth preserving:
 
 - treat provisioning profile problems and App Store agreement problems as separate layers
 - do not conflate a successful build with a successful App Store submission
+- when App Store Connect rejects a build with `ITMS-90186` / `ITMS-90062`, create or use a higher App Store version and bump `CFBundleShortVersionString`; incrementing only buildNumber is not enough once that version train is closed
 - when push capability changes, refresh EAS credentials explicitly
 - once a new stable native build ships, use it as the base for future OTA updates
 - do not assume device reinstall proves OTA correctness; reinstall only restores the embedded native bundle first

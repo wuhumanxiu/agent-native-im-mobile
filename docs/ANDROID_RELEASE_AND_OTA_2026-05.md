@@ -27,7 +27,7 @@ The correct mental model is:
 
 Current Android release baseline:
 
-- app version: `1.6.3`
+- app version: `1.6.4`
 - runtime version: `native-2026-03-27.1`
 - package name: `com.wuzhiai.ani`
 - EAS project: `@wuhumanxiu/agent-native-im-mobile`

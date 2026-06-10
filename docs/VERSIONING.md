@@ -19,7 +19,7 @@ This document defines the release contract for the ANI mobile app.
 
 ## Current Policy
 
-- app version: `1.6.2`
+- app version: `1.6.4`
 - runtime version: `native-2026-03-27.1`
 - EAS update branch: `production`
 
@@ -76,7 +76,7 @@ The release values are defined in [app.config.js](../app.config.js):
 
 The current native generation starts at:
 
-- app version `1.6.2`
+- app version `1.6.4`
 - runtime version `native-2026-03-27.1`
 
 All non-native changes for this generation should continue shipping on that runtime until a deliberate native-breaking change is introduced.

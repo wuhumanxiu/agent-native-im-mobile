@@ -81,7 +81,7 @@ Important:
 This project is now configured for EAS Update.
 
 - update URL: `https://u.expo.dev/b318235c-68da-4c80-916f-03920d2400f7`
-- app version: `1.6.3`
+- app version: `1.6.4`
 - runtime version: `native-2026-03-27.1`
 - channels:
   - `preview`
