@@ -29,6 +29,11 @@ Current production runtime baseline:
 
 - app version: `1.6.3`
 - runtime version: `native-2026-03-27.1`
+- EAS project: `@wuhumanxiu/agent-native-im-mobile`
+- EAS project id: `b318235c-68da-4c80-916f-03920d2400f7`
+- iOS bundle identifier: `com.wuzhiai.ani`
+- App Store Connect app id: `6760842475`
+- Apple Team: `95998WP7YU` / `Wuhu Manxiu Technology Co., Ltd`
 
 ## What Requires A New Native Build
 
@@ -84,6 +89,14 @@ Important operational rule:
 - `submit.production.ios.ascAppId`
 
 Expo will typically use the App Store Connect API key stored on EAS servers for submit.
+
+Current EAS Submit API key:
+
+- Key ID: `QJW9LN8XAJ`
+- Issuer ID: `032680d1-0935-4b2d-8163-e38a341579a4`
+- private key: stored locally outside Git under `apple-store-connect-api/` and uploaded to EAS servers
+
+Do not commit `.p8` files or paste their contents into logs, docs, or chat.
 
 ## Production OTA Reliability Rule
 
@@ -202,6 +215,37 @@ These are the rules worth preserving:
 - when push capability changes, refresh EAS credentials explicitly
 - once a new stable native build ships, use it as the base for future OTA updates
 - do not assume device reinstall proves OTA correctness; reinstall only restores the embedded native bundle first
+
+## Wuhu Manxiu Account Migration 2026-06-10
+
+The mobile EAS project was re-created under the `wuhumanxiu` Expo organization instead of transferring the old `flagify` project.
+
+Current migration facts:
+
+- old EAS project: `@flagify/agent-native-im-mobile`
+- old EAS project id: `72831474-137d-4003-ba89-592810a97906`
+- new EAS project: `@wuhumanxiu/agent-native-im-mobile`
+- new EAS project id: `b318235c-68da-4c80-916f-03920d2400f7`
+- new production update group: `7d569bea-7e7d-45c1-b4ab-37200d447e58`
+- new iOS production update id: `019eaf9c-570b-771e-984e-2bd46fd632fe`
+- production channel is explicitly mapped to the `production` branch
+- iOS production build id: `6cb3bfdd-31d6-4cb7-8800-2ec27cb9389b`
+- iOS IPA: `https://expo.dev/artifacts/eas/eqwZfdWXNHPwTUgzUyjbLK.ipa`
+- iOS submission id: `7353a30e-e453-4b3f-8f2d-126b64dbc133`
+- App Store Connect TestFlight URL: `https://appstoreconnect.apple.com/apps/6760842475/testflight/ios`
+
+Credentials verified during migration:
+
+- Distribution Certificate serial: `61976E05266077A8294FF794757BF64D`
+- Provisioning Profile Developer Portal ID: `L3LQVR5B7K`
+- Provisioning Profile status: `active`
+- credentials expiration: `2027-06-10`
+
+Important boundary:
+
+- builds installed from the old `flagify` EAS project continue to use the old update URL
+- builds installed from the new `wuhumanxiu` EAS project use `https://u.expo.dev/b318235c-68da-4c80-916f-03920d2400f7`
+- keep the old EAS project available during any transition period for already installed clients
 
 ## Recommended Ongoing Policy
 

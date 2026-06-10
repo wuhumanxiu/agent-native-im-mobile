@@ -30,6 +30,8 @@ Current Android release baseline:
 - app version: `1.6.3`
 - runtime version: `native-2026-03-27.1`
 - package name: `com.wuzhiai.ani`
+- EAS project: `@wuhumanxiu/agent-native-im-mobile`
+- EAS project id: `b318235c-68da-4c80-916f-03920d2400f7`
 
 ## What Build Type To Use
 
@@ -145,6 +147,31 @@ Keep `runtimeVersion` unchanged for JS-only updates.
 - APK testing does not require Google Play
 - if a change is native-breaking, build a new APK before expecting OTA to work
 - preview APKs are the right artifact for direct installation and manual verification
+
+## Wuhu Manxiu Account Migration 2026-06-10
+
+The Android release path was re-created under the `wuhumanxiu` Expo organization with a new EAS project:
+
+- old EAS project: `@flagify/agent-native-im-mobile`
+- old EAS project id: `72831474-137d-4003-ba89-592810a97906`
+- new EAS project: `@wuhumanxiu/agent-native-im-mobile`
+- new EAS project id: `b318235c-68da-4c80-916f-03920d2400f7`
+- production update group: `7d569bea-7e7d-45c1-b4ab-37200d447e58`
+- Android production update id: `019eaf9c-570b-7ba3-b422-0908ee622d79`
+- production channel is explicitly mapped to the `production` branch
+
+First Android `production-apk` on the new EAS project:
+
+- build id: `1bddc18d-1857-4782-b2a2-2cdf686f8517`
+- APK: `https://expo.dev/artifacts/eas/4rzEtNdWTqRqna9MSdYSok.apk`
+- build profile: `production-apk`
+- channel: `production`
+- app version: `1.6.3`
+- versionCode: `4`
+- runtimeVersion: `native-2026-03-27.1`
+- git commit: `fdfcfb1731bd21aee8fc8be273b42b29302fa267`
+
+Because there were no Android users to preserve, the new EAS project generated a new Android keystore. This APK is not intended to update old APKs signed by the previous EAS project.
 
 ## Related Docs
 
