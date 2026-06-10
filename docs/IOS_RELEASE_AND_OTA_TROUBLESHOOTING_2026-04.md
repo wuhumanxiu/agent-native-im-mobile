@@ -206,6 +206,43 @@ Recommended retry command:
 eas submit --platform ios --id <successful-build-id> --non-interactive --wait --verbose --verbose-fastlane
 ```
 
+### 4. Submit fails because the version train is closed
+
+Typical errors:
+
+- `ITMS-90186: Invalid Pre-Release Train`
+- `ITMS-90062: CFBundleShortVersionString ... must contain a higher version`
+
+Meaning:
+
+- App Store Connect already closed the submitted version train after a previously approved release.
+- Incrementing only `buildNumber` is not enough.
+
+Fix:
+
+1. create a higher App Store version in App Store Connect
+2. bump `package.json` so `CFBundleShortVersionString` is higher
+3. keep `runtimeVersion` unchanged unless the native compatibility boundary changed
+4. rebuild and submit the new binary
+
+### 5. Submit warns about keychain access after app transfer
+
+Typical warning:
+
+- `ITMS-90076: Potential Loss of Keychain Access`
+
+Meaning:
+
+- the App Store build is signed by the new Apple Team after an app transfer
+- the application identifier changed from old Team ID + Bundle ID to new Team ID + Bundle ID
+- iOS keychain access groups are Team-ID scoped
+
+Expected impact:
+
+- this is not a blocking delivery error
+- users upgrading from a build signed by the old Team may lose keychain-stored session data
+- users may need to sign in again once after updating
+
 ## Operational Lessons From ANI 1.6.3
 
 These are the rules worth preserving:
