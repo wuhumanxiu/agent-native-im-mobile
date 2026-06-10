@@ -73,8 +73,11 @@ export default function LoginScreen() {
             : (res.error as { message?: string })?.message || 'Login failed'
         setError(msg)
       }
-    } catch {
-      setError('Network error -- cannot reach server')
+    } catch (err) {
+      const message = err instanceof Error && err.name === 'AbortError'
+        ? 'Network timeout -- please check your connection and gateway'
+        : 'Network error -- cannot reach server'
+      setError(message)
     } finally {
       setLoading(false)
     }

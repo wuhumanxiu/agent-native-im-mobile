@@ -12,6 +12,7 @@ import { getApiBaseUrl } from './gateway'
 
 let baseUrl = getApiBaseUrl()
 let refreshInFlight: Promise<string | null> | null = null
+const REQUEST_TIMEOUT_MS = 15000
 
 export function setBaseUrl(url: string) {
   baseUrl = url.replace(/\/+$/, '')
@@ -19,6 +20,16 @@ export function setBaseUrl(url: string) {
 
 function authHeaders(token: string): Record<string, string> {
   return { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
+}
+
+async function apiFetch(input: string, init: RequestInit = {}): Promise<Response> {
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
+  try {
+    return await fetch(input, { ...init, signal: controller.signal })
+  } finally {
+    clearTimeout(timeout)
+  }
 }
 
 async function parseAPIResponse<T>(res: Response, quiet = false): Promise<APIResponse<T>> {
@@ -43,7 +54,7 @@ async function fetchWithAuthRetry<T>(
   const headers: Record<string, string> = { 'Content-Type': 'application/json' }
   headers.Authorization = `Bearer ${token}`
 
-  const res = await fetch(`${baseUrl}${path}`, {
+  const res = await apiFetch(`${baseUrl}${path}`, {
     method,
     headers,
     body: body ? JSON.stringify(body) : undefined,
@@ -64,7 +75,7 @@ async function request<T>(method: string, path: string, token?: string, body?: u
     return fetchWithAuthRetry<T>(method, path, token, body)
   }
 
-  const res = await fetch(`${baseUrl}${path}`, {
+  const res = await apiFetch(`${baseUrl}${path}`, {
     method,
     headers: { 'Content-Type': 'application/json' },
     body: body ? JSON.stringify(body) : undefined,
@@ -74,7 +85,7 @@ async function request<T>(method: string, path: string, token?: string, body?: u
 
 /** Like request() but suppresses global error toasts -- use for probing/optional endpoints */
 async function requestQuiet<T>(method: string, path: string, token?: string, body?: unknown): Promise<APIResponse<T>> {
-  const res = await fetch(`${baseUrl}${path}`, {
+  const res = await apiFetch(`${baseUrl}${path}`, {
     method,
     headers: token ? authHeaders(token) : { 'Content-Type': 'application/json' },
     body: body ? JSON.stringify(body) : undefined,
@@ -87,7 +98,7 @@ async function tryRefreshToken(oldToken: string): Promise<string | null> {
 
   refreshInFlight = (async () => {
     try {
-      const res = await fetch(`${baseUrl}/api/v1/auth/refresh`, {
+      const res = await apiFetch(`${baseUrl}/api/v1/auth/refresh`, {
         method: 'POST',
         headers: authHeaders(oldToken),
       })
