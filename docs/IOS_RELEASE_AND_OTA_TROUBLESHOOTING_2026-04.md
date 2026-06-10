@@ -235,6 +235,15 @@ Current migration facts:
 - iOS submission id: `7353a30e-e453-4b3f-8f2d-126b64dbc133`
 - App Store Connect TestFlight URL: `https://appstoreconnect.apple.com/apps/6760842475/testflight/ios`
 
+The initial `1.6.3` submission was rejected by App Store Connect because version train `1.6.3` was already closed after a previously approved build. The fix was to create App Store version `1.6.4`, bump `CFBundleShortVersionString` through `package.json`, rebuild, and submit the new binary:
+
+- fixed app version: `1.6.4`
+- fixed iOS build id: `e295e6fa-4a47-468e-9b2f-aad631bd446f`
+- fixed build number: `5`
+- fixed IPA: `https://expo.dev/artifacts/eas/tYPT4vK7EWhA47zh3sjeHz.ipa`
+- fixed iOS submission id: `1afce19e-9557-4895-a30f-78fa1bb5cde9`
+- fixed git commit: `40c7c555efcf8fd5bbee1a934156a45757fdb13d`
+
 Credentials verified during migration:
 
 - Distribution Certificate serial: `61976E05266077A8294FF794757BF64D`
