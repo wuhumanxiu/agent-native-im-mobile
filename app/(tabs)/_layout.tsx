@@ -62,6 +62,7 @@ export default function TabLayout() {
   const { t } = useTranslation()
   const colors = useThemeColors()
   const token = useAuthStore((s) => s.token)
+  const entity = useAuthStore((s) => s.entity)
   const sessionChecked = useAuthStore((s) => s.sessionChecked)
   const conversations = useConversationsStore((s) => s.conversations)
   const mutedIds = useConversationsStore((s) => s.mutedIds)
@@ -100,6 +101,10 @@ export default function TabLayout() {
     })
     return () => sub.remove()
   }, [loadInboxSnapshot, markDirty])
+
+  if (sessionChecked && (!token || !entity)) {
+    return null
+  }
 
   return (
     <Tabs

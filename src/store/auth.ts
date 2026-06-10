@@ -35,6 +35,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         }
       }
 
+      if (token && !entity) {
+        storage.delete('aim_token')
+        storage.delete('aim_entity')
+        set({ token: null, entity: null, sessionChecked: true })
+        return
+      }
+
       set({ token, entity, sessionChecked: true })
     } catch {
       const token = storage.getString('aim_token') ?? null
@@ -44,6 +51,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         entity = raw ? JSON.parse(raw) as Entity : null
       } catch {
         entity = null
+      }
+      if (token && !entity) {
+        storage.delete('aim_token')
+        storage.delete('aim_entity')
+        set({ token: null, entity: null, sessionChecked: true })
+        return
       }
       set({ token, entity, sessionChecked: true })
     }
